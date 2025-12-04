@@ -25,5 +25,5 @@ RUN npm run build
 # Expose port
 EXPOSE 4000
 
-# Start the application
-CMD ["sh", "-c", "echo 'Running migrations...' && npx prisma migrate deploy && echo 'Starting server...' && npm start"]
+# Start the application  
+CMD ["sh", "-c", "echo 'Syncing database schema...' && npx prisma db push --skip-generate && echo 'Starting server...' && npm start"]
