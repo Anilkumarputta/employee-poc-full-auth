@@ -25,5 +25,5 @@ RUN npm run build
 # Expose port
 EXPOSE 4000
 
-# Start the application  
-CMD ["sh", "-c", "echo 'Syncing database schema...' && npx prisma db push --skip-generate && echo 'Starting server...' && npm start"]
+# Start the application - use db push to sync schema without migrations
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && npm start"]
