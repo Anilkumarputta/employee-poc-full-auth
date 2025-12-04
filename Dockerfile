@@ -26,4 +26,4 @@ RUN npm run build
 EXPOSE 4000
 
 # Start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "echo 'Running migrations...' && npx prisma migrate deploy && echo 'Starting server...' && npm start"]
