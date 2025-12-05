@@ -30,16 +30,53 @@ model RefreshToken {
 }
 
 model Employee {
-  id         Int      @id @default(autoincrement())
-  name       String
-  age        Int
-  className  String
-  subjects   String[]
-  attendance Int
-  role       String
-  status     String
-  location   String
-  lastLogin  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                Int            @id @default(autoincrement())
+  name              String
+  age               Int
+  className         String
+  subjects          String[]
+  attendance        Int
+  role              String
+  status            String
+  location          String
+  lastLogin         String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  notesReceived     Note[]         @relation("EmployeeNotes")
+  leaveRequests     LeaveRequest[]
+}
+
+model Note {
+  id          Int      @id @default(autoincrement())
+  message     String
+  fromUserId  Int
+  toEmployeeId Int?
+  toAll       Boolean  @default(false)
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee? @relation("EmployeeNotes", fields: [toEmployeeId], references: [id], onDelete: Cascade)
+}
+
+model LeaveRequest {
+  id          Int      @id @default(autoincrement())
+  employeeId  Int
+  reason      String
+  startDate   String
+  endDate     String
+  status      String   @default("pending") // pending, approved, rejected
+  adminNote   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AccessLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  userEmail String
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
 }

@@ -1,26 +1,32 @@
-// frontend/src/lib/graphqlClient.ts
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-export async function graphqlRequest<T>(
+export async function graphqlRequest<T = any>(
   query: string,
   variables: Record<string, any> = {},
-  accessToken?: string | null
+  token?: string
 ): Promise<T> {
-  const res = await fetch(`${API_URL}/graphql`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
-  const json = await res.json();
-
-  if (!res.ok || json.errors) {
-    console.error("GraphQL error:", json.errors || json);
-    throw new Error(json.errors?.[0]?.message || "GraphQL request failed");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
-  return json.data as T;
+  const response = await fetch(`${API_URL}/graphql`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  });
+
+  const json = await response.json();
+
+  if (json.errors) {
+    throw new Error(json.errors[0]?.message || "GraphQL Error");
+  }
+
+  return json.data;
 }
