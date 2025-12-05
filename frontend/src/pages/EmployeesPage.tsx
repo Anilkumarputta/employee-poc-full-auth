@@ -3,6 +3,7 @@ import type { UserRole } from "../App";
 import "./employees.css";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { EmployeeFormModal } from "../components/EmployeeFormModal";
 
 export type Employee = {
   id: number;
@@ -84,6 +85,44 @@ const DELETE_MUTATION = `
   }
 `;
 
+const CREATE_MUTATION = `
+  mutation CreateEmployee($input: CreateEmployeeInput!) {
+    createEmployee(input: $input) {
+      id
+      name
+      age
+      className
+      subjects
+      attendance
+      role
+      status
+      location
+      lastLogin
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const UPDATE_MUTATION = `
+  mutation UpdateEmployee($id: Int!, $input: UpdateEmployeeInput!) {
+    updateEmployee(id: $id, input: $input) {
+      id
+      name
+      age
+      className
+      subjects
+      attendance
+      role
+      status
+      location
+      lastLogin
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 const PAGE_SIZE = 6;
 
 export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => {
@@ -94,6 +133,9 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+
+  const [showModal, setShowModal] = useState(false);
+  const [modalEmployee, setModalEmployee] = useState<Employee | null>(null);
 
   const [sortBy, setSortBy] = useState<
     "NAME" | "AGE" | "ATTENDANCE" | "CREATED_AT"
@@ -195,10 +237,69 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
     setOpenMenuId(null);
   };
 
-  const handleEdit = (emp: Employee) => {
+  const handleViewDetails = (emp: Employee) => {
     setSelected(emp);
     setOpenMenuId(null);
-    // For POC, details will show; you can extend to edit form later.
+  };
+
+  const handleEdit = (emp: Employee) => {
+    setModalEmployee(emp);
+    setShowModal(true);
+    setOpenMenuId(null);
+  };
+
+  const handleAddNew = () => {
+    setModalEmployee(null);
+    setShowModal(true);
+  };
+
+  const handleSaveEmployee = async (data: Partial<Employee>) => {
+    try {
+      if (modalEmployee) {
+        // Update existing
+        await graphqlRequest(
+          UPDATE_MUTATION,
+          {
+            id: modalEmployee.id,
+            input: {
+              name: data.name,
+              age: data.age,
+              className: data.className,
+              subjects: data.subjects,
+              attendance: data.attendance,
+              role: data.role,
+              status: data.status,
+              location: data.location,
+            },
+          },
+          accessToken
+        );
+      } else {
+        // Create new
+        await graphqlRequest(
+          CREATE_MUTATION,
+          {
+            input: {
+              name: data.name,
+              age: data.age,
+              className: data.className,
+              subjects: data.subjects,
+              attendance: data.attendance,
+              role: data.role || "employee",
+              status: data.status || "active",
+              location: data.location,
+              lastLogin: new Date().toISOString(),
+            },
+          },
+          accessToken
+        );
+      }
+      setShowModal(false);
+      setModalEmployee(null);
+      fetchEmployees();
+    } catch (err: any) {
+      alert(err.message || "Failed to save employee");
+    }
   };
 
   const canPrev = page > 1;
@@ -233,7 +334,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
           {currentRole === "admin" && (
             <button
               className="primary-btn"
-              onClick={() => alert("Add Employee form can go here")}
+              onClick={handleAddNew}
             >
               + Add Employee
             </button>
@@ -461,6 +562,17 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
             </div>
           </div>
         </div>
+      )}
+
+      {showModal && (
+        <EmployeeFormModal
+          employee={modalEmployee}
+          onSave={handleSaveEmployee}
+          onCancel={() => {
+            setShowModal(false);
+            setModalEmployee(null);
+          }}
+        />
       )}
     </div>
   );
