@@ -410,11 +410,12 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                 <th>Status</th>
                 <th>Location</th>
                 <th>Last login</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {employees.map((e) => (
-                <tr key={e.id} onClick={() => setSelected(e)}>
+                <tr key={e.id}>
                   <td>{e.id}</td>
                   <td>{e.name}</td>
                   <td>{e.age}</td>
@@ -425,6 +426,46 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                   <td>{e.status}</td>
                   <td>{e.location}</td>
                   <td>{e.lastLogin}</td>
+                  <td>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                      <button
+                        className="employee-menu-btn"
+                        onClick={(evt) => {
+                          evt.stopPropagation();
+                          setOpenMenuId(openMenuId === e.id ? null : e.id);
+                        }}
+                      >
+                        ⋯
+                      </button>
+                      {openMenuId === e.id && (
+                        <div className="employee-menu">
+                          <button onClick={() => handleViewDetails(e)}>
+                            View details
+                          </button>
+                          {currentRole === "admin" && (
+                            <>
+                              <button onClick={() => handleEdit(e)}>Edit</button>
+                              <button onClick={() => handleFlag(e.id)}>
+                                Flag
+                              </button>
+                              <button
+                                className="danger-btn"
+                                onClick={() => handleTerminate(e.id)}
+                              >
+                                Terminate
+                              </button>
+                              <button
+                                className="danger-btn"
+                                onClick={() => handleDelete(e.id)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
