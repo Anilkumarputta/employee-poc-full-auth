@@ -229,12 +229,61 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
     }
   };
 
-  const handleFlag = (id: number) => {
-    // Only UI flag for now (not persisted); that's fine for demo
-    setEmployees((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: "flagged" } : e))
-    );
-    setOpenMenuId(null);
+  const handleFlag = async (emp: Employee) => {
+    if (currentRole !== "admin" || !accessToken) return;
+    const newStatus = emp.status === "flagged" ? "active" : "flagged";
+    try {
+      await graphqlRequest(
+        UPDATE_MUTATION,
+        {
+          id: emp.id,
+          input: {
+            name: emp.name,
+            age: emp.age,
+            className: emp.className,
+            subjects: emp.subjects,
+            attendance: emp.attendance,
+            role: emp.role,
+            status: newStatus,
+            location: emp.location,
+            lastLogin: emp.lastLogin,
+          },
+        },
+        accessToken
+      );
+      fetchEmployees();
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUnterminate = async (emp: Employee) => {
+    if (currentRole !== "admin" || !accessToken) return;
+    try {
+      await graphqlRequest(
+        UPDATE_MUTATION,
+        {
+          id: emp.id,
+          input: {
+            name: emp.name,
+            age: emp.age,
+            className: emp.className,
+            subjects: emp.subjects,
+            attendance: emp.attendance,
+            role: emp.role,
+            status: "active",
+            location: emp.location,
+            lastLogin: emp.lastLogin,
+          },
+        },
+        accessToken
+      );
+      fetchEmployees();
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleViewDetails = (emp: Employee) => {
@@ -446,15 +495,21 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                           {currentRole === "admin" && (
                             <>
                               <button onClick={() => handleEdit(e)}>Edit</button>
-                              <button onClick={() => handleFlag(e.id)}>
-                                Flag
+                              <button onClick={() => handleFlag(e)}>
+                                {e.status === "flagged" ? "Unflag" : "Flag"}
                               </button>
-                              <button
-                                className="danger-btn"
-                                onClick={() => handleTerminate(e.id)}
-                              >
-                                Terminate
-                              </button>
+                              {e.status === "terminated" ? (
+                                <button onClick={() => handleUnterminate(e)}>
+                                  Unterminate
+                                </button>
+                              ) : (
+                                <button
+                                  className="danger-btn"
+                                  onClick={() => handleTerminate(e.id)}
+                                >
+                                  Terminate
+                                </button>
+                              )}
                               <button
                                 className="danger-btn"
                                 onClick={() => handleDelete(e.id)}
@@ -509,13 +564,21 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                       <button onClick={() => setSelected(e)}>
                         View details
                       </button>
-                      <button onClick={() => handleFlag(e.id)}>Flag</button>
                       {currentRole === "admin" && (
                         <>
                           <button onClick={() => handleEdit(e)}>Edit</button>
-                          <button onClick={() => handleTerminate(e.id)}>
-                            Terminate
+                          <button onClick={() => handleFlag(e)}>
+                            {e.status === "flagged" ? "Unflag" : "Flag"}
                           </button>
+                          {e.status === "terminated" ? (
+                            <button onClick={() => handleUnterminate(e)}>
+                              Unterminate
+                            </button>
+                          ) : (
+                            <button onClick={() => handleTerminate(e.id)}>
+                              Terminate
+                            </button>
+                          )}
                           <button
                             className="danger"
                             onClick={() => handleDelete(e.id)}
