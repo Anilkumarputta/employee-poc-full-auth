@@ -166,6 +166,8 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
       if (statusFilter) {
         filter.status = statusFilter;
       }
+      // Exclude admin users from the list
+      filter.roleNot = "admin";
 
       const data = await graphqlRequest<EmployeesResponse>(
         EMPLOYEES_QUERY,
@@ -361,7 +363,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
         <div>
           <h1>Employees</h1>
           <p className="employees-subtitle">
-            Real data powered by GraphQL with pagination, sorting and role-based actions.
+            Welcome to the Employee Management Page
           </p>
         </div>
 

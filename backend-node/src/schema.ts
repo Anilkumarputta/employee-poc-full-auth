@@ -39,6 +39,7 @@ export const typeDefs = gql`
     nameContains: String
     className: String
     status: String
+    roleNot: String
   }
 
   type Query {

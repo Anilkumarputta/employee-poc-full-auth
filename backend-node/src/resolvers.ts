@@ -41,6 +41,9 @@ export const resolvers = {
       if (filter?.status) {
         where.status = filter.status;
       }
+      if (filter?.roleNot) {
+        where.role = { not: filter.roleNot };
+      }
 
       const orderBy: any = {};
       if (sortBy === "NAME") orderBy.name = sortOrder.toLowerCase();
