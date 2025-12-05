@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@apollo/client";
+import { GET_EMPLOYEES, CREATE_EMPLOYEE, UPDATE_EMPLOYEE, DELETE_EMPLOYEE } from "../graphql/queries";
+import { EmployeeFormModal } from "../components/EmployeeFormModal";
 import type { UserRole } from "../App";
 import "./employees.css";
 
@@ -54,35 +57,102 @@ type Props = {
 
 export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
   const [view, setView] = useState<"grid" | "tiles">("grid");
-  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  
+  const { data, loading, error, refetch } = useQuery(GET_EMPLOYEES);
+  const [createEmployee] = useMutation(CREATE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
+  const [updateEmployee] = useMutation(UPDATE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
+  const [deleteEmployee] = useMutation(DELETE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
+  
+  const employees = data?.employees || [];
 
-  const handleTerminate = (id: number) => {
+  const handleTerminate = async (id: number) => {
     if (currentRole !== "admin") return;
-    setEmployees((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: "terminated" } : e))
-    );
-    setOpenMenuId(null);
+    try {
+      await updateEmployee({ variables: { id, input: { status: "terminated" } } });
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error("Error terminating employee:", err);
+    }
   };
 
-  const handleFlag = (id: number) => {
-    setEmployees((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: "flagged" } : e))
-    );
-    setOpenMenuId(null);
+  const handleFlag = async (id: number) => {
+    try {
+      await updateEmployee({ variables: { id, input: { status: "flagged" } } });
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error("Error flagging employee:", err);
+    }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (currentRole !== "admin") return;
-    setEmployees((prev) => prev.filter((e) => e.id !== id));
-    setOpenMenuId(null);
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+    try {
+      await deleteEmployee({ variables: { id } });
+      setOpenMenuId(null);
+      setSelected(null);
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+    }
   };
 
   const handleEdit = (emp: Employee) => {
-    setSelected(emp);
+    setEditingEmployee(emp);
     setOpenMenuId(null);
   };
+  
+  const handleAdd = () => {
+    setShowAddModal(true);
+  };
+
+  const handleSaveEmployee = async (formData: Partial<Employee>, isEdit: boolean) => {
+    try {
+      if (isEdit && editingEmployee) {
+        await updateEmployee({
+          variables: {
+            id: editingEmployee.id,
+            input: {
+              name: formData.name,
+              age: formData.age,
+              className: formData.className,
+              subjects: formData.subjects,
+              attendance: formData.attendance,
+              role: formData.role,
+              status: formData.status,
+              location: formData.location,
+            }
+          }
+        });
+        setEditingEmployee(null);
+      } else {
+        await createEmployee({
+          variables: {
+            input: {
+              name: formData.name!,
+              age: formData.age!,
+              className: formData.className!,
+              subjects: formData.subjects!,
+              attendance: formData.attendance!,
+              role: formData.role!,
+              status: formData.status || "active",
+              location: formData.location!,
+            }
+          }
+        });
+        setShowAddModal(false);
+      }
+    } catch (err) {
+      console.error("Error saving employee:", err);
+      alert("Failed to save employee");
+    }
+  };
+
+  if (loading) return <div className="employees-page"><p>Loading employees...</p></div>;
+  if (error) return <div className="employees-page"><p>Error loading employees: {error.message}</p></div>;
 
   return (
     <div className="employees-page">
@@ -111,7 +181,7 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
           </div>
 
           {currentRole === "admin" && (
-            <button className="primary-btn">+ Add Employee</button>
+            <button className="primary-btn" onClick={handleAdd}>+ Add Employee</button>
           )}
         </div>
       </div>
@@ -259,6 +329,21 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {showAddModal && (
+        <EmployeeFormModal
+          onSave={(data) => handleSaveEmployee(data, false)}
+          onCancel={() => setShowAddModal(false)}
+        />
+      )}
+
+      {editingEmployee && (
+        <EmployeeFormModal
+          employee={editingEmployee}
+          onSave={(data) => handleSaveEmployee(data, true)}
+          onCancel={() => setEditingEmployee(null)}
+        />
       )}
     </div>
   );

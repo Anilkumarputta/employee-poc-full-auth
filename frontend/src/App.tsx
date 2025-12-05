@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { ApolloProvider } from "@apollo/client";
+import { apolloClient } from "./apolloClient";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { Topbar } from "./components/layout/Topbar";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -31,19 +33,26 @@ const App: React.FC = () => {
   }) => {
     setAuth(data);
     if (data.user && data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken || '');
       setView("app");
     } else {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       setView("login");
     }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     setAuth({ user: null, accessToken: null, refreshToken: null });
     setView("login");
   };
 
   return (
-    <AuthContext.Provider
+    <ApolloProvider client={apolloClient}>
+      <AuthContext.Provider
       value={{
         user: auth.user,
         accessToken: auth.accessToken,
@@ -80,7 +89,8 @@ const App: React.FC = () => {
           </main>
         </div>
       )}
-    </AuthContext.Provider>
+      </AuthContext.Provider>
+    </ApolloProvider>
   );
 };
 
