@@ -35,9 +35,11 @@ const EMPLOYEES_QUERY = `
 `;
 
 export const ReportsPage: React.FC = () => {
-  const { accessToken } = useContext(AuthContext);
+  const { accessToken, user } = useContext(AuthContext);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     fetchEmployees();
@@ -153,10 +155,30 @@ export const ReportsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  if (!isAdmin) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <h1>Reports</h1>
+        <div style={{ marginTop: "2rem", padding: "2rem", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px" }}>
+          <h2 style={{ margin: "0 0 1rem 0", color: "#991b1b" }}>Access Denied</h2>
+          <p style={{ color: "#7f1d1d", margin: 0 }}>
+            Only administrators have permission to generate and download reports. 
+            Please contact your system administrator if you need access to report data.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: "2rem" }}>
       <h1>Reports</h1>
       <p>Generate and download various reports about employees.</p>
+      <div style={{ marginTop: "1rem", padding: "0.75rem", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: "6px" }}>
+        <p style={{ margin: 0, color: "#1e40af", fontSize: "0.875rem" }}>
+          ⚠️ <strong>Admin Only:</strong> These reports contain sensitive employee data. Handle with care.
+        </p>
+      </div>
 
       <div style={{ marginTop: "2rem", display: "grid", gap: "1rem" }}>
         <div style={{ padding: "1.5rem", background: "white", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
