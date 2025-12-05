@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ApolloProvider } from "@apollo/client";
+import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "./apolloClient";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { Topbar } from "./components/layout/Topbar";
