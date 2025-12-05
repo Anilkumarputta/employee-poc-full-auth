@@ -140,7 +140,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   const [sortBy, setSortBy] = useState<
     "NAME" | "AGE" | "ATTENDANCE" | "CREATED_AT"
   >("CREATED_AT");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "flagged" | "terminated">("");
