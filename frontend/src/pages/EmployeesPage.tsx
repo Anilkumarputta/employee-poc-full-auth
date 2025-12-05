@@ -86,8 +86,8 @@ const DELETE_MUTATION = `
 `;
 
 const CREATE_MUTATION = `
-  mutation CreateEmployee($input: CreateEmployeeInput!) {
-    createEmployee(input: $input) {
+  mutation AddEmployee($input: EmployeeInput!) {
+    addEmployee(input: $input) {
       id
       name
       age
@@ -105,7 +105,7 @@ const CREATE_MUTATION = `
 `;
 
 const UPDATE_MUTATION = `
-  mutation UpdateEmployee($id: Int!, $input: UpdateEmployeeInput!) {
+  mutation UpdateEmployee($id: Int!, $input: EmployeeInput!) {
     updateEmployee(id: $id, input: $input) {
       id
       name
