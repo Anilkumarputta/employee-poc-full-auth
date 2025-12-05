@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
+import { AuthContext } from "../../auth/authContext";
 
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "admins" | "accessLogs";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests";
 
 type SidebarProps = {
   open: boolean;
@@ -9,6 +10,9 @@ type SidebarProps = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate }) => {
+  const { user } = useContext(AuthContext);
+  const isAdmin = user?.role === "admin";
+
   return (
     <aside className={open ? "sidebar sidebar-open" : "sidebar"}>
       <div className="sidebar-section">
@@ -40,20 +44,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
       </div>
 
       <div className="sidebar-section">
-        <div className="sidebar-title">Admins</div>
+        <div className="sidebar-title">Actions</div>
+        {isAdmin && (
+          <button 
+            className={currentPage === "sendNote" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
+            onClick={() => onNavigate("sendNote")}
+          >
+            📨 Send Note
+          </button>
+        )}
         <button 
-          className={currentPage === "admins" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
-          onClick={() => onNavigate("admins")}
+          className={currentPage === "leaveRequests" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
+          onClick={() => onNavigate("leaveRequests")}
         >
-          Admins list
-        </button>
-        <button 
-          className={currentPage === "accessLogs" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
-          onClick={() => onNavigate("accessLogs")}
-        >
-          Access logs
+          📅 Leave Requests
         </button>
       </div>
+
+      {isAdmin && (
+        <div className="sidebar-section">
+          <div className="sidebar-title">Administration</div>
+          <button 
+            className={currentPage === "admins" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
+            onClick={() => onNavigate("admins")}
+          >
+            Admins list
+          </button>
+          <button 
+            className={currentPage === "accessLogs" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
+            onClick={() => onNavigate("accessLogs")}
+          >
+            Access logs
+          </button>
+        </div>
+      )}
 
       <div className="sidebar-section">
         <div className="sidebar-title">Settings</div>
@@ -62,6 +86,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
           onClick={() => onNavigate("profile")}
         >
           Profile
+        </button>
+        <button 
+          className={currentPage === "settings" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
+          onClick={() => onNavigate("settings")}
+        >
+          ⚙️ Account Settings
         </button>
         <button 
           className={currentPage === "preferences" ? "sidebar-item sidebar-item-active" : "sidebar-item"}

@@ -7,8 +7,11 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PreferencesPage } from "./pages/PreferencesPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { AdminsPage } from "./pages/AdminsPage";
 import { AccessLogsPage } from "./pages/AccessLogsPage";
+import { SendNotePage } from "./pages/SendNotePage";
+import { LeaveRequestsPage } from "./pages/LeaveRequestsPage";
 import { Topbar } from "./components/layout/Topbar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { LoginPage } from "./auth/LoginPage";
@@ -19,7 +22,7 @@ import { AuthContext, AuthUser } from "./auth/authContext";
 export type UserRole = "admin" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "admins" | "accessLogs";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -107,8 +110,11 @@ const App: React.FC = () => {
             {currentPage === "reports" && <ReportsPage />}
             {currentPage === "profile" && <ProfilePage />}
             {currentPage === "preferences" && <PreferencesPage />}
+            {currentPage === "settings" && <SettingsPage />}
             {currentPage === "admins" && <AdminsPage />}
             {currentPage === "accessLogs" && <AccessLogsPage />}
+            {currentPage === "sendNote" && <SendNotePage />}
+            {currentPage === "leaveRequests" && <LeaveRequestsPage />}
           </main>
         </div>
       )}
