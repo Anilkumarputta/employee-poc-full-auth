@@ -270,6 +270,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
               role: data.role,
               status: data.status,
               location: data.location,
+              lastLogin: modalEmployee.lastLogin, // Preserve existing lastLogin
             },
           },
           accessToken
