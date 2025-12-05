@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@apollo/client";
-import { GET_EMPLOYEES, CREATE_EMPLOYEE, UPDATE_EMPLOYEE, DELETE_EMPLOYEE } from "../graphql/queries";
-import { EmployeeFormModal } from "../components/EmployeeFormModal";
+import React, { useContext, useEffect, useState } from "react";
 import type { UserRole } from "../App";
 import "./employees.css";
+import { AuthContext } from "../auth/authContext";
+import { graphqlRequest } from "../lib/graphqlClient";
 
 export type Employee = {
   id: number;
@@ -20,139 +19,190 @@ export type Employee = {
   updatedAt: string;
 };
 
-const MOCK_EMPLOYEES: Employee[] = [
-  {
-    id: 1,
-    name: "John Doe",
-    age: 29,
-    className: "Class A",
-    subjects: ["Math", "Physics"],
-    attendance: 95,
-    role: "employee",
-    status: "active",
-    location: "New York",
-    lastLogin: "2024-11-30 09:12",
-    createdAt: "2024-01-10",
-    updatedAt: "2024-02-03",
-  },
-  {
-    id: 2,
-    name: "Mary Johnson",
-    age: 31,
-    className: "Class B",
-    subjects: ["Chemistry", "Biology"],
-    attendance: 88,
-    role: "employee",
-    status: "active",
-    location: "Austin",
-    lastLogin: "2024-11-29 17:45",
-    createdAt: "2024-01-11",
-    updatedAt: "2024-02-01",
-  },
-];
-
-type Props = {
+type EmployeesPageProps = {
   currentRole: UserRole;
 };
 
-export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
+type EmployeesResponse = {
+  employees: {
+    items: Employee[];
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+const EMPLOYEES_QUERY = `
+  query Employees(
+    $filter: EmployeeFilter
+    $page: Int
+    $pageSize: Int
+    $sortBy: EmployeeSortBy
+    $sortOrder: SortOrder
+  ) {
+    employees(
+      filter: $filter
+      page: $page
+      pageSize: $pageSize
+      sortBy: $sortBy
+      sortOrder: $sortOrder
+    ) {
+      items {
+        id
+        name
+        age
+        className
+        subjects
+        attendance
+        role
+        status
+        location
+        lastLogin
+        createdAt
+        updatedAt
+      }
+      total
+      page
+      pageSize
+    }
+  }
+`;
+
+const TERMINATE_MUTATION = `
+  mutation TerminateEmployee($id: Int!) {
+    terminateEmployee(id: $id) {
+      id
+      status
+      updatedAt
+    }
+  }
+`;
+
+const DELETE_MUTATION = `
+  mutation DeleteEmployee($id: Int!) {
+    deleteEmployee(id: $id)
+  }
+`;
+
+const PAGE_SIZE = 6;
+
+export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => {
+  const { accessToken } = useContext(AuthContext);
+
   const [view, setView] = useState<"grid" | "tiles">("grid");
+
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+
+  const [sortBy, setSortBy] = useState<
+    "NAME" | "AGE" | "ATTENDANCE" | "CREATED_AT"
+  >("CREATED_AT");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "flagged" | "terminated">("");
+
   const [selected, setSelected] = useState<Employee | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  
-  const { data, loading, error, refetch } = useQuery(GET_EMPLOYEES);
-  const [createEmployee] = useMutation(CREATE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
-  const [updateEmployee] = useMutation(UPDATE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
-  const [deleteEmployee] = useMutation(DELETE_EMPLOYEE, { refetchQueries: [{ query: GET_EMPLOYEES }] });
-  
-  const employees = data?.employees || [];
 
-  const handleTerminate = async (id: number) => {
-    if (currentRole !== "admin") return;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const fetchEmployees = async () => {
+    if (!accessToken) return;
+
+    setLoading(true);
+    setError(null);
     try {
-      await updateEmployee({ variables: { id, input: { status: "terminated" } } });
-      setOpenMenuId(null);
-    } catch (err) {
-      console.error("Error terminating employee:", err);
+      const filter: any = {};
+      if (search.trim()) {
+        filter.nameContains = search.trim();
+      }
+      if (statusFilter) {
+        filter.status = statusFilter;
+      }
+
+      const data = await graphqlRequest<EmployeesResponse>(
+        EMPLOYEES_QUERY,
+        {
+          filter: Object.keys(filter).length ? filter : undefined,
+          page,
+          pageSize: PAGE_SIZE,
+          sortBy,
+          sortOrder,
+        },
+        accessToken
+      );
+
+      setEmployees(data.employees.items);
+      setTotal(data.employees.total);
+    } catch (err: any) {
+      setError(err.message || "Failed to load employees.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFlag = async (id: number) => {
+  useEffect(() => {
+    fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, sortBy, sortOrder, search, statusFilter, accessToken]);
+
+  const handleTerminate = async (id: number) => {
+    if (currentRole !== "admin" || !accessToken) return;
     try {
-      await updateEmployee({ variables: { id, input: { status: "flagged" } } });
+      await graphqlRequest(
+        TERMINATE_MUTATION,
+        { id },
+        accessToken
+      );
+      fetchEmployees();
       setOpenMenuId(null);
     } catch (err) {
-      console.error("Error flagging employee:", err);
+      console.error(err);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (currentRole !== "admin") return;
-    if (!confirm("Are you sure you want to delete this employee?")) return;
+    if (currentRole !== "admin" || !accessToken) return;
+    if (!window.confirm("Delete this employee permanently?")) return;
     try {
-      await deleteEmployee({ variables: { id } });
+      await graphqlRequest(
+        DELETE_MUTATION,
+        { id },
+        accessToken
+      );
+      // If last item on page deleted, move to previous page if needed
+      if (employees.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        fetchEmployees();
+      }
       setOpenMenuId(null);
-      setSelected(null);
     } catch (err) {
-      console.error("Error deleting employee:", err);
+      console.error(err);
     }
+  };
+
+  const handleFlag = (id: number) => {
+    // Only UI flag for now (not persisted); that's fine for demo
+    setEmployees((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status: "flagged" } : e))
+    );
+    setOpenMenuId(null);
   };
 
   const handleEdit = (emp: Employee) => {
-    setEditingEmployee(emp);
+    setSelected(emp);
     setOpenMenuId(null);
-  };
-  
-  const handleAdd = () => {
-    setShowAddModal(true);
+    // For POC, details will show; you can extend to edit form later.
   };
 
-  const handleSaveEmployee = async (formData: Partial<Employee>, isEdit: boolean) => {
-    try {
-      if (isEdit && editingEmployee) {
-        await updateEmployee({
-          variables: {
-            id: editingEmployee.id,
-            input: {
-              name: formData.name,
-              age: formData.age,
-              className: formData.className,
-              subjects: formData.subjects,
-              attendance: formData.attendance,
-              role: formData.role,
-              status: formData.status,
-              location: formData.location,
-            }
-          }
-        });
-        setEditingEmployee(null);
-      } else {
-        await createEmployee({
-          variables: {
-            input: {
-              name: formData.name!,
-              age: formData.age!,
-              className: formData.className!,
-              subjects: formData.subjects!,
-              attendance: formData.attendance!,
-              role: formData.role!,
-              status: formData.status || "active",
-              location: formData.location!,
-            }
-          }
-        });
-        setShowAddModal(false);
-      }
-    } catch (err) {
-      console.error("Error saving employee:", err);
-      alert("Failed to save employee");
-    }
-  };
-
-  if (loading) return <div className="employees-page"><p>Loading employees...</p></div>;
-  if (error) return <div className="employees-page"><p>Error loading employees: {error.message}</p></div>;
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
 
   return (
     <div className="employees-page">
@@ -160,7 +210,7 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
         <div>
           <h1>Employees</h1>
           <p className="employees-subtitle">
-            Grid view, tile view, admin-only actions, and details popup.
+            Real data powered by GraphQL with pagination, sorting and role-based actions.
           </p>
         </div>
 
@@ -181,10 +231,68 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
           </div>
 
           {currentRole === "admin" && (
-            <button className="primary-btn" onClick={handleAdd}>+ Add Employee</button>
+            <button
+              className="primary-btn"
+              onClick={() => alert("Add Employee form can go here")}
+            >
+              + Add Employee
+            </button>
           )}
         </div>
       </div>
+
+      {/* Filters row */}
+      <div className="employees-filters-row">
+        <input
+          type="text"
+          placeholder="Search by name..."
+          value={search}
+          onChange={(e) => {
+            setPage(1);
+            setSearch(e.target.value);
+          }}
+        />
+
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setPage(1);
+            setStatusFilter(e.target.value as any);
+          }}
+        >
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="flagged">Flagged</option>
+          <option value="terminated">Terminated</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) =>
+            setSortBy(e.target.value as "NAME" | "AGE" | "ATTENDANCE" | "CREATED_AT")
+          }
+        >
+          <option value="CREATED_AT">Sort by created</option>
+          <option value="NAME">Sort by name</option>
+          <option value="AGE">Sort by age</option>
+          <option value="ATTENDANCE">Sort by attendance</option>
+        </select>
+
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as "ASC" | "DESC")}
+        >
+          <option value="DESC">Desc</option>
+          <option value="ASC">Asc</option>
+        </select>
+      </div>
+
+      {loading && <div>Loading employees...</div>}
+      {error && <div style={{ color: "red", marginBottom: 8 }}>{error}</div>}
+
+      {!loading && employees.length === 0 && (
+        <div>No employees found. Try changing filters or add some seed data.</div>
+      )}
 
       {view === "grid" ? (
         <div className="employees-table-wrapper">
@@ -288,6 +396,27 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
         </div>
       )}
 
+      {/* Pagination footer */}
+      <div className="employees-pagination">
+        <span>
+          Page {page} of {totalPages} · Total {total}
+        </span>
+        <div className="employees-pagination-buttons">
+          <button
+            disabled={!canPrev}
+            onClick={() => canPrev && setPage((p) => p - 1)}
+          >
+            Prev
+          </button>
+          <button
+            disabled={!canNext}
+            onClick={() => canNext && setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
       {selected && (
         <div
           className="employee-modal-backdrop"
@@ -309,11 +438,14 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
                 <strong>Age:</strong> {selected.age}
               </p>
               <p>
-                <strong>Class:</strong> {selected.className}</p>
+                <strong>Class:</strong> {selected.className}
+              </p>
               <p>
-                <strong>Subjects:</strong> {selected.subjects.join(", ")}</p>
+                <strong>Subjects:</strong> {selected.subjects.join(", ")}
+              </p>
               <p>
-                <strong>Attendance:</strong> {selected.attendance}%</p>
+                <strong>Attendance:</strong> {selected.attendance}%
+              </p>
               <p>
                 <strong>Role:</strong> {selected.role}</p>
               <p>
@@ -329,21 +461,6 @@ export const EmployeesPage: React.FC<Props> = ({ currentRole }) => {
             </div>
           </div>
         </div>
-      )}
-
-      {showAddModal && (
-        <EmployeeFormModal
-          onSave={(data) => handleSaveEmployee(data, false)}
-          onCancel={() => setShowAddModal(false)}
-        />
-      )}
-
-      {editingEmployee && (
-        <EmployeeFormModal
-          employee={editingEmployee}
-          onSave={(data) => handleSaveEmployee(data, true)}
-          onCancel={() => setEditingEmployee(null)}
-        />
       )}
     </div>
   );
