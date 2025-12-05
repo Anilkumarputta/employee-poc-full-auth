@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "./apolloClient";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { PreferencesPage } from "./pages/PreferencesPage";
+import { AdminsPage } from "./pages/AdminsPage";
+import { AccessLogsPage } from "./pages/AccessLogsPage";
 import { Topbar } from "./components/layout/Topbar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { LoginPage } from "./auth/LoginPage";
@@ -12,6 +19,7 @@ import { AuthContext, AuthUser } from "./auth/authContext";
 export type UserRole = "admin" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "admins" | "accessLogs";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -25,6 +33,7 @@ const App: React.FC = () => {
     refreshToken: null,
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState<AppPage>("employees");
 
   const handleAuthChange = (data: {
     user: AuthUser | null;
@@ -83,9 +92,23 @@ const App: React.FC = () => {
             currentRole={auth.user.role}
             onLogout={handleLogout}
           />
-          <Sidebar open={sidebarOpen} />
+          <Sidebar 
+            open={sidebarOpen} 
+            currentPage={currentPage}
+            onNavigate={(page) => {
+              setCurrentPage(page);
+              setSidebarOpen(false);
+            }}
+          />
           <main className="app-main">
-            <EmployeesPage currentRole={auth.user.role} />
+            {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
+            {currentPage === "dashboard" && <DashboardPage />}
+            {currentPage === "notifications" && <NotificationsPage />}
+            {currentPage === "reports" && <ReportsPage />}
+            {currentPage === "profile" && <ProfilePage />}
+            {currentPage === "preferences" && <PreferencesPage />}
+            {currentPage === "admins" && <AdminsPage />}
+            {currentPage === "accessLogs" && <AccessLogsPage />}
           </main>
         </div>
       )}
