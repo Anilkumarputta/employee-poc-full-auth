@@ -19,7 +19,7 @@ import { RegisterPage } from "./auth/RegisterPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
 import { AuthContext, AuthUser } from "./auth/authContext";
 
-export type UserRole = "admin" | "employee";
+export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
 type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests";

@@ -11,7 +11,7 @@ model User {
   id            Int             @id @default(autoincrement())
   email         String          @unique
   passwordHash  String
-  role          String          @default("employee")
+  role          String          @default("employee") // "director", "manager", "employee"
   provider      String?         // "local" or "google"
   providerId    String?         // e.g., google sub
   createdAt     DateTime        @default(now())
@@ -36,7 +36,7 @@ model Employee {
   className         String
   subjects          String[]
   attendance        Int
-  role              String
+  role              String         // "director", "manager", "employee"
   status            String
   location          String
   lastLogin         String

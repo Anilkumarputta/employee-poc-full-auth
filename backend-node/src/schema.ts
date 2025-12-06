@@ -143,6 +143,7 @@ export const typeDefs = gql`
     accessLogs(page: Int = 1, pageSize: Int = 50): [AccessLog!]!
     
     adminUsers: [User!]!
+    allUsers: [User!]!
     me: User
   }
 
@@ -150,6 +151,7 @@ export const typeDefs = gql`
     addEmployee(input: EmployeeInput!): Employee!
     updateEmployee(id: Int!, input: EmployeeInput!): Employee!
     deleteEmployee(id: Int!): Boolean!
+    deleteUser(id: Int!): Boolean!
     terminateEmployee(id: Int!): Employee!
     
     sendNote(input: NoteInput!): Note!

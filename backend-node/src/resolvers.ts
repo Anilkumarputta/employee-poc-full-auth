@@ -11,10 +11,24 @@ function requireAuth(ctx: Context) {
   }
 }
 
+function requireDirector(ctx: Context) {
+  requireAuth(ctx);
+  if (ctx.user!.role !== "director") {
+    throw new Error("Director only - highest level access required");
+  }
+}
+
+function requireManagerOrAbove(ctx: Context) {
+  requireAuth(ctx);
+  if (!["director", "manager"].includes(ctx.user!.role)) {
+    throw new Error("Manager or Director access required");
+  }
+}
+
 function requireAdmin(ctx: Context) {
   requireAuth(ctx);
-  if (ctx.user!.role !== "admin") {
-    throw new Error("Admin only");
+  if (!["director", "manager", "admin"].includes(ctx.user!.role)) {
+    throw new Error("Admin access required");
   }
 }
 
@@ -137,9 +151,20 @@ export const resolvers = {
     },
 
     adminUsers: async (_: any, __: any, ctx: Context) => {
-      requireAdmin(ctx);
+      requireManagerOrAbove(ctx);
+      // Directors see all users, Managers see only managers and employees
+      const where: any = ctx.user!.role === "manager" 
+        ? { role: { in: ["manager", "employee"] } }
+        : {}; // Directors see everyone including other directors
       return ctx.prisma.user.findMany({
-        where: { role: "admin" },
+        where,
+        orderBy: { createdAt: "desc" }
+      });
+    },
+    
+    allUsers: async (_: any, __: any, ctx: Context) => {
+      requireDirector(ctx);
+      return ctx.prisma.user.findMany({
         orderBy: { createdAt: "desc" }
       });
     },
@@ -175,8 +200,16 @@ export const resolvers = {
     },
 
     deleteEmployee: async (_: any, { id }: any, ctx: Context) => {
-      requireAdmin(ctx);
+      // Only Director can delete employees
+      requireDirector(ctx);
       await ctx.prisma.employee.delete({ where: { id } });
+      return true;
+    },
+    
+    deleteUser: async (_: any, { id }: any, ctx: Context) => {
+      // Only Director can delete users (admins, managers, employees)
+      requireDirector(ctx);
+      await ctx.prisma.user.delete({ where: { id } });
       return true;
     },
 

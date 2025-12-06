@@ -11,41 +11,50 @@ type SidebarProps = {
 
 export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate }) => {
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === "admin";
+  const isDirector = user?.role === "director";
+  const isManager = user?.role === "manager";
+  const isManagerOrAbove = isDirector || isManager;
+  const isEmployee = user?.role === "employee";
 
   return (
     <aside className={open ? "sidebar sidebar-open" : "sidebar"}>
       <div className="sidebar-section">
-        <div className="sidebar-title">Main</div>
+        <div className="sidebar-title">
+          {isDirector && "🏢 Director Portal"}
+          {isManager && "👔 Manager Portal"}
+          {isEmployee && "👤 Employee Portal"}
+        </div>
         <button 
           className={currentPage === "employees" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
           onClick={() => onNavigate("employees")}
         >
-          Employees
+          {isManagerOrAbove ? "👥 Manage Employees" : "👥 Employees"}
         </button>
         <button 
           className={currentPage === "dashboard" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
           onClick={() => onNavigate("dashboard")}
         >
-          Dashboard
+          📊 Dashboard
         </button>
         <button 
           className={currentPage === "notifications" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
           onClick={() => onNavigate("notifications")}
         >
-          Notifications
+          🔔 Notifications
         </button>
-        <button 
-          className={currentPage === "reports" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
-          onClick={() => onNavigate("reports")}
-        >
-          Reports
-        </button>
+        {isManagerOrAbove && (
+          <button 
+            className={currentPage === "reports" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
+            onClick={() => onNavigate("reports")}
+          >
+            📄 Reports
+          </button>
+        )}
       </div>
 
       <div className="sidebar-section">
         <div className="sidebar-title">Actions</div>
-        {isAdmin && (
+        {isManagerOrAbove && (
           <button 
             className={currentPage === "sendNote" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
             onClick={() => onNavigate("sendNote")}
@@ -61,21 +70,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
         </button>
       </div>
 
-      {isAdmin && (
+      {isManagerOrAbove && (
         <div className="sidebar-section">
-          <div className="sidebar-title">Administration</div>
+          <div className="sidebar-title">
+            {isDirector ? "🔐 System Administration" : "📋 Management"}
+          </div>
           <button 
             className={currentPage === "admins" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
             onClick={() => onNavigate("admins")}
           >
-            Admins list
+            {isDirector ? "👑 All Users & Admins" : "👤 Users List"}
           </button>
-          <button 
-            className={currentPage === "accessLogs" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
-            onClick={() => onNavigate("accessLogs")}
-          >
-            Access logs
-          </button>
+          {isManagerOrAbove && (
+            <button 
+              className={currentPage === "accessLogs" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
+              onClick={() => onNavigate("accessLogs")}
+            >
+              📝 Access Logs
+            </button>
+          )}
         </div>
       )}
 

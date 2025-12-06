@@ -39,7 +39,7 @@ export const ReportsPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const isAdmin = user?.role === "admin";
+  const isManagerOrAbove = user?.role === "director" || user?.role === "manager";
 
   useEffect(() => {
     fetchEmployees();
@@ -155,15 +155,15 @@ export const ReportsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  if (!isAdmin) {
+  if (!isManagerOrAbove) {
     return (
       <div style={{ padding: "2rem" }}>
         <h1>Reports</h1>
         <div style={{ marginTop: "2rem", padding: "2rem", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px" }}>
           <h2 style={{ margin: "0 0 1rem 0", color: "#991b1b" }}>Access Denied</h2>
           <p style={{ color: "#7f1d1d", margin: 0 }}>
-            Only administrators have permission to generate and download reports. 
-            Please contact your system administrator if you need access to report data.
+            Only Managers and Directors have permission to generate and download reports. 
+            Please contact your manager or system administrator if you need access to report data.
           </p>
         </div>
       </div>
