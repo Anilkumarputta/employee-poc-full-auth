@@ -388,7 +388,7 @@ export const resolvers = {
             const newUser = await ctx.prisma.user.create({
               data: {
                 email: generatedEmail,
-                password: hashedPassword,
+                passwordHash: hashedPassword,
                 role: "employee"
               }
             });
