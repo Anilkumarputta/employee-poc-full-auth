@@ -16,6 +16,8 @@ export const typeDefs = gql`
   type Employee {
     id: Int!
     name: String!
+    email: String
+    userId: Int
     age: Int!
     className: String!
     subjects: [String!]!
@@ -52,10 +54,13 @@ export const typeDefs = gql`
     ): EmployeesPage!
 
     employee(id: Int!): Employee
+    myProfile: Employee
   }
 
   input EmployeeInput {
     name: String!
+    email: String
+    userId: Int
     age: Int!
     className: String!
     subjects: [String!]!
@@ -147,9 +152,17 @@ export const typeDefs = gql`
     me: User
   }
 
+  input ProfileUpdateInput {
+    name: String
+    email: String
+    age: Int
+    location: String
+  }
+
   type Mutation {
     addEmployee(input: EmployeeInput!): Employee!
     updateEmployee(id: Int!, input: EmployeeInput!): Employee!
+    updateMyProfile(input: ProfileUpdateInput!): Employee!
     deleteEmployee(id: Int!): Boolean!
     deleteUser(id: Int!): Boolean!
     terminateEmployee(id: Int!): Employee!

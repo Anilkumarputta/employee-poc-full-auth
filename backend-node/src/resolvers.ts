@@ -89,6 +89,46 @@ export const resolvers = {
       return ctx.prisma.employee.findUnique({ where: { id } });
     },
 
+    myProfile: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.user!.id }
+      });
+      if (!user) throw new Error("User not found");
+      
+      // Find or create employee record
+      let employee = await ctx.prisma.employee.findFirst({
+        where: {
+          OR: [
+            { email: user.email },
+            { userId: ctx.user!.id }
+          ]
+        }
+      });
+      
+      if (!employee) {
+        // Auto-create employee record
+        employee = await ctx.prisma.employee.create({
+          data: {
+            name: user.email.split('@')[0],
+            email: user.email,
+            userId: user.id,
+            age: 25,
+            className: "N/A",
+            subjects: [],
+            attendance: 100,
+            role: user.role,
+            status: "active",
+            location: "N/A",
+            lastLogin: new Date().toISOString()
+          }
+        });
+      }
+      
+      return employee;
+    },
+
     notes: async (_: any, { employeeId }: any, ctx: Context) => {
       requireAdmin(ctx);
       const where: any = employeeId ? { toEmployeeId: employeeId } : {};
@@ -97,9 +137,20 @@ export const resolvers = {
 
     myNotes: async (_: any, __: any, ctx: Context) => {
       requireAuth(ctx);
-      // For employees, find notes sent to them
+      // Get current user email
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.user!.id }
+      });
+      if (!user) return [];
+      
+      // Find employee by email or userId
       const employee = await ctx.prisma.employee.findFirst({
-        where: { role: "employee", id: ctx.user!.id }
+        where: {
+          OR: [
+            { email: user.email },
+            { userId: ctx.user!.id }
+          ]
+        }
       });
       if (!employee) return [];
       
@@ -130,8 +181,20 @@ export const resolvers = {
 
     myLeaveRequests: async (_: any, __: any, ctx: Context) => {
       requireAuth(ctx);
+      // Get current user email
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.user!.id }
+      });
+      if (!user) return [];
+      
+      // Find employee by email or userId
       const employee = await ctx.prisma.employee.findFirst({
-        where: { role: "employee", id: ctx.user!.id }
+        where: {
+          OR: [
+            { email: user.email },
+            { userId: ctx.user!.id }
+          ]
+        }
       });
       if (!employee) return [];
       
@@ -199,6 +262,51 @@ export const resolvers = {
       });
     },
 
+    updateMyProfile: async (_: any, { input }: any, ctx: Context) => {
+      requireAuth(ctx);
+      
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.user!.id }
+      });
+      if (!user) throw new Error("User not found");
+      
+      // Find employee record
+      let employee = await ctx.prisma.employee.findFirst({
+        where: {
+          OR: [
+            { email: user.email },
+            { userId: ctx.user!.id }
+          ]
+        }
+      });
+      
+      if (!employee) {
+        throw new Error("Employee profile not found");
+      }
+      
+      // Update only allowed fields
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+      
+      if (input.name) updateData.name = input.name;
+      if (input.email) {
+        updateData.email = input.email;
+        // Also update user email
+        await ctx.prisma.user.update({
+          where: { id: ctx.user!.id },
+          data: { email: input.email }
+        });
+      }
+      if (input.age) updateData.age = input.age;
+      if (input.location) updateData.location = input.location;
+      
+      return ctx.prisma.employee.update({
+        where: { id: employee.id },
+        data: updateData
+      });
+    },
+
     deleteEmployee: async (_: any, { id }: any, ctx: Context) => {
       // Only Director can delete employees
       requireDirector(ctx);
@@ -249,12 +357,44 @@ export const resolvers = {
 
     createLeaveRequest: async (_: any, { input }: any, ctx: Context) => {
       requireAuth(ctx);
-      const employee = await ctx.prisma.employee.findFirst({
-        where: { role: "employee", id: ctx.user!.id }
+      
+      // Get current user email
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.user!.id }
+      });
+      if (!user) {
+        throw new Error("User not found");
+      }
+      
+      // Find employee by email or userId
+      let employee = await ctx.prisma.employee.findFirst({
+        where: {
+          OR: [
+            { email: user.email },
+            { userId: ctx.user!.id }
+          ]
+        }
       });
       
+      // If no employee record exists, create one automatically
       if (!employee) {
-        throw new Error("Employee record not found");
+        employee = await ctx.prisma.employee.create({
+          data: {
+            name: user.email.split('@')[0], // Use email prefix as name
+            email: user.email,
+            userId: user.id,
+            age: 25,
+            className: "N/A",
+            subjects: [],
+            attendance: 100,
+            role: user.role,
+            status: "active",
+            location: "N/A",
+            lastLogin: new Date().toISOString(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
       }
 
       return ctx.prisma.leaveRequest.create({
