@@ -113,7 +113,8 @@ export const AdminsPage: React.FC = () => {
                 </tr>
               ))}
             </tbody>
-        </table>
+          </table>
+        )}
       </div>
     </div>
   );
