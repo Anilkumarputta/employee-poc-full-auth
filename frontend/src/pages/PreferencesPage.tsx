@@ -5,13 +5,19 @@ export const PreferencesPage: React.FC = () => {
   const [pushNotifications, setPushNotifications] = useState(false);
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
-  const [timezone, setTimezone] = useState("Asia/Kolkata");
+  const [timezone, setTimezone] = useState("auto");
+  const [detectedTimezone, setDetectedTimezone] = useState("");
+  const [currentTime, setCurrentTime] = useState("");
 
   useEffect(() => {
+    // Auto-detect system timezone
+    const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setDetectedTimezone(systemTimezone);
+
     // Load saved preferences
     const savedTheme = localStorage.getItem("theme") || "light";
     const savedLanguage = localStorage.getItem("language") || "en";
-    const savedTimezone = localStorage.getItem("timezone") || "Asia/Kolkata";
+    const savedTimezone = localStorage.getItem("timezone") || "auto";
     
     setTheme(savedTheme);
     setLanguage(savedLanguage);
@@ -30,6 +36,23 @@ export const PreferencesPage: React.FC = () => {
       document.body.style.color = "#000000";
     }
   }, []);
+
+  useEffect(() => {
+    // Update current time every second
+    const updateTime = () => {
+      const tz = timezone === "auto" ? detectedTimezone : timezone;
+      const time = new Date().toLocaleString("en-US", { 
+        timeZone: tz,
+        dateStyle: "full",
+        timeStyle: "long"
+      });
+      setCurrentTime(time);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [timezone, detectedTimezone]);
 
   const handleSavePreferences = () => {
     localStorage.setItem("theme", theme);
@@ -153,6 +176,7 @@ export const PreferencesPage: React.FC = () => {
               onChange={(e) => setTimezone(e.target.value)}
               style={{ width: "100%", padding: "0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.95rem" }}
             >
+              <option value="auto">🔄 Auto-detect ({detectedTimezone})</option>
               <optgroup label="India">
                 <option value="Asia/Kolkata">India Standard Time (IST) - Kolkata, Mumbai, Delhi</option>
               </optgroup>
@@ -201,9 +225,20 @@ export const PreferencesPage: React.FC = () => {
                 <option value="UTC">UTC (Coordinated Universal Time)</option>
               </optgroup>
             </select>
-            <p style={{ fontSize: "0.85rem", color: "#6b7280", margin: "0.5rem 0 0 0" }}>
-              Current time: {new Date().toLocaleString("en-US", { timeZone: timezone })}
-            </p>
+            <div style={{ 
+              marginTop: "0.75rem", 
+              padding: "0.75rem", 
+              background: "#f0f9ff", 
+              border: "1px solid #bae6fd",
+              borderRadius: "6px"
+            }}>
+              <div style={{ fontSize: "0.85rem", color: "#0369a1", fontWeight: "600", marginBottom: "0.25rem" }}>
+                🕐 Live Time Preview
+              </div>
+              <div style={{ fontSize: "0.9rem", color: "#0c4a6e", fontFamily: "monospace" }}>
+                {currentTime}
+              </div>
+            </div>
           </div>
         </div>
 
