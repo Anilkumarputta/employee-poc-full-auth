@@ -5,7 +5,24 @@ import { graphqlRequest } from "../lib/graphqlClient";
 type Employee = {
   id: number;
   name: string;
+  email: string;
   attendance: number;
+  status: string;
+  role: string;
+  flagged: boolean;
+  className: string;
+  location: string;
+  managerId: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type LeaveRequest = {
+  id: number;
+  employeeId: number;
+  startDate: string;
+  endDate: string;
+  reason: string;
   status: string;
 };
 
@@ -15,51 +32,63 @@ const EMPLOYEES_QUERY = `
       items {
         id
         name
+        email
         attendance
         status
+        role
+        flagged
+        className
+        location
+        managerId
+        createdAt
+        updatedAt
       }
       total
     }
   }
 `;
 
+const LEAVE_REQUESTS_QUERY = `
+  query LeaveRequests {
+    leaveRequests {
+      id
+      employeeId
+      startDate
+      endDate
+      reason
+      status
+    }
+  }
+`;
+
 export const DashboardPage: React.FC = () => {
-  const { accessToken } = useContext(AuthContext);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    onLeave: 0,
-    flagged: 0,
-    terminated: 0,
-    avgAttendance: 0
-  });
+  const { accessToken, user } = useContext(AuthContext);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isDirector = user?.role === 'director';
+  const isManager = user?.role === 'manager';
+  const isEmployee = user?.role === 'employee';
+
   useEffect(() => {
-    fetchStats();
+    fetchData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchData = async () => {
     if (!accessToken) return;
     
     setLoading(true);
     try {
-      const data: any = await graphqlRequest(EMPLOYEES_QUERY, {}, accessToken);
-      const employees: Employee[] = data.employees.items;
-      const total = data.employees.total;
-
-      const active = employees.filter(e => e.status === "active").length;
-      const onLeave = employees.filter(e => e.status === "on-leave").length;
-      const flagged = employees.filter(e => e.status === "flagged").length;
-      const terminated = employees.filter(e => e.status === "terminated").length;
+      const [employeesData, leaveData] = await Promise.all([
+        graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
+        graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] }))
+      ]);
       
-      const avgAttendance = employees.length > 0
-        ? employees.reduce((sum, e) => sum + e.attendance, 0) / employees.length
-        : 0;
-
-      setStats({ total, active, onLeave, flagged, terminated, avgAttendance });
-    } catch (err) {
-      console.error("Failed to fetch dashboard stats:", err);
+      setEmployees(employeesData.employees.items);
+      setLeaveRequests(leaveData.leaveRequests || []);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -67,73 +96,785 @@ export const DashboardPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: "2rem" }}>
-        <h1>Dashboard</h1>
-        <p>Loading statistics...</p>
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ 
+          fontSize: '48px',
+          animation: 'spin 1s linear infinite',
+          display: 'inline-block'
+        }}>⚙️</div>
+        <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading dashboard...</p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Dashboard</h1>
-      <p>Welcome to the Employee Management System dashboard.</p>
-      
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem", marginTop: "2rem" }}>
-        <div style={{ padding: "1.5rem", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#0369a1" }}>Total Employees</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#0c4a6e" }}>{stats.total}</p>
-        </div>
-        
-        <div style={{ padding: "1.5rem", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#15803d" }}>Active</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#14532d" }}>{stats.active}</p>
-        </div>
-        
-        <div style={{ padding: "1.5rem", background: "#fef3c7", borderRadius: "8px", border: "1px solid #fde68a" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#a16207" }}>On Leave</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#713f12" }}>{stats.onLeave}</p>
-        </div>
-        
-        <div style={{ padding: "1.5rem", background: "#fee2e2", borderRadius: "8px", border: "1px solid #fecaca" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#b91c1c" }}>Flagged</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#7f1d1d" }}>{stats.flagged}</p>
+  // Calculate stats for all roles
+  const totalEmployees = employees.length;
+  const activeEmployees = employees.filter(e => e.status === 'active').length;
+  const inactiveEmployees = employees.filter(e => e.status !== 'active').length;
+  const flaggedEmployees = employees.filter(e => e.flagged).length;
+  const avgAttendance = employees.length > 0 
+    ? Math.round(employees.reduce((sum, e) => sum + e.attendance, 0) / employees.length) 
+    : 0;
+
+  // Calculate month-related stats
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const newHiresThisMonth = employees.filter(e => 
+    new Date(e.createdAt) >= firstDayOfMonth
+  ).length;
+
+  // Leave requests
+  const pendingLeaves = leaveRequests.filter(lr => lr.status === 'pending').length;
+  const todayStr = now.toISOString().split('T')[0];
+  const onLeaveToday = leaveRequests.filter(lr => 
+    lr.status === 'approved' && 
+    lr.startDate <= todayStr && 
+    lr.endDate >= todayStr
+  ).length;
+
+  // Department grouping
+  const departmentCounts = employees.reduce((acc, e) => {
+    acc[e.className] = (acc[e.className] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Manager-specific: filter to team members
+  const myTeam = isManager 
+    ? employees.filter(e => e.managerId === user?.id) 
+    : [];
+  const myTeamSize = myTeam.length;
+  const myTeamAvgAttendance = myTeam.length > 0
+    ? Math.round(myTeam.reduce((sum, e) => sum + e.attendance, 0) / myTeam.length)
+    : 0;
+  const myTeamLowAttendance = myTeam
+    .filter(e => e.attendance < 75)
+    .sort((a, b) => a.attendance - b.attendance)
+    .slice(0, 5);
+
+  // Employee-specific: find my record
+  const myRecord = isEmployee 
+    ? employees.find(e => e.email === user?.email)
+    : null;
+  const myLeaveBalance = 20; // TODO: Calculate from leave requests
+  const myNextLeave = leaveRequests
+    .filter(lr => lr.status === 'approved' && lr.startDate > todayStr)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+
+  // DIRECTOR DASHBOARD
+  if (isDirector) {
+    return (
+      <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+        {/* Title */}
+        <div style={{ marginBottom: '30px' }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '32px', 
+            fontWeight: 'bold',
+            color: '#2c3e50',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            <span style={{
+              width: '50px',
+              height: '50px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px'
+            }}>🏢</span>
+            Director Dashboard - Company Control
+          </h1>
+          <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
+            Complete oversight of all employees and operations
+          </p>
         </div>
 
-        <div style={{ padding: "1.5rem", background: "#f3f4f6", borderRadius: "8px", border: "1px solid #d1d5db" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#4b5563" }}>Terminated</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#1f2937" }}>{stats.terminated}</p>
+        {/* Hero Metrics Row */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gap: '20px',
+          marginBottom: '30px'
+        }}>
+          <MetricCard
+            icon="👥"
+            title="Total Employees"
+            value={totalEmployees}
+            subtitle="All employees"
+            color="#667eea"
+            trend="+5% vs last month"
+          />
+          <MetricCard
+            icon="✅"
+            title="Active vs Inactive"
+            value={`${activeEmployees}/${inactiveEmployees}`}
+            subtitle="Active / Inactive"
+            color="#27ae60"
+          />
+          <MetricCard
+            icon="🆕"
+            title="New Hires"
+            value={newHiresThisMonth}
+            subtitle="This month"
+            color="#3498db"
+          />
+          <MetricCard
+            icon="📊"
+            title="Avg Attendance"
+            value={`${avgAttendance}%`}
+            subtitle="Company average"
+            color="#f39c12"
+          />
+          <MetricCard
+            icon="🏖️"
+            title="On Leave Today"
+            value={onLeaveToday}
+            subtitle="Currently out"
+            color="#e74c3c"
+          />
         </div>
-        
-        <div style={{ padding: "1.5rem", background: "#fce7f3", borderRadius: "8px", border: "1px solid #fbcfe8" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", color: "#be185d" }}>Average Attendance</h3>
-          <p style={{ fontSize: "2rem", fontWeight: "bold", margin: 0, color: "#831843" }}>{stats.avgAttendance.toFixed(1)}%</p>
+
+        {/* Charts and Tables Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
+          {/* Employees by Department */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+              📊 Employees by Department
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {Object.entries(departmentCounts).slice(0, 5).map(([dept, count]) => (
+                <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div style={{ minWidth: '120px', fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
+                    {dept}
+                  </div>
+                  <div style={{ flex: 1, height: '30px', background: '#f0f4ff', borderRadius: '15px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${(count / totalEmployees) * 100}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: '15px',
+                      transition: 'width 0.5s'
+                    }} />
+                  </div>
+                  <div style={{ minWidth: '60px', textAlign: 'right', fontSize: '16px', fontWeight: 'bold', color: '#667eea' }}>
+                    {count}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recently Changed Employees */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+              🕒 Recently Changed Records
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {employees
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                .slice(0, 5)
+                .map(emp => (
+                  <div key={emp.id} style={{
+                    padding: '12px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    borderLeft: '4px solid #667eea'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#2c3e50', marginBottom: '5px' }}>
+                      {emp.name}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
+                      Updated {new Date(emp.updatedAt).toLocaleDateString()} • {emp.role}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Flagged Employees and Quick Actions */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+          {/* Flagged Employees Panel */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            border: flaggedEmployees > 0 ? '2px solid #e74c3c' : '2px solid #e3e8ef'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              🚩 Flagged Employees <span style={{
+                background: '#e74c3c',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>{flaggedEmployees}</span>
+            </h3>
+            {flaggedEmployees === 0 ? (
+              <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
+                No employees flagged for review
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {employees.filter(e => e.flagged).slice(0, 5).map(emp => (
+                  <div key={emp.id} style={{
+                    padding: '15px',
+                    background: '#fff5f5',
+                    borderRadius: '10px',
+                    border: '2px solid #ffebee',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
+                      <div style={{ fontSize: '13px', color: '#7f8c8d' }}>{emp.role} • {emp.className}</div>
+                    </div>
+                    <button style={{
+                      padding: '8px 16px',
+                      background: '#e74c3c',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}>
+                      Review
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+              ⚡ Quick Actions
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <QuickActionButton icon="➕" text="Add Employee" color="#27ae60" />
+              <QuickActionButton icon="🏢" text="Create Department" color="#3498db" />
+              <QuickActionButton icon="🔐" text="Manage Roles & Permissions" color="#9b59b6" />
+              <QuickActionButton icon="👥" text="View All Employees" color="#667eea" />
+              <QuickActionButton icon="📊" text="Generate Reports" color="#f39c12" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // MANAGER DASHBOARD
+  if (isManager) {
+    const upcomingLeaves = leaveRequests.filter(lr => {
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      return lr.status === 'approved' && 
+             lr.startDate > todayStr && 
+             lr.startDate <= sevenDaysFromNow.toISOString().split('T')[0];
+    }).length;
+
+    return (
+      <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+        {/* Title */}
+        <div style={{ marginBottom: '30px' }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '32px', 
+            fontWeight: 'bold',
+            color: '#2c3e50',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            <span style={{
+              width: '50px',
+              height: '50px',
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px'
+            }}>👔</span>
+            Manager Dashboard - Team Performance
+          </h1>
+          <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
+            Monitor and support your team's success
+          </p>
+        </div>
+
+        {/* Hero Metrics Row */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gap: '20px',
+          marginBottom: '30px'
+        }}>
+          <MetricCard
+            icon="👥"
+            title="My Team Size"
+            value={myTeamSize}
+            subtitle="Direct reports"
+            color="#f093fb"
+          />
+          <MetricCard
+            icon="📊"
+            title="Team Attendance"
+            value={`${myTeamAvgAttendance}%`}
+            subtitle="Team average"
+            color="#27ae60"
+          />
+          <MetricCard
+            icon="📅"
+            title="Upcoming Leaves"
+            value={upcomingLeaves}
+            subtitle="Next 7 days"
+            color="#3498db"
+          />
+          <MetricCard
+            icon="⏰"
+            title="Pending Approvals"
+            value={pendingLeaves}
+            subtitle="Awaiting action"
+            color="#e74c3c"
+          />
+        </div>
+
+        {/* Charts and Team Widgets */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
+          {/* At-Risk Attendance */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+              ⚠️ At-Risk Attendance
+            </h3>
+            {myTeamLowAttendance.length === 0 ? (
+              <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
+                All team members have good attendance! 🎉
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {myTeamLowAttendance.map(emp => (
+                  <div key={emp.id} style={{
+                    padding: '15px',
+                    background: emp.attendance < 50 ? '#fff5f5' : '#fffbf0',
+                    borderRadius: '10px',
+                    border: `2px solid ${emp.attendance < 50 ? '#ffebee' : '#fff3cd'}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
+                      <div style={{ fontSize: '13px', color: '#7f8c8d' }}>{emp.role}</div>
+                    </div>
+                    <div style={{
+                      padding: '8px 16px',
+                      background: emp.attendance < 50 ? '#e74c3c' : '#f39c12',
+                      color: 'white',
+                      borderRadius: '20px',
+                      fontSize: '16px',
+                      fontWeight: 'bold'
+                    }}>
+                      {emp.attendance}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* My Approvals Panel */}
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            border: pendingLeaves > 0 ? '2px solid #f39c12' : '2px solid #e3e8ef'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              📋 My Approvals <span style={{
+                background: '#f39c12',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>{pendingLeaves}</span>
+            </h3>
+            {pendingLeaves === 0 ? (
+              <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
+                No pending approvals
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {leaveRequests.filter(lr => lr.status === 'pending').slice(0, 5).map(req => (
+                  <div key={req.id} style={{
+                    padding: '15px',
+                    background: '#fffbf0',
+                    borderRadius: '10px',
+                    border: '2px solid #fff3cd'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#2c3e50', marginBottom: '8px' }}>
+                      Leave Request #{req.id}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '12px' }}>
+                      {req.startDate} to {req.endDate}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button style={{
+                        flex: 1,
+                        padding: '8px',
+                        background: '#27ae60',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        ✓ Approve
+                      </button>
+                      <button style={{
+                        flex: 1,
+                        padding: '8px',
+                        background: '#e74c3c',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        ✗ Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{
+          background: 'white',
+          padding: '30px',
+          borderRadius: '15px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        }}>
+          <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+            ⚡ Quick Actions
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+            <QuickActionButton icon="✓" text="Approve Leaves" color="#27ae60" />
+            <QuickActionButton icon="📊" text="View Team Grid" color="#3498db" />
+            <QuickActionButton icon="🚩" text="Flag Team Member" color="#e74c3c" />
+            <QuickActionButton icon="📈" text="Team Performance Report" color="#f39c12" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // EMPLOYEE DASHBOARD
+  return (
+    <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+      {/* Welcome Hero Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        padding: '40px',
+        borderRadius: '20px',
+        color: 'white',
+        marginBottom: '30px',
+        boxShadow: '0 10px 30px rgba(79, 172, 254, 0.3)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+          <div style={{
+            width: '100px',
+            height: '100px',
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '48px',
+            border: '4px solid rgba(255,255,255,0.5)'
+          }}>
+            👤
+          </div>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ margin: 0, fontSize: '36px', fontWeight: 'bold' }}>
+              Hi, {myRecord?.name || user?.email}! 👋
+            </h1>
+            <div style={{ fontSize: '18px', marginTop: '10px', opacity: 0.95 }}>
+              {myRecord?.role || 'Employee'} • {myRecord?.className || 'Department'} • Manager: {myRecord?.managerId ? `ID ${myRecord.managerId}` : 'Not assigned'}
+            </div>
+            <div style={{ 
+              marginTop: '15px',
+              display: 'inline-block',
+              padding: '10px 20px',
+              background: 'rgba(255,255,255,0.25)',
+              borderRadius: '25px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}>
+              Today's Status: <span style={{ marginLeft: '10px' }}>✅ Working</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ marginTop: "3rem" }}>
-        <h2>Quick Actions</h2>
-        <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", flexWrap: "wrap" }}>
-          <button 
-            onClick={() => window.location.reload()}
-            style={{ padding: "0.75rem 1.5rem", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
-          >
-            Refresh Dashboard
-          </button>
-          <button 
-            style={{ padding: "0.75rem 1.5rem", background: "#10b981", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
-            onClick={() => alert("Navigate to Reports page to generate reports")}
-          >
-            Generate Report
-          </button>
-          <button 
-            style={{ padding: "0.75rem 1.5rem", background: "#8b5cf6", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
-            onClick={() => alert("Analytics feature coming soon!")}
-          >
-            View Analytics
-          </button>
+      {/* Personal Stats Cards */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gap: '20px',
+        marginBottom: '30px'
+      }}>
+        <MetricCard
+          icon="🏖️"
+          title="Leave Balance"
+          value={myLeaveBalance}
+          subtitle="Days remaining"
+          color="#3498db"
+        />
+        <MetricCard
+          icon="📊"
+          title="My Attendance"
+          value={`${myRecord?.attendance || 0}%`}
+          subtitle="Current streak"
+          color={myRecord && myRecord.attendance >= 90 ? '#27ae60' : myRecord && myRecord.attendance >= 75 ? '#f39c12' : '#e74c3c'}
+        />
+        <MetricCard
+          icon="📅"
+          title="Next Leave"
+          value={myNextLeave ? new Date(myNextLeave.startDate).toLocaleDateString() : 'None'}
+          subtitle={myNextLeave ? 'Approved' : 'No upcoming leave'}
+          color="#9b59b6"
+        />
+      </div>
+
+      {/* Main Content Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+        {/* Recent Activity Timeline */}
+        <div style={{
+          background: 'white',
+          padding: '30px',
+          borderRadius: '15px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        }}>
+          <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+            📜 Recent Activity
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <ActivityItem 
+              icon="✏️" 
+              title="Profile Updated"
+              description="You updated your profile information"
+              time="2 hours ago"
+              color="#3498db"
+            />
+            <ActivityItem 
+              icon="✅" 
+              title="Leave Approved"
+              description="Your leave request for Dec 20-22 was approved"
+              time="1 day ago"
+              color="#27ae60"
+            />
+            <ActivityItem 
+              icon="📊" 
+              title="Attendance Logged"
+              description="Attendance marked for today"
+              time="Today"
+              color="#9b59b6"
+            />
+            <ActivityItem 
+              icon="💬" 
+              title="Message from Manager"
+              description="New message regarding project update"
+              time="2 days ago"
+              color="#f39c12"
+            />
+          </div>
+        </div>
+
+        {/* Quick Actions Panel */}
+        <div style={{
+          background: 'white',
+          padding: '30px',
+          borderRadius: '15px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        }}>
+          <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
+            ⚡ Quick Actions
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <QuickActionButton icon="🏖️" text="Request Leave" color="#3498db" />
+            <QuickActionButton icon="✏️" text="Update Profile" color="#27ae60" />
+            <QuickActionButton icon="👤" text="View My Record" color="#667eea" />
+            <QuickActionButton icon="📄" text="View Payslip" color="#f39c12" />
+            <QuickActionButton icon="📊" text="My Attendance" color="#9b59b6" />
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+// Helper Components
+const MetricCard: React.FC<{
+  icon: string;
+  title: string;
+  value: string | number;
+  subtitle: string;
+  color: string;
+  trend?: string;
+}> = ({ icon, title, value, subtitle, color, trend }) => (
+  <div style={{
+    background: 'white',
+    padding: '25px',
+    borderRadius: '15px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    border: '2px solid #e3e8ef',
+    transition: 'all 0.3s',
+    cursor: 'pointer'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-5px)';
+    e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.15)';
+    e.currentTarget.style.borderColor = color;
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+    e.currentTarget.style.borderColor = '#e3e8ef';
+  }}>
+    <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
+    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '8px', fontWeight: '600' }}>
+      {title}
+    </div>
+    <div style={{ fontSize: '32px', fontWeight: 'bold', color: color, marginBottom: '8px' }}>
+      {value}
+    </div>
+    <div style={{ fontSize: '13px', color: '#95a5a6' }}>
+      {subtitle}
+    </div>
+    {trend && (
+      <div style={{ fontSize: '12px', color: '#27ae60', marginTop: '8px', fontWeight: '600' }}>
+        {trend}
+      </div>
+    )}
+  </div>
+);
+
+const QuickActionButton: React.FC<{
+  icon: string;
+  text: string;
+  color: string;
+}> = ({ icon, text, color }) => (
+  <button style={{
+    padding: '16px 20px',
+    background: 'white',
+    border: `2px solid ${color}`,
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: color,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    transition: 'all 0.3s',
+    width: '100%',
+    textAlign: 'left'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = color;
+    e.currentTarget.style.color = 'white';
+    e.currentTarget.style.transform = 'translateX(5px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = 'white';
+    e.currentTarget.style.color = color;
+    e.currentTarget.style.transform = 'translateX(0)';
+  }}>
+    <span style={{ fontSize: '20px' }}>{icon}</span>
+    {text}
+  </button>
+);
+
+const ActivityItem: React.FC<{
+  icon: string;
+  title: string;
+  description: string;
+  time: string;
+  color: string;
+}> = ({ icon, title, description, time, color }) => (
+  <div style={{
+    display: 'flex',
+    gap: '15px',
+    padding: '15px',
+    background: '#f8f9fa',
+    borderRadius: '10px',
+    borderLeft: `4px solid ${color}`
+  }}>
+    <div style={{
+      width: '40px',
+      height: '40px',
+      background: color,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '20px',
+      flexShrink: 0
+    }}>
+      {icon}
+    </div>
+    <div style={{ flex: 1 }}>
+      <div style={{ fontWeight: '600', color: '#2c3e50', marginBottom: '5px' }}>
+        {title}
+      </div>
+      <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '5px' }}>
+        {description}
+      </div>
+      <div style={{ fontSize: '12px', color: '#95a5a6' }}>
+        {time}
+      </div>
+    </div>
+  </div>
+);

@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { AuthContext } from "../../auth/authContext";
 
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins";
 
 type SidebarProps = {
   open: boolean;
@@ -81,12 +81,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
           >
             {isDirector ? "👑 All Users & Admins" : "👤 Users List"}
           </button>
-          {isManagerOrAbove && (
+          {isDirector && (
             <button 
               className={currentPage === "accessLogs" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
               onClick={() => onNavigate("accessLogs")}
             >
               📝 Access Logs
+            </button>
+          )}
+          {isDirector && (
+            <button 
+              className={currentPage === "employeeLogins" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
+              onClick={() => onNavigate("employeeLogins")}
+            >
+              🔑 Employee Logins
             </button>
           )}
         </div>
@@ -98,7 +106,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
           className={currentPage === "profile" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
           onClick={() => onNavigate("profile")}
         >
-          Profile
+          👤 Profile
+        </button>
+        <button 
+          className={currentPage === "profileEdit" ? "sidebar-item sidebar-item-active" : "sidebar-item"}
+          onClick={() => onNavigate("profileEdit")}
+        >
+          ✏️ Edit My Profile
         </button>
         <button 
           className={currentPage === "settings" ? "sidebar-item sidebar-item-active" : "sidebar-item"}

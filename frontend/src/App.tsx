@@ -12,8 +12,9 @@ import { AdminsPage } from "./pages/AdminsPage";
 import { AccessLogsPage } from "./pages/AccessLogsPage";
 import { SendNotePage } from "./pages/SendNotePage";
 import { LeaveRequestsPage } from "./pages/LeaveRequestsPage";
-import { Topbar } from "./components/layout/Topbar";
-import { Sidebar } from "./components/layout/Sidebar";
+import ProfileEditPage from "./pages/ProfileEditPage";
+import EmployeeLoginsPage from "./pages/EmployeeLoginsPage";
+import { HorizontalNav } from "./components/layout/HorizontalNav";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
@@ -22,7 +23,7 @@ import { AuthContext, AuthUser } from "./auth/authContext";
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -89,32 +90,26 @@ const App: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="app-root">
-          <Topbar
-            onHamburgerClick={() => setSidebarOpen((v) => !v)}
-            currentRole={auth.user.role}
+        <div style={{ minHeight: '100vh', background: '#f5f7fa' }}>
+          <HorizontalNav
+            currentPage={currentPage}
+            onNavigate={(page) => setCurrentPage(page)}
             onLogout={handleLogout}
           />
-          <Sidebar 
-            open={sidebarOpen} 
-            currentPage={currentPage}
-            onNavigate={(page) => {
-              setCurrentPage(page);
-              setSidebarOpen(false);
-            }}
-          />
-          <main className="app-main">
+          <main style={{ padding: '0' }}>
             {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
             {currentPage === "dashboard" && <DashboardPage />}
             {currentPage === "notifications" && <NotificationsPage />}
             {currentPage === "reports" && <ReportsPage />}
             {currentPage === "profile" && <ProfilePage />}
+            {currentPage === "profileEdit" && <ProfileEditPage />}
             {currentPage === "preferences" && <PreferencesPage />}
             {currentPage === "settings" && <SettingsPage />}
             {currentPage === "admins" && <AdminsPage />}
             {currentPage === "accessLogs" && <AccessLogsPage />}
             {currentPage === "sendNote" && <SendNotePage />}
             {currentPage === "leaveRequests" && <LeaveRequestsPage />}
+            {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
           </main>
         </div>
       )}

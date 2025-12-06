@@ -50,9 +50,57 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   };
 
   return (
-    <div className="auth-card">
-      <h1>Employee POC</h1>
-      <p className="auth-subtitle">Sign in to manage employees.</p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '20px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        padding: '50px 60px',
+        maxWidth: '480px',
+        width: '100%'
+      }}>
+        {/* Logo/Title */}
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            margin: '0 auto 20px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '36px',
+            boxShadow: '0 10px 25px rgba(102, 126, 234, 0.3)'
+          }}>
+            👥
+          </div>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '32px', 
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Employee POC
+          </h1>
+          <p style={{ 
+            margin: '10px 0 0 0', 
+            color: '#7f8c8d',
+            fontSize: '16px'
+          }}>
+            Sign in to access your portal
+          </p>
+        </div>
 
       <form onSubmit={onSubmit} className="auth-form">
         <label>
@@ -101,6 +149,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
         <button type="button" className="link-btn" onClick={goRegister}>
           Create account
         </button>
+      </div>
       </div>
     </div>
   );
