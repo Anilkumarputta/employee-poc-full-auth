@@ -13,6 +13,14 @@ export const typeDefs = gql`
     DESC
   }
 
+  type GenerateLoginsResult {
+    success: Boolean!
+    message: String!
+    created: Int!
+    skipped: Int!
+    failed: Int!
+  }
+
   type Employee {
     id: Int!
     name: String!
@@ -166,6 +174,7 @@ export const typeDefs = gql`
     deleteEmployee(id: Int!): Boolean!
     deleteUser(id: Int!): Boolean!
     terminateEmployee(id: Int!): Employee!
+    generateEmployeeLogins: GenerateLoginsResult!
     
     sendNote(input: NoteInput!): Note!
     markNoteAsRead(id: Int!): Note!

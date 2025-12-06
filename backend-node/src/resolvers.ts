@@ -332,6 +332,89 @@ export const resolvers = {
       });
     },
 
+    generateEmployeeLogins: async (_: any, __: any, ctx: Context) => {
+      requireDirector(ctx);
+      
+      let created = 0;
+      let skipped = 0;
+      let failed = 0;
+      
+      try {
+        // Get all employees without userId
+        const employeesWithoutLogin = await ctx.prisma.employee.findMany({
+          where: {
+            userId: null
+          }
+        });
+
+        for (const employee of employeesWithoutLogin) {
+          try {
+            // Generate email from name: "John Doe" -> "john.doe@gmail.com"
+            const emailName = employee.name.toLowerCase().replace(/\s+/g, '.');
+            const generatedEmail = `${emailName}@gmail.com`;
+            
+            // Check if email already exists
+            const existingUser = await ctx.prisma.user.findUnique({
+              where: { email: generatedEmail }
+            });
+            
+            if (existingUser) {
+              // If user exists, just link it to the employee
+              await ctx.prisma.employee.update({
+                where: { id: employee.id },
+                data: {
+                  userId: existingUser.id,
+                  email: generatedEmail
+                }
+              });
+              skipped++;
+              continue;
+            }
+            
+            // Create new user with password "employee123"
+            const hashedPassword = await bcrypt.hash("employee123", 10);
+            const newUser = await ctx.prisma.user.create({
+              data: {
+                email: generatedEmail,
+                password: hashedPassword,
+                role: "employee"
+              }
+            });
+            
+            // Link employee to user
+            await ctx.prisma.employee.update({
+              where: { id: employee.id },
+              data: {
+                userId: newUser.id,
+                email: generatedEmail
+              }
+            });
+            
+            created++;
+          } catch (error) {
+            console.error(`Failed to create login for employee ${employee.name}:`, error);
+            failed++;
+          }
+        }
+        
+        return {
+          success: true,
+          message: `Generated logins: ${created} created, ${skipped} linked, ${failed} failed`,
+          created,
+          skipped,
+          failed
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          message: `Failed to generate logins: ${error.message}`,
+          created,
+          skipped,
+          failed
+        };
+      }
+    },
+
     sendNote: async (_: any, { input }: any, ctx: Context) => {
       requireAuth(ctx);
       const { message, toEmployeeId, toAll } = input;
