@@ -337,7 +337,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   // DIRECTOR DASHBOARD
   if (isDirector) {
     return (
-      <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+      <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
         {/* Title */}
         <div style={{ marginBottom: '30px' }}>
           <h1 style={{ 
@@ -605,7 +605,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     }).length;
 
     return (
-      <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+      <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #fef3c7 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
         {/* Title */}
         <div style={{ marginBottom: '30px' }}>
           <h1 style={{ 
@@ -843,7 +843,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   // EMPLOYEE DASHBOARD
   return (
-    <div style={{ padding: '40px', background: '#f5f7fa', minHeight: '100vh' }}>
+    <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #dbeafe 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
       {/* Welcome Hero Card */}
       <div style={{
         background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
@@ -1016,29 +1016,46 @@ const MetricCard: React.FC<{
   trend?: string;
 }> = ({ icon, title, value, subtitle, color, trend }) => (
   <div style={{
-    background: 'white',
+    background: 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     padding: '25px',
     borderRadius: '15px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    border: '2px solid #e3e8ef',
-    transition: 'all 0.3s',
-    cursor: 'pointer'
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden'
   }}
   onMouseEnter={(e) => {
-    e.currentTarget.style.transform = 'translateY(-5px)';
-    e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.15)';
-    e.currentTarget.style.borderColor = color;
+    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+    e.currentTarget.style.borderColor = `${color}40`;
   }}
   onMouseLeave={(e) => {
-    e.currentTarget.style.transform = 'translateY(0)';
-    e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
-    e.currentTarget.style.borderColor = '#e3e8ef';
+    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+    e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
+    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
   }}>
-    <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
-    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '8px', fontWeight: '600' }}>
+    <div style={{ 
+      fontSize: '36px', 
+      marginBottom: '12px',
+      filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
+      transition: 'transform 0.3s'
+    }}>{icon}</div>
+    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
       {title}
     </div>
-    <div style={{ fontSize: '32px', fontWeight: 'bold', color: color, marginBottom: '8px' }}>
+    <div style={{ 
+      fontSize: '32px', 
+      fontWeight: 'bold', 
+      background: `linear-gradient(135deg, ${color}, ${color}dd)`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      marginBottom: '8px' 
+    }}>
       {value}
     </div>
     <div style={{ fontSize: '13px', color: '#95a5a6' }}>
