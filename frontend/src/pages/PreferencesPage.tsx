@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 
-export const PreferencesPage: React.FC = () => {
+type Props = {
+  onBack?: () => void;
+};
+
+export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [theme, setTheme] = useState("light");
@@ -59,30 +63,78 @@ export const PreferencesPage: React.FC = () => {
     localStorage.setItem("language", language);
     localStorage.setItem("timezone", timezone);
     
-    // Apply theme
-    if (theme === "dark") {
-      document.body.style.background = "#1f2937";
-      document.body.style.color = "#f9fafb";
-    } else if (theme === "auto") {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.body.style.background = isDark ? "#1f2937" : "#ffffff";
-      document.body.style.color = isDark ? "#f9fafb" : "#000000";
-    } else {
-      document.body.style.background = "#ffffff";
-      document.body.style.color = "#000000";
-    }
-    
     alert("Preferences saved successfully!");
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Preferences</h1>
-      <p>Customize your application settings and preferences.</p>
+    <div style={{ 
+      padding: "2rem", 
+      minHeight: "100vh",
+      background: "#f5f7fa"
+    }}>
+      {/* Header with Back Button */}
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        gap: "1rem",
+        marginBottom: "2rem" 
+      }}>
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              background: "white",
+              border: "1px solid #e5e7eb",
+              borderRadius: "8px",
+              padding: "0.5rem 1rem",
+              cursor: "pointer",
+              fontSize: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              color: "#374151",
+              fontWeight: "500",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f9fafb";
+              e.currentTarget.style.borderColor = "#9ca3af";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "white";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+            }}
+          >
+            ← Back
+          </button>
+        )}
+        <div>
+          <h1 style={{ margin: 0, color: "#111827", fontSize: "2rem" }}>⚙️ Preferences</h1>
+          <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280", fontSize: "1rem" }}>
+            Customize your application settings and preferences
+          </p>
+        </div>
+      </div>
 
-      <div style={{ marginTop: "2rem", maxWidth: "600px" }}>
-        <div style={{ padding: "2rem", background: "white", borderRadius: "8px", border: "1px solid #e5e7eb", marginBottom: "1rem" }}>
-          <h3 style={{ margin: "0 0 1rem 0" }}>Notifications</h3>
+      <div style={{ maxWidth: "800px" }}>
+        <div style={{ 
+          padding: "2rem", 
+          background: "white", 
+          borderRadius: "12px", 
+          border: "1px solid #e5e7eb", 
+          marginBottom: "1.5rem",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        }}>
+          <h3 style={{ 
+            margin: "0 0 1.5rem 0", 
+            color: "#111827", 
+            fontSize: "1.25rem",
+            fontWeight: "600",
+            borderBottom: "2px solid #f3f4f6",
+            paddingBottom: "0.75rem"
+          }}>
+            🔔 Notifications
+          </h3>
           
           <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <label style={{ fontWeight: "500", color: "#374151" }}>Email Notifications</label>
@@ -105,8 +157,24 @@ export const PreferencesPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ padding: "2rem", background: "white", borderRadius: "8px", border: "1px solid #e5e7eb", marginBottom: "1rem" }}>
-          <h3 style={{ margin: "0 0 1rem 0" }}>Appearance</h3>
+        <div style={{ 
+          padding: "2rem", 
+          background: "white", 
+          borderRadius: "12px", 
+          border: "1px solid #e5e7eb", 
+          marginBottom: "1.5rem",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        }}>
+          <h3 style={{ 
+            margin: "0 0 1.5rem 0", 
+            color: "#111827", 
+            fontSize: "1.25rem",
+            fontWeight: "600",
+            borderBottom: "2px solid #f3f4f6",
+            paddingBottom: "0.75rem"
+          }}>
+            🎨 Appearance
+          </h3>
           
           <div style={{ marginBottom: "0.5rem" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
@@ -127,8 +195,24 @@ export const PreferencesPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ padding: "2rem", background: "white", borderRadius: "8px", border: "1px solid #e5e7eb", marginBottom: "1rem" }}>
-          <h3 style={{ margin: "0 0 1rem 0" }}>Language & Region</h3>
+        <div style={{ 
+          padding: "2rem", 
+          background: "white", 
+          borderRadius: "12px", 
+          border: "1px solid #e5e7eb", 
+          marginBottom: "1.5rem",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        }}>
+          <h3 style={{ 
+            margin: "0 0 1.5rem 0", 
+            color: "#111827", 
+            fontSize: "1.25rem",
+            fontWeight: "600",
+            borderBottom: "2px solid #f3f4f6",
+            paddingBottom: "0.75rem"
+          }}>
+            🌍 Language & Region
+          </h3>
           
           <div style={{ marginBottom: "1rem" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
@@ -244,17 +328,26 @@ export const PreferencesPage: React.FC = () => {
 
         <button 
           style={{ 
-            marginTop: "1rem",
-            padding: "0.75rem 1.5rem", 
-            background: "#3b82f6", 
+            padding: "0.875rem 2rem", 
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             color: "white", 
             border: "none", 
-            borderRadius: "6px", 
+            borderRadius: "8px", 
             cursor: "pointer",
             fontSize: "1rem",
-            fontWeight: "600"
+            fontWeight: "600",
+            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
+            transition: "all 0.3s"
           }}
           onClick={handleSavePreferences}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 6px 16px rgba(102, 126, 234, 0.5)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.4)";
+          }}
         >
           💾 Save Preferences
         </button>

@@ -104,7 +104,7 @@ const App: React.FC = () => {
             {currentPage === "reports" && <ReportsPage />}
             {currentPage === "profile" && <ProfilePage />}
             {currentPage === "profileEdit" && <ProfileEditPage />}
-            {currentPage === "preferences" && <PreferencesPage />}
+            {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
             {currentPage === "settings" && <SettingsPage />}
             {currentPage === "admins" && <AdminsPage />}
             {currentPage === "accessLogs" && <AccessLogsPage />}
