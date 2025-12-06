@@ -1,4 +1,5 @@
 import { PrismaClient, Employee as PrismaEmployee } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
 
 type Context = {
   prisma: PrismaClient;
