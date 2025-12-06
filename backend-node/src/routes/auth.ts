@@ -145,15 +145,63 @@ authRouter.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // 🚨 SECURITY FEATURE: Check if account is temporarily locked due to failed login attempts
+    if (user.lockedUntil && new Date() < user.lockedUntil) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / (1000 * 60));
+      return res.status(423).json({ 
+        error: `Account temporarily locked due to multiple failed login attempts. Try again in ${minutesLeft} minutes.` 
+      });
+    }
+
     // Compare submitted password with stored hash
     // bcrypt.compare() hashes the submitted password and compares with stored hash
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      // Password doesn't match
+      // Password doesn't match - increment failed attempts
+      const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const updateData: any = { failedLoginAttempts: failedAttempts };
+      
+      // Lock account after 5 failed attempts (15 minutes)
+      if (failedAttempts >= 5) {
+        updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      }
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: updateData
+      });
+      
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Password is correct! Generate new tokens
+    // Check if user's access has been denied by Director (Access Control Feature)
+    if (user.isActive === false) {
+      // Check if it's a temporary block that has expired
+      if (user.accessBlockedUntil && new Date() > user.accessBlockedUntil) {
+        // Temporary block expired - restore access automatically
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { 
+            isActive: true, 
+            accessBlockedUntil: null,
+            accessBlockReason: null 
+          }
+        });
+      } else {
+        const reason = user.accessBlockReason || "Please contact your administrator.";
+        return res.status(403).json({ error: `Account access has been denied. ${reason}` });
+      }
+    }
+
+    // 🎉 Password is correct! Reset failed attempts and generate new tokens
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      }
+    });
+    
     const accessToken = signAccessToken(user.id, user.role);
     const refreshToken = signRefreshToken(user.id);
 

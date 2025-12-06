@@ -8,15 +8,22 @@ datasource db {
 }
 
 model User {
-  id            Int             @id @default(autoincrement())
-  email         String          @unique
-  passwordHash  String
-  role          String          @default("employee") // "director", "manager", "employee"
-  provider      String?         // "local" or "google"
-  providerId    String?         // e.g., google sub
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  refreshTokens RefreshToken[]
+  id                  Int                   @id @default(autoincrement())
+  email               String                @unique
+  passwordHash        String
+  role                String                @default("employee") // "director", "manager", "employee"
+  provider            String?               // "local" or "google"
+  providerId          String?               // e.g., google sub
+  isActive            Boolean               @default(true) // Can user log in? Director can deny access
+  accessBlockedUntil  DateTime?             // Temporary block - user can login after this date
+  accessBlockReason   String?               // Why was access denied
+  failedLoginAttempts Int                   @default(0) // Track failed logins for security
+  lockedUntil         DateTime?             // Account locked until this time (after failed attempts)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  refreshTokens       RefreshToken[]
+  accessControlLogs   AccessControlLog[]    @relation("UserAccessLogs")
+  adminActions        AccessControlLog[]    @relation("AdminActions")
 }
 
 model RefreshToken {
@@ -164,4 +171,31 @@ model AccessLog {
   details   String?
   ipAddress String?
   createdAt DateTime @default(now())
+}
+
+// New: Access Control Audit Trail - Track all grant/deny actions by Directors
+model AccessControlLog {
+  id              Int      @id @default(autoincrement())
+  userId          Int      // User whose access was changed
+  adminId         Int      // Director who made the change
+  action          String   // "GRANTED", "DENIED", "TEMP_BLOCK", "UNBLOCK"
+  reason          String?  // Why was access changed
+  blockedUntil    DateTime? // For temporary blocks
+  createdAt       DateTime @default(now())
+  user            User     @relation("UserAccessLogs", fields: [userId], references: [id], onDelete: Cascade)
+  admin           User     @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+// User Statistics for Dashboard
+model UserStatistics {
+  id                  Int      @id @default(autoincrement())
+  date                DateTime @default(now())
+  totalUsers          Int
+  activeUsers         Int
+  blockedUsers        Int
+  directors           Int
+  managers            Int
+  employees           Int
+  loginAttempts       Int      @default(0)
+  failedLoginAttempts Int      @default(0)
 }

@@ -75,6 +75,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, currentPage, onNavigate 
           <div className="sidebar-title">
             {isDirector ? "🔐 System Administration" : "📋 Management"}
           </div>
+          {isDirector && (
+            <button 
+              className={currentPage === "userDashboard" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
+              onClick={() => onNavigate("userDashboard")}
+            >
+              📊 User Management Dashboard
+            </button>
+          )}
           <button 
             className={currentPage === "admins" ? "sidebar-item sidebar-subitem sidebar-item-active" : "sidebar-item sidebar-subitem"}
             onClick={() => onNavigate("admins")}

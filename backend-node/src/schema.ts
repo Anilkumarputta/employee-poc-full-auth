@@ -225,6 +225,51 @@ export const typeDefs = gql`
     email: String!
     role: String!
     createdAt: String!
+    isActive: Boolean
+    accessBlockedUntil: String
+    accessBlockReason: String
+    failedLoginAttempts: Int
+    lockedUntil: String
+  }
+
+  type AccessControlLog {
+    id: Int!
+    userId: Int!
+    adminId: Int!
+    action: String!
+    reason: String
+    blockedUntil: String
+    createdAt: String!
+    user: User!
+    admin: User!
+  }
+
+  type UserStatistics {
+    id: Int!
+    date: String!
+    totalUsers: Int!
+    activeUsers: Int!
+    blockedUsers: Int!
+    directors: Int!
+    managers: Int!
+    employees: Int!
+    loginAttempts: Int!
+    failedLoginAttempts: Int!
+  }
+
+  type DashboardStats {
+    totalUsers: Int!
+    activeUsers: Int!
+    blockedUsers: Int!
+    recentActions: [AccessControlLog!]!
+    roleDistribution: RoleDistribution!
+    recentLogins: Int!
+  }
+
+  type RoleDistribution {
+    directors: Int!
+    managers: Int!
+    employees: Int!
   }
 
   type PasswordChangeResult {
@@ -313,8 +358,13 @@ export const typeDefs = gql`
     accessLogs(page: Int = 1, pageSize: Int = 50): [AccessLog!]!
     
     adminUsers: [User!]!
-    allUsers: [User!]!
+    allUsers(searchTerm: String, roleFilter: String, statusFilter: String): [User!]!
     me: User
+    
+    # New: Enhanced queries for features
+    accessControlLogs(userId: Int, limit: Int = 50): [AccessControlLog!]!
+    dashboardStats: DashboardStats!
+    userStatistics(days: Int = 7): [UserStatistics!]!
   }
 
   input ProfileUpdateInput {
@@ -330,6 +380,8 @@ export const typeDefs = gql`
     updateMyProfile(input: ProfileUpdateInput!): Employee!
     deleteEmployee(id: Int!): Boolean!
     deleteUser(id: Int!): Boolean!
+    toggleUserAccess(id: Int!, isActive: Boolean!, reason: String, blockedUntil: String): Boolean!
+    bulkToggleAccess(userIds: [Int!]!, isActive: Boolean!, reason: String): Boolean!
     terminateEmployee(id: Int!): Employee!
     flagEmployee(id: Int!, flagged: Boolean!): Employee!
     generateEmployeeLogins: GenerateLoginsResult!

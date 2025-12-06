@@ -11,6 +11,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { AdminsPage } from "./pages/AdminsPage";
 import { AccessLogsPage } from "./pages/AccessLogsPage";
 import { SendNotePage } from "./pages/SendNotePage";
+import { UserManagementDashboard } from "./pages/UserManagementDashboard";
 import { LeaveRequestsPage } from "./pages/LeaveRequestsPage";
 import ProfileEditPage from "./pages/ProfileEditPage";
 import EmployeeLoginsPage from "./pages/EmployeeLoginsPage";
@@ -25,7 +26,7 @@ import { AuthContext, AuthUser } from "./auth/authContext";
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -109,6 +110,7 @@ const App: React.FC = () => {
             {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
             {currentPage === "settings" && <SettingsPage />}
             {currentPage === "admins" && <AdminsPage />}
+            {currentPage === "userDashboard" && <UserManagementDashboard />}
             {currentPage === "accessLogs" && <AccessLogsPage />}
             {currentPage === "sendNote" && <SendNotePage />}
             {currentPage === "leaveRequests" && <LeaveRequestsPage />}

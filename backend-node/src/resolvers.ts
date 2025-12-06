@@ -429,9 +429,30 @@ export const resolvers = {
       });
     },
     
-    allUsers: async (_: any, __: any, ctx: Context) => {
+    allUsers: async (_: any, { searchTerm, roleFilter, statusFilter }: any, ctx: Context) => {
       requireDirector(ctx);
+      
+      const where: any = {};
+      
+      // Search filter
+      if (searchTerm) {
+        where.email = { contains: searchTerm, mode: 'insensitive' };
+      }
+      
+      // Role filter
+      if (roleFilter && roleFilter !== 'all') {
+        where.role = roleFilter;
+      }
+      
+      // Status filter (active/blocked)
+      if (statusFilter === 'active') {
+        where.isActive = true;
+      } else if (statusFilter === 'blocked') {
+        where.isActive = false;
+      }
+      
       return ctx.prisma.user.findMany({
+        where,
         orderBy: { createdAt: "desc" }
       });
     },
@@ -439,6 +460,78 @@ export const resolvers = {
     me: async (_: any, __: any, ctx: Context) => {
       requireAuth(ctx);
       return ctx.prisma.user.findUnique({ where: { id: ctx.user!.id } });
+    },
+
+    // New: Access Control Logs query
+    accessControlLogs: async (_: any, { userId, limit = 50 }: any, ctx: Context) => {
+      requireDirector(ctx);
+      
+      const where = userId ? { userId } : {};
+      
+      return ctx.prisma.accessControlLog.findMany({
+        where,
+        include: {
+          user: true,
+          admin: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+      });
+    },
+
+    // New: Dashboard Statistics
+    dashboardStats: async (_: any, __: any, ctx: Context) => {
+      requireDirector(ctx);
+      
+      const totalUsers = await ctx.prisma.user.count();
+      const activeUsers = await ctx.prisma.user.count({ where: { isActive: true } });
+      const blockedUsers = await ctx.prisma.user.count({ where: { isActive: false } });
+      
+      const directors = await ctx.prisma.user.count({ where: { role: 'director' } });
+      const managers = await ctx.prisma.user.count({ where: { role: 'manager' } });
+      const employees = await ctx.prisma.user.count({ where: { role: 'employee' } });
+      
+      const recentActions = await ctx.prisma.accessControlLog.findMany({
+        include: {
+          user: true,
+          admin: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+      
+      // Count logins in last 24 hours (from AccessLog)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const recentLogins = await ctx.prisma.accessLog.count({
+        where: {
+          action: 'LOGIN',
+          createdAt: { gte: yesterday }
+        }
+      });
+      
+      return {
+        totalUsers,
+        activeUsers,
+        blockedUsers,
+        recentActions,
+        roleDistribution: {
+          directors,
+          managers,
+          employees
+        },
+        recentLogins
+      };
+    },
+
+    // New: User Statistics over time
+    userStatistics: async (_: any, { days = 7 }: any, ctx: Context) => {
+      requireDirector(ctx);
+      
+      return ctx.prisma.userStatistics.findMany({
+        orderBy: { date: 'desc' },
+        take: days
+      });
     },
 
     // Messaging System
@@ -784,6 +877,70 @@ export const resolvers = {
       // Only Director can delete users (admins, managers, employees)
       requireDirector(ctx);
       await ctx.prisma.user.delete({ where: { id } });
+      return true;
+    },
+
+    toggleUserAccess: async (_: any, { id, isActive, reason, blockedUntil }: any, ctx: Context) => {
+      // Only Director can grant/deny user access (Enhanced Access Control Feature)
+      requireDirector(ctx);
+      
+      const updateData: any = { isActive };
+      
+      // Handle temporary blocks
+      if (blockedUntil && !isActive) {
+        updateData.accessBlockedUntil = new Date(blockedUntil);
+      } else {
+        updateData.accessBlockedUntil = null;
+      }
+      
+      // Add reason if provided
+      if (reason) {
+        updateData.accessBlockReason = reason;
+      }
+      
+      await ctx.prisma.user.update({
+        where: { id },
+        data: updateData
+      });
+      
+      // Create audit log entry
+      await ctx.prisma.accessControlLog.create({
+        data: {
+          userId: id,
+          adminId: ctx.user!.id,
+          action: isActive ? 'GRANTED' : (blockedUntil ? 'TEMP_BLOCK' : 'DENIED'),
+          reason: reason || null,
+          blockedUntil: blockedUntil ? new Date(blockedUntil) : null
+        }
+      });
+      
+      return true;
+    },
+
+    // New: Bulk access control
+    bulkToggleAccess: async (_: any, { userIds, isActive, reason }: any, ctx: Context) => {
+      requireDirector(ctx);
+      
+      for (const userId of userIds) {
+        await ctx.prisma.user.update({
+          where: { id: userId },
+          data: { 
+            isActive,
+            accessBlockReason: reason || null
+          }
+        });
+        
+        // Create audit log for each user
+        await ctx.prisma.accessControlLog.create({
+          data: {
+            userId,
+            adminId: ctx.user!.id,
+            action: isActive ? 'GRANTED' : 'DENIED',
+            reason: reason || null
+          }
+        });
+      }
+      
       return true;
     },
 
