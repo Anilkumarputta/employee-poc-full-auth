@@ -3,7 +3,7 @@ import * as bcrypt from "bcryptjs";
 
 type Context = {
   prisma: PrismaClient;
-  user: { id: number; role: string } | null;
+  user: { id: number; role: string; email: string } | null;
 };
 
 function requireAuth(ctx: Context) {
