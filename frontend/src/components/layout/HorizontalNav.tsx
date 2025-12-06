@@ -61,7 +61,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
   return (
     <>
       {/* Top Horizontal Menu */}
-      <div style={{
+      <div className="horizontal-nav-container" style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
         boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
@@ -69,7 +69,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
         top: 0,
         zIndex: 1000
       }}>
-        <div style={{
+        <div className="horizontal-nav-inner" style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -77,9 +77,10 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
           height: '70px'
         }}>
           {/* Left: Hamburger + Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="horizontal-nav-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <button
               onClick={() => setDrawerOpen(!drawerOpen)}
+              className="hamburger-btn"
               style={{
                 background: 'rgba(255,255,255,0.2)',
                 border: 'none',
@@ -99,8 +100,8 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               ☰
             </button>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{
+            <div className="horizontal-nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div className="logo-icon" style={{
                 width: '45px',
                 height: '45px',
                 background: 'rgba(255,255,255,0.2)',
@@ -112,15 +113,15 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               }}>
                 👥
               </div>
-              <div>
+              <div className="logo-text">
                 <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Employee POC</div>
-                <div style={{ fontSize: '12px', opacity: 0.9 }}>{getPortalTitle()}</div>
+                <div className="portal-subtitle" style={{ fontSize: '12px', opacity: 0.9 }}>{getPortalTitle()}</div>
               </div>
             </div>
           </div>
 
           {/* Center: Main Navigation */}
-          <div style={{ display: 'flex', gap: '5px' }}>
+          <div className="horizontal-nav-center" style={{ display: 'flex', gap: '5px' }}>
             <button
               onClick={() => onNavigate('dashboard')}
               style={{
@@ -217,8 +218,8 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
           </div>
 
           {/* Right: User Profile + Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ 
+          <div className="horizontal-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div className="user-email-badge" style={{ 
               background: 'rgba(255,255,255,0.2)', 
               padding: '10px 20px', 
               borderRadius: '25px',
@@ -228,7 +229,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               gap: '10px',
               position: 'relative'
             }}>
-              {user?.email}
+              <span className="email-text">{user?.email}</span>
               {unreadMessageCount > 0 && (
                 <span style={{
                   background: '#e74c3c',
@@ -292,7 +293,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
       )}
 
       {/* Drawer */}
-      <div style={{
+      <div className="drawer-mobile" style={{
         position: 'fixed',
         left: 0,
         top: 0,

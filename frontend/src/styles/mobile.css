@@ -1,8 +1,93 @@
 /* Mobile Responsive Styles */
 
+/* Base mobile improvements (all sizes) */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Improve button touch targets */
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
 /* Mobile First - Base styles for mobile */
 @media (max-width: 768px) {
   
+  /* Horizontal Nav - Mobile Responsive */
+  .horizontal-nav-inner {
+    padding: 0 15px !important;
+    height: 60px !important;
+  }
+
+  .horizontal-nav-left {
+    gap: 10px !important;
+  }
+
+  .horizontal-nav-logo .logo-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 18px !important;
+  }
+
+  .horizontal-nav-logo .logo-text {
+    display: none !important; /* Hide logo text on mobile */
+  }
+
+  .horizontal-nav-center {
+    display: none !important; /* Hide center navigation on mobile */
+  }
+
+  .horizontal-nav-right {
+    gap: 8px !important;
+  }
+
+  .hamburger-btn {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 20px !important;
+  }
+
+  /* User email badge - hide email text on mobile */
+  .user-email-badge {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .email-text {
+    display: none !important;
+  }
+
+  /* Notification bell and badge on mobile */
+  .user-email-badge span[style*="background: #e74c3c"] {
+    position: static !important;
+    margin-left: 0 !important;
+  }
+
+  /* Logout button - more compact on mobile */
+  .horizontal-nav-right button {
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+  }
+
+  /* Drawer - Full width on small mobile */
+  .drawer-mobile {
+    width: 85% !important;
+    max-width: 320px !important;
+  }
+
   /* Auth pages - better mobile spacing */
   .auth-shell {
     padding: 1rem;
@@ -76,6 +161,17 @@
     margin-left: 0 !important; /* Override sidebar offset */
   }
 
+  /* Main content area adjustments */
+  main {
+    padding: 0 !important;
+  }
+
+  /* All page containers */
+  [class*="-container"],
+  [class*="Container"] {
+    padding: 1rem !important;
+  }
+
   /* Dashboard cards - stack on mobile */
   .quick-actions {
     grid-template-columns: 1fr !important;
@@ -101,6 +197,17 @@
 
   .activity-item {
     padding: 0.75rem;
+  }
+
+  /* Generic card styles */
+  [style*="borderRadius"][style*="background"] {
+    border-radius: 12px !important;
+  }
+
+  /* Generic grid layouts */
+  [style*="display: grid"],
+  [style*="display:grid"] {
+    grid-template-columns: 1fr !important;
   }
 
   /* Employees page - responsive table */
