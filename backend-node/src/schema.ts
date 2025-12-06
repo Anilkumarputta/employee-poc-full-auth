@@ -126,6 +126,49 @@ export const typeDefs = gql`
     isRead: Boolean!
     readAt: String
     actionUrl: String
+    linkTo: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type Thread {
+    id: Int!
+    participants: [Int!]!
+    linkedEmployeeId: Int
+    linkedRequestId: Int
+    title: String
+    createdAt: String!
+    updatedAt: String!
+    messages: [ThreadMessage!]!
+    lastMessage: ThreadMessage
+  }
+
+  type ThreadMessage {
+    id: Int!
+    threadId: Int!
+    senderId: Int!
+    senderEmail: String!
+    senderRole: String!
+    body: String!
+    type: String!
+    createdAt: String!
+  }
+
+  type ReviewRequest {
+    id: Int!
+    employeeId: Int!
+    employee: Employee!
+    requestedByManagerId: Int!
+    requestedByEmail: String!
+    type: String!
+    status: String!
+    managerReasonType: String!
+    managerReasonText: String!
+    visibleToEmployee: Boolean!
+    adminComment: String
+    reviewedByAdminId: Int
+    reviewedAt: String
+    threadId: Int
     createdAt: String!
     updatedAt: String!
   }
@@ -201,6 +244,38 @@ export const typeDefs = gql`
     endDate: String!
   }
 
+  input CreateNotificationInput {
+    recipientUserId: Int
+    recipientRole: String
+    type: String!
+    title: String!
+    message: String!
+    linkTo: String
+  }
+
+  input CreateReviewRequestInput {
+    employeeId: Int!
+    type: String!
+    managerReasonType: String!
+    managerReasonText: String!
+    visibleToEmployee: Boolean!
+  }
+
+  input ReviewDecisionInput {
+    requestId: Int!
+    decision: String!
+    adminComment: String!
+  }
+
+  input SendThreadMessageInput {
+    threadId: Int
+    recipientUserIds: [Int!]
+    linkedEmployeeId: Int
+    linkedRequestId: Int
+    title: String
+    body: String!
+  }
+
   type Query {
     employees(
       filter: EmployeeFilter
@@ -223,6 +298,14 @@ export const typeDefs = gql`
     notifications: [Notification!]!
     unreadNotifications: [Notification!]!
     notificationCount: Int!
+    
+    threads: [Thread!]!
+    thread(id: Int!): Thread
+    myThreads: [Thread!]!
+    
+    reviewRequests(status: String): [ReviewRequest!]!
+    reviewRequest(id: Int!): ReviewRequest
+    myReviewRequests: [ReviewRequest!]!
     
     leaveRequests(status: String): [LeaveRequest!]!
     myLeaveRequests: [LeaveRequest!]!
@@ -262,6 +345,12 @@ export const typeDefs = gql`
     markNotificationAsRead(id: Int!): Notification!
     markAllNotificationsAsRead: Boolean!
     deleteNotification(id: Int!): Boolean!
+    createNotification(input: CreateNotificationInput!): Notification!
+    
+    sendThreadMessage(input: SendThreadMessageInput!): ThreadMessage!
+    
+    createReviewRequest(input: CreateReviewRequestInput!): ReviewRequest!
+    reviewDecision(input: ReviewDecisionInput!): ReviewRequest!
     
     createLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
     updateLeaveRequestStatus(id: Int!, status: String!, adminNote: String): LeaveRequest!

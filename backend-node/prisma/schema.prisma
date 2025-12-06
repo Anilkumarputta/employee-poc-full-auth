@@ -39,7 +39,7 @@ model Employee {
   subjects          String[]
   attendance        Int
   role              String         // "director", "manager", "employee"
-  status            String
+  status            String         // "ACTIVE", "UNDER_REVIEW", "FLAGGED", "TERMINATION_REQUESTED", "TERMINATED"
   location          String
   lastLogin         String
   flagged           Boolean        @default(false)
@@ -49,6 +49,7 @@ model Employee {
   updatedAt         DateTime       @updatedAt
   notesReceived     Note[]         @relation("EmployeeNotes")
   leaveRequests     LeaveRequest[]
+  reviewRequests    ReviewRequest[]
 }
 
 model Note {
@@ -90,13 +91,56 @@ model Notification {
   userEmail   String
   title       String
   message     String
-  type        String    @default("info") // "info", "message", "alert", "approval"
+  type        String    @default("INFO") // "INFO", "WARNING", "CRITICAL", "MESSAGE", "APPROVAL"
   isRead      Boolean   @default(false)
   readAt      DateTime?
   actionUrl   String?   // Link to relevant page
+  linkTo      String?   // Internal app route
   metadata    Json?     // Additional data (message ID, sender info, etc.)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Thread {
+  id                Int       @id @default(autoincrement())
+  participants      Int[]     // Array of User IDs
+  linkedEmployeeId  Int?      // Link to employee if discussion is about them
+  linkedRequestId   Int?      // Link to ReviewRequest if applicable
+  title             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  messages          ThreadMessage[]
+}
+
+model ThreadMessage {
+  id          Int       @id @default(autoincrement())
+  threadId    Int
+  senderId    Int       // User ID or 0 for SYSTEM
+  senderEmail String
+  senderRole  String
+  body        String
+  type        String    @default("USER") // "USER" or "SYSTEM"
+  createdAt   DateTime  @default(now())
+  thread      Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model ReviewRequest {
+  id                    Int       @id @default(autoincrement())
+  employeeId            Int
+  requestedByManagerId  Int       // User ID of the manager
+  requestedByEmail      String
+  type                  String    // "FLAG" or "TERMINATE"
+  status                String    @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  managerReasonType     String    // "Performance", "Behaviour", "Attendance", "Policy Violation", "Other"
+  managerReasonText     String
+  visibleToEmployee     Boolean   @default(false)
+  adminComment          String?
+  reviewedByAdminId     Int?      // User ID of admin who reviewed
+  reviewedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  employee              Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  threadId              Int?      // Link to discussion thread
 }
 
 model LeaveRequest {

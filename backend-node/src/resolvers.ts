@@ -34,6 +34,26 @@ function requireAdmin(ctx: Context) {
 }
 
 export const resolvers = {
+  Thread: {
+    lastMessage: async (parent: any) => {
+      if (parent.messages && parent.messages.length > 0) {
+        return parent.messages[0];
+      }
+      return null;
+    },
+  },
+
+  ReviewRequest: {
+    employee: async (parent: any, _: any, ctx: Context) => {
+      if (parent.employee) {
+        return parent.employee;
+      }
+      return ctx.prisma.employee.findUnique({
+        where: { id: parent.employeeId },
+      });
+    },
+  },
+
   Query: {
     employees: async (_: any, args: any, ctx: Context) => {
       requireAuth(ctx);
@@ -379,6 +399,109 @@ export const resolvers = {
           userId: ctx.user!.id,
           isRead: false,
         },
+      });
+    },
+
+    // Thread queries
+    threads: async (_: any, __: any, ctx: Context) => {
+      requireDirector(ctx);
+      return ctx.prisma.thread.findMany({
+        orderBy: { updatedAt: "desc" },
+        include: {
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+    },
+
+    thread: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      const thread = await ctx.prisma.thread.findUnique({
+        where: { id },
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      // Check if user is participant
+      if (thread && !thread.participants.includes(ctx.user!.id) && ctx.user!.role !== "director") {
+        throw new Error("Access denied to this thread");
+      }
+
+      return thread;
+    },
+
+    myThreads: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      const threads = await ctx.prisma.thread.findMany({
+        orderBy: { updatedAt: "desc" },
+        include: {
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      // Filter threads where user is participant or user is director
+      return threads.filter(
+        t => t.participants.includes(ctx.user!.id) || ctx.user!.role === "director"
+      );
+    },
+
+    // Review request queries
+    reviewRequests: async (_: any, { status }: any, ctx: Context) => {
+      requireDirector(ctx);
+      const where: any = {};
+      if (status) {
+        where.status = status;
+      }
+
+      return ctx.prisma.reviewRequest.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: { employee: true },
+      });
+    },
+
+    reviewRequest: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      const request = await ctx.prisma.reviewRequest.findUnique({
+        where: { id },
+        include: { employee: true },
+      });
+
+      if (!request) {
+        return null;
+      }
+
+      // Check permissions
+      const isDirector = ctx.user!.role === "director";
+      const isRequestManager = request.requestedByManagerId === ctx.user!.id;
+      const isEmployee = request.employee.userId === ctx.user!.id;
+
+      if (!isDirector && !isRequestManager && !isEmployee) {
+        throw new Error("Access denied to this review request");
+      }
+
+      // Filter what employee sees
+      if (isEmployee && !request.visibleToEmployee) {
+        return null;
+      }
+
+      return request;
+    },
+
+    myReviewRequests: async (_: any, __: any, ctx: Context) => {
+      requireManagerOrAbove(ctx);
+      return ctx.prisma.reviewRequest.findMany({
+        where: { requestedByManagerId: ctx.user!.id },
+        orderBy: { createdAt: "desc" },
+        include: { employee: true },
       });
     },
   },
@@ -879,6 +1002,351 @@ export const resolvers = {
         where: { id },
       });
       return true;
+    },
+
+    // Create notification (Admin/Manager)
+    createNotification: async (_: any, { input }: any, ctx: Context) => {
+      requireManagerOrAbove(ctx);
+      const { prisma, user } = ctx;
+
+      // Create notifications for recipients
+      const notifications = [];
+
+      if (input.recipientUserId) {
+        // Single recipient
+        const recipient = await prisma.user.findUnique({
+          where: { id: input.recipientUserId },
+        });
+        
+        if (recipient) {
+          const notification = await prisma.notification.create({
+            data: {
+              userId: recipient.id,
+              userEmail: recipient.email,
+              title: input.title,
+              message: input.message,
+              type: input.type,
+              linkTo: input.linkTo || null,
+            },
+          });
+          notifications.push(notification);
+        }
+      } else if (input.recipientRole) {
+        // Broadcast to role
+        const recipients = await prisma.user.findMany({
+          where: { role: input.recipientRole },
+        });
+
+        for (const recipient of recipients) {
+          const notification = await prisma.notification.create({
+            data: {
+              userId: recipient.id,
+              userEmail: recipient.email,
+              title: input.title,
+              message: input.message,
+              type: input.type,
+              linkTo: input.linkTo || null,
+            },
+          });
+          notifications.push(notification);
+        }
+      }
+
+      return notifications[0]; // Return first notification created
+    },
+
+    // Send thread message
+    sendThreadMessage: async (_: any, { input }: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      let threadId = input.threadId;
+
+      // Create new thread if not provided
+      if (!threadId) {
+        const participants = input.recipientUserIds ? [user!.id, ...input.recipientUserIds] : [user!.id];
+        
+        const thread = await prisma.thread.create({
+          data: {
+            participants,
+            linkedEmployeeId: input.linkedEmployeeId || null,
+            linkedRequestId: input.linkedRequestId || null,
+            title: input.title || null,
+          },
+        });
+        threadId = thread.id;
+      }
+
+      // Create message in thread
+      const message = await prisma.threadMessage.create({
+        data: {
+          threadId,
+          senderId: user!.id,
+          senderEmail: user!.email,
+          senderRole: user!.role,
+          body: input.body,
+          type: "USER",
+        },
+      });
+
+      // Create notifications for other participants
+      const thread = await prisma.thread.findUnique({
+        where: { id: threadId },
+      });
+
+      if (thread) {
+        const otherParticipants = thread.participants.filter(p => p !== user!.id);
+        
+        for (const participantId of otherParticipants) {
+          const participant = await prisma.user.findUnique({
+            where: { id: participantId },
+          });
+
+          if (participant) {
+            await prisma.notification.create({
+              data: {
+                userId: participant.id,
+                userEmail: participant.email,
+                title: `New message from ${user!.email}`,
+                message: input.body.substring(0, 100),
+                type: "MESSAGE",
+                linkTo: `/threads/${threadId}`,
+                metadata: { threadId, messageId: message.id },
+              },
+            });
+          }
+        }
+      }
+
+      return message;
+    },
+
+    // Create review request (Flag/Terminate)
+    createReviewRequest: async (_: any, { input }: any, ctx: Context) => {
+      requireManagerOrAbove(ctx);
+      const { prisma, user } = ctx;
+
+      // Validate reason text length
+      if (!input.managerReasonText || input.managerReasonText.trim().length < 20) {
+        throw new Error("Reason details must be at least 20 characters");
+      }
+
+      // Get employee
+      const employee = await prisma.employee.findUnique({
+        where: { id: input.employeeId },
+      });
+
+      if (!employee) {
+        throw new Error("Employee not found");
+      }
+
+      // Determine new status
+      const newStatus = input.type === "FLAG" ? "UNDER_REVIEW" : "TERMINATION_REQUESTED";
+
+      // Update employee status
+      await prisma.employee.update({
+        where: { id: input.employeeId },
+        data: { status: newStatus },
+      });
+
+      // Create review request
+      const request = await prisma.reviewRequest.create({
+        data: {
+          employeeId: input.employeeId,
+          requestedByManagerId: user!.id,
+          requestedByEmail: user!.email,
+          type: input.type,
+          status: "PENDING",
+          managerReasonType: input.managerReasonType,
+          managerReasonText: input.managerReasonText,
+          visibleToEmployee: input.visibleToEmployee,
+        },
+      });
+
+      // Create thread for discussion
+      const thread = await prisma.thread.create({
+        data: {
+          participants: [user!.id],
+          linkedEmployeeId: input.employeeId,
+          linkedRequestId: request.id,
+          title: `${input.type} Request: ${employee.name}`,
+        },
+      });
+
+      // Update request with thread ID
+      await prisma.reviewRequest.update({
+        where: { id: request.id },
+        data: { threadId: thread.id },
+      });
+
+      // System message in thread
+      await prisma.threadMessage.create({
+        data: {
+          threadId: thread.id,
+          senderId: 0,
+          senderEmail: "system",
+          senderRole: "system",
+          body: `Manager ${user!.email} created ${input.type} request.\nReason Type: ${input.managerReasonType}\nReason: ${input.managerReasonText}`,
+          type: "SYSTEM",
+        },
+      });
+
+      // Notify all directors/admins
+      const admins = await prisma.user.findMany({
+        where: { role: "director" },
+      });
+
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: {
+            userId: admin.id,
+            userEmail: admin.email,
+            title: `${input.type} Request from ${user!.email}`,
+            message: `Review needed for employee: ${employee.name}`,
+            type: "APPROVAL",
+            linkTo: `/review-requests/${request.id}`,
+            metadata: { requestId: request.id, employeeId: input.employeeId },
+          },
+        });
+      }
+
+      // Optionally notify employee
+      if (input.visibleToEmployee && employee.userId) {
+        const empUser = await prisma.user.findUnique({
+          where: { id: employee.userId },
+        });
+
+        if (empUser) {
+          await prisma.notification.create({
+            data: {
+              userId: empUser.id,
+              userEmail: empUser.email,
+              title: "Your status is under review",
+              message: "A review has been initiated. You will be notified of the outcome.",
+              type: "WARNING",
+              linkTo: "/my-profile",
+            },
+          });
+        }
+      }
+
+      return request;
+    },
+
+    // Admin review decision
+    reviewDecision: async (_: any, { input }: any, ctx: Context) => {
+      requireDirector(ctx);
+      const { prisma, user } = ctx;
+
+      // Get request
+      const request = await prisma.reviewRequest.findUnique({
+        where: { id: input.requestId },
+        include: { employee: true },
+      });
+
+      if (!request) {
+        throw new Error("Review request not found");
+      }
+
+      if (request.status !== "PENDING") {
+        throw new Error("Request has already been reviewed");
+      }
+
+      // Validate admin comment
+      if (!input.adminComment || input.adminComment.trim().length < 10) {
+        throw new Error("Admin comment must be at least 10 characters");
+      }
+
+      // Determine new employee status
+      let newEmployeeStatus = request.employee.status;
+      
+      if (input.decision === "APPROVED") {
+        newEmployeeStatus = request.type === "FLAG" ? "FLAGGED" : "TERMINATED";
+      } else {
+        newEmployeeStatus = "ACTIVE"; // Revert to active
+      }
+
+      // Update employee status
+      await prisma.employee.update({
+        where: { id: request.employeeId },
+        data: { 
+          status: newEmployeeStatus,
+          flagged: request.type === "FLAG" && input.decision === "APPROVED",
+        },
+      });
+
+      // Update request
+      const updatedRequest = await prisma.reviewRequest.update({
+        where: { id: input.requestId },
+        data: {
+          status: input.decision === "APPROVED" ? "APPROVED" : "REJECTED",
+          adminComment: input.adminComment,
+          reviewedByAdminId: user!.id,
+          reviewedAt: new Date(),
+        },
+        include: { employee: true },
+      });
+
+      // System message in thread
+      if (request.threadId) {
+        await prisma.threadMessage.create({
+          data: {
+            threadId: request.threadId,
+            senderId: 0,
+            senderEmail: "system",
+            senderRole: "system",
+            body: `Admin ${user!.email} ${input.decision.toLowerCase()} this request.\nComment: ${input.adminComment}`,
+            type: "SYSTEM",
+          },
+        });
+      }
+
+      // Notify manager
+      const manager = await prisma.user.findUnique({
+        where: { id: request.requestedByManagerId },
+      });
+
+      if (manager) {
+        await prisma.notification.create({
+          data: {
+            userId: manager.id,
+            userEmail: manager.email,
+            title: `Your ${request.type} request was ${input.decision.toLowerCase()}`,
+            message: `For employee: ${request.employee.name}. Comment: ${input.adminComment}`,
+            type: "APPROVAL",
+            linkTo: `/review-requests/${request.id}`,
+            metadata: { requestId: request.id, decision: input.decision },
+          },
+        });
+      }
+
+      // Notify employee if visible
+      if (request.visibleToEmployee && request.employee.userId) {
+        const empUser = await prisma.user.findUnique({
+          where: { id: request.employee.userId },
+        });
+
+        if (empUser) {
+          const title = input.decision === "APPROVED" 
+            ? `Your status is now ${newEmployeeStatus}`
+            : "Review completed - no change to your status";
+          
+          await prisma.notification.create({
+            data: {
+              userId: empUser.id,
+              userEmail: empUser.email,
+              title,
+              message: input.decision === "APPROVED" 
+                ? "Please contact your manager for details."
+                : "Your employment status remains unchanged.",
+              type: input.decision === "APPROVED" ? "CRITICAL" : "INFO",
+              linkTo: "/my-profile",
+            },
+          });
+        }
+      }
+
+      return updatedRequest;
     },
   },
 };
