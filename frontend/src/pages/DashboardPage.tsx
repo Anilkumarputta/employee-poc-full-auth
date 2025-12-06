@@ -2,6 +2,11 @@ import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 
+// Add Props type for navigation
+type DashboardPageProps = {
+  onNavigate?: (page: string) => void;
+};
+
 type Employee = {
   id: number;
   name: string;
@@ -61,7 +66,7 @@ const LEAVE_REQUESTS_QUERY = `
   }
 `;
 
-export const DashboardPage: React.FC = () => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const { accessToken, user } = useContext(AuthContext);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -380,11 +385,36 @@ export const DashboardPage: React.FC = () => {
               ⚡ Quick Actions
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <QuickActionButton icon="➕" text="Add Employee" color="#27ae60" />
-              <QuickActionButton icon="🏢" text="Create Department" color="#3498db" />
-              <QuickActionButton icon="🔐" text="Manage Roles & Permissions" color="#9b59b6" />
-              <QuickActionButton icon="👥" text="View All Employees" color="#667eea" />
-              <QuickActionButton icon="📊" text="Generate Reports" color="#f39c12" />
+              <QuickActionButton 
+                icon="➕" 
+                text="Add Employee" 
+                color="#27ae60" 
+                onClick={() => onNavigate?.('employees')}
+              />
+              <QuickActionButton 
+                icon="🔐" 
+                text="Manage Users" 
+                color="#9b59b6" 
+                onClick={() => onNavigate?.('admins')}
+              />
+              <QuickActionButton 
+                icon="👥" 
+                text="View All Employees" 
+                color="#667eea" 
+                onClick={() => onNavigate?.('employees')}
+              />
+              <QuickActionButton 
+                icon="📊" 
+                text="Generate Reports" 
+                color="#f39c12" 
+                onClick={() => onNavigate?.('reports')}
+              />
+              <QuickActionButton 
+                icon="✅" 
+                text="Review Requests" 
+                color="#e74c3c" 
+                onClick={() => onNavigate?.('review-requests')}
+              />
             </div>
           </div>
         </div>
@@ -600,10 +630,30 @@ export const DashboardPage: React.FC = () => {
             ⚡ Quick Actions
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
-            <QuickActionButton icon="✓" text="Approve Leaves" color="#27ae60" />
-            <QuickActionButton icon="📊" text="View Team Grid" color="#3498db" />
-            <QuickActionButton icon="🚩" text="Flag Team Member" color="#e74c3c" />
-            <QuickActionButton icon="📈" text="Team Performance Report" color="#f39c12" />
+            <QuickActionButton 
+              icon="✓" 
+              text="Approve Leaves" 
+              color="#27ae60" 
+              onClick={() => onNavigate?.('leaveRequests')}
+            />
+            <QuickActionButton 
+              icon="📊" 
+              text="View Team Grid" 
+              color="#3498db" 
+              onClick={() => onNavigate?.('employees')}
+            />
+            <QuickActionButton 
+              icon="🚩" 
+              text="Flag Team Member" 
+              color="#e74c3c" 
+              onClick={() => onNavigate?.('employees')}
+            />
+            <QuickActionButton 
+              icon="📈" 
+              text="Team Performance Report" 
+              color="#f39c12" 
+              onClick={() => onNavigate?.('reports')}
+            />
           </div>
         </div>
       </div>
@@ -743,11 +793,36 @@ export const DashboardPage: React.FC = () => {
             ⚡ Quick Actions
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <QuickActionButton icon="🏖️" text="Request Leave" color="#3498db" />
-            <QuickActionButton icon="✏️" text="Update Profile" color="#27ae60" />
-            <QuickActionButton icon="👤" text="View My Record" color="#667eea" />
-            <QuickActionButton icon="📄" text="View Payslip" color="#f39c12" />
-            <QuickActionButton icon="📊" text="My Attendance" color="#9b59b6" />
+            <QuickActionButton 
+              icon="🏖️" 
+              text="Request Leave" 
+              color="#3498db" 
+              onClick={() => onNavigate?.('leaveRequests')}
+            />
+            <QuickActionButton 
+              icon="✏️" 
+              text="Update Profile" 
+              color="#27ae60" 
+              onClick={() => onNavigate?.('profileEdit')}
+            />
+            <QuickActionButton 
+              icon="👤" 
+              text="View My Record" 
+              color="#667eea" 
+              onClick={() => onNavigate?.('profile')}
+            />
+            <QuickActionButton 
+              icon="💬" 
+              text="My Messages" 
+              color="#f39c12" 
+              onClick={() => onNavigate?.('messages')}
+            />
+            <QuickActionButton 
+              icon="⚙️" 
+              text="Preferences" 
+              color="#9b59b6" 
+              onClick={() => onNavigate?.('preferences')}
+            />
           </div>
         </div>
       </div>
@@ -805,33 +880,36 @@ const QuickActionButton: React.FC<{
   icon: string;
   text: string;
   color: string;
-}> = ({ icon, text, color }) => (
-  <button style={{
-    padding: '16px 20px',
-    background: 'white',
-    border: `2px solid ${color}`,
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: color,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    transition: 'all 0.3s',
-    width: '100%',
-    textAlign: 'left'
-  }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.background = color;
-    e.currentTarget.style.color = 'white';
-    e.currentTarget.style.transform = 'translateX(5px)';
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.background = 'white';
-    e.currentTarget.style.color = color;
-    e.currentTarget.style.transform = 'translateX(0)';
-  }}>
+  onClick?: () => void;
+}> = ({ icon, text, color, onClick }) => (
+  <button 
+    onClick={onClick}
+    style={{
+      padding: '16px 20px',
+      background: 'white',
+      border: `2px solid ${color}`,
+      borderRadius: '12px',
+      cursor: 'pointer',
+      fontSize: '15px',
+      fontWeight: '600',
+      color: color,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      transition: 'all 0.3s',
+      width: '100%',
+      textAlign: 'left'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = color;
+      e.currentTarget.style.color = 'white';
+      e.currentTarget.style.transform = 'translateX(5px)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = 'white';
+      e.currentTarget.style.color = color;
+      e.currentTarget.style.transform = 'translateX(0)';
+    }}>
     <span style={{ fontSize: '20px' }}>{icon}</span>
     {text}
   </button>

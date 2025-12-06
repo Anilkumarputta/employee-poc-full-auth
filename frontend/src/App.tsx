@@ -101,7 +101,7 @@ const App: React.FC = () => {
           />
           <main style={{ padding: '0' }}>
             {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
-            {currentPage === "dashboard" && <DashboardPage />}
+            {currentPage === "dashboard" && <DashboardPage onNavigate={(page) => setCurrentPage(page as AppPage)} />}
             {currentPage === "notifications" && <NotificationsPage />}
             {currentPage === "reports" && <ReportsPage />}
             {currentPage === "profile" && <ProfilePage />}

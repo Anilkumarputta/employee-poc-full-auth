@@ -27,18 +27,8 @@ export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
     setLanguage(savedLanguage);
     setTimezone(savedTimezone);
     
-    // Apply theme
-    if (savedTheme === "dark") {
-      document.body.style.background = "#1f2937";
-      document.body.style.color = "#f9fafb";
-    } else if (savedTheme === "auto") {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.body.style.background = isDark ? "#1f2937" : "#ffffff";
-      document.body.style.color = isDark ? "#f9fafb" : "#000000";
-    } else {
-      document.body.style.background = "#ffffff";
-      document.body.style.color = "#000000";
-    }
+    // Note: We don't change document.body styles here as it interferes with the main app
+    // Theme would be applied at the root App level in a real implementation
   }, []);
 
   useEffect(() => {
@@ -63,7 +53,28 @@ export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
     localStorage.setItem("language", language);
     localStorage.setItem("timezone", timezone);
     
-    alert("Preferences saved successfully!");
+    // Show success message with better styling
+    const successMsg = document.createElement('div');
+    successMsg.innerHTML = '✅ Preferences saved successfully!';
+    successMsg.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 10000;
+      font-weight: 600;
+      animation: slideIn 0.3s ease-out;
+    `;
+    document.body.appendChild(successMsg);
+    
+    setTimeout(() => {
+      successMsg.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => successMsg.remove(), 300);
+    }, 3000);
   };
 
   return (
