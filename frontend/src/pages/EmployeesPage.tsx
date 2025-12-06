@@ -4,6 +4,7 @@ import "./employees.css";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { EmployeeFormModal } from "../components/EmployeeFormModal";
+import { formatFullDateTime, formatRelativeTime } from "../lib/dateUtils";
 
 export type Employee = {
   id: number;
@@ -663,9 +664,9 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
               <p>
                 <strong>Last login:</strong> {selected.lastLogin}</p>
               <p>
-                <strong>Created:</strong> {selected.createdAt}</p>
+                <strong>Joined:</strong> {formatFullDateTime(selected.createdAt)}</p>
               <p>
-                <strong>Updated:</strong> {selected.updatedAt}</p>
+                <strong>Last Updated:</strong> {formatRelativeTime(selected.updatedAt)}</p>
             </div>
           </div>
         </div>

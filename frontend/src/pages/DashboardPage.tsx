@@ -120,6 +120,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weather, setWeather] = useState<{temp: number, condition: string, icon: string, location: string} | null>(null);
 
   const isDirector = user?.role === 'director';
   const isManager = user?.role === 'manager';
@@ -127,7 +128,44 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     fetchData();
+    fetchWeather();
   }, []);
+
+  const fetchWeather = async () => {
+    try {
+      // Using wttr.in - a simple weather API that doesn't require API key
+      const response = await fetch('https://wttr.in/?format=j1');
+      const data = await response.json();
+      
+      const current = data.current_condition[0];
+      setWeather({
+        temp: Math.round(parseFloat(current.temp_C)),
+        condition: current.weatherDesc[0].value,
+        icon: getWeatherIcon(current.weatherCode),
+        location: data.nearest_area[0].areaName[0].value
+      });
+    } catch (error) {
+      console.error('Failed to fetch weather:', error);
+      // Fallback weather data
+      setWeather({
+        temp: 22,
+        condition: 'Partly Cloudy',
+        icon: '⛅',
+        location: 'Local'
+      });
+    }
+  };
+
+  const getWeatherIcon = (code: string): string => {
+    const weatherCode = parseInt(code);
+    if (weatherCode === 113) return '☀️'; // Sunny
+    if (weatherCode === 116) return '⛅'; // Partly cloudy
+    if (weatherCode === 119 || weatherCode === 122) return '☁️'; // Cloudy
+    if (weatherCode >= 176 && weatherCode <= 299) return '🌧️'; // Rainy
+    if (weatherCode >= 323 && weatherCode <= 395) return '🌨️'; // Snowy
+    if (weatherCode >= 200 && weatherCode <= 299) return '⛈️'; // Thunderstorm
+    return '🌤️'; // Default
+  };
 
   const getActivityIcon = (action: string): string => {
     if (action.includes('LOGIN') || action.includes('LOGOUT')) return '🔐';
@@ -335,6 +373,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           gap: '20px',
           marginBottom: '30px'
         }}>
+          {weather && (
+            <MetricCard
+              icon={weather.icon}
+              title="Weather"
+              value={`${weather.temp}°C`}
+              subtitle={`${weather.condition} in ${weather.location}`}
+              color="#3498db"
+            />
+          )}
           <MetricCard
             icon="👥"
             title="Total Employees"
@@ -594,6 +641,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           gap: '20px',
           marginBottom: '30px'
         }}>
+          {weather && (
+            <MetricCard
+              icon={weather.icon}
+              title="Weather"
+              value={`${weather.temp}°C`}
+              subtitle={`${weather.condition} in ${weather.location}`}
+              color="#3498db"
+            />
+          )}
           <MetricCard
             icon="👥"
             title="My Team Size"
@@ -840,6 +896,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         gap: '20px',
         marginBottom: '30px'
       }}>
+        {weather && (
+          <MetricCard
+            icon={weather.icon}
+            title="Weather"
+            value={`${weather.temp}°C`}
+            subtitle={`${weather.condition} in ${weather.location}`}
+            color="#3498db"
+          />
+        )}
         <MetricCard
           icon="🏖️"
           title="Leave Balance"

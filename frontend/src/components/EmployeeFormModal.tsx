@@ -115,7 +115,8 @@ export const EmployeeFormModal: React.FC<Props> = ({ employee, onSave, onCancel 
                   style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
                 >
                   <option value="employee">Employee</option>
-                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="director">Director</option>
                 </select>
               </label>
             </div>

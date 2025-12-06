@@ -713,6 +713,72 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               🎨 Preferences
             </button>
           </div>
+
+          {/* Emergency Alert Section */}
+          <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #ffe0e0' }}>
+            <div style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              color: '#e74c3c', 
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Emergency
+            </div>
+
+            <button
+              onClick={() => {
+                // Play emergency sound for 5 seconds
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGmi77eifTRAMUqfj8LJeHAU7k9X1y3gsBS+CzvLYijYIG2u87OmeTxELUaXi8LFYGgQ9lNTyy3YnBSuBzvLZizUIGmy97OmeUBELUaXh8LJXGgU+ltT0yXMnBSx+0fLaizcIF2y+7OieTBANU6fi8K9ZGgRAltT0yXMnBS1/0fLajTUIGW3A7OieTBENU6bi8K9aGQVBl9T0yHMnBTKC0PLZjjYIGm7A7OidTREMUqXh8K9bGQZCmNT0yHInBTOE0PLYjjYIG2++7OieTRANUaXi8K9bGwVCmNT0xXMnBTSG0PLYjDUIHHDB7OieTBEMUaXj8LBbGwVDmNT1xnMnBTSH0PLYjTUIHHDD7OibTBENUKTj8LBbGwZDmNT1xXInBTSI0fLYjDUIHXDD7OibSxENU6Th8LBcGwdEmNX1xXQnBjOI0fHajDUJHHHD7OicSxINVKPi8LBcHAdFmdX1xHMoBjOJ0fHZjTYJHXHD7OmdSxEOVKPh8LBcHAdGmdX1xXMphzWJ0fHajDYIHXHD7OmdSxEPVKPh8K9cHQdGmtX1xXQph ');
+                audio.volume = 1.0;
+                audio.play();
+                
+                // Stop after 5 seconds
+                setTimeout(() => {
+                  audio.pause();
+                  audio.currentTime = 0;
+                }, 5000);
+                
+                // Visual feedback
+                const button = document.getElementById('emergency-alert-btn');
+                if (button) {
+                  button.style.background = '#c0392b';
+                  setTimeout(() => {
+                    button.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+                  }, 5000);
+                }
+                
+                setDrawerOpen(false);
+              }}
+              id="emergency-alert-btn"
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                border: 'none',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: '700',
+                textAlign: 'center',
+                boxShadow: '0 4px 15px rgba(231, 76, 60, 0.3)',
+                transition: 'all 0.3s',
+                animation: 'pulse 2s infinite'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(231, 76, 60, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(231, 76, 60, 0.3)';
+              }}
+            >
+              🚨 EMERGENCY ALERT
+            </button>
+          </div>
         </div>
       </div>
 
@@ -720,6 +786,14 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+          }
+          50% {
+            box-shadow: 0 4px 25px rgba(231, 76, 60, 0.6);
+          }
         }
       `}</style>
     </>

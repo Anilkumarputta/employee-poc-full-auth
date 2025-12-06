@@ -704,6 +704,21 @@ export const resolvers = {
 
     updateEmployee: async (_: any, { id, input }: any, ctx: Context) => {
       requireAdmin(ctx);
+      
+      // If role is being changed, also update the User table
+      if (input.role) {
+        const employee = await ctx.prisma.employee.findUnique({
+          where: { id }
+        });
+        
+        if (employee && employee.userId) {
+          await ctx.prisma.user.update({
+            where: { id: employee.userId },
+            data: { role: input.role }
+          });
+        }
+      }
+      
       return ctx.prisma.employee.update({
         where: { id },
         data: {
