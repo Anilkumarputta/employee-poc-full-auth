@@ -110,10 +110,9 @@ export const AdminsPage: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: "1rem", borderBottom: "1px solid #e5e7eb" }}>{new Date(admin.createdAt).toLocaleDateString()}</td>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+                </tr>
+              ))}
+            </tbody>
         </table>
       </div>
     </div>
