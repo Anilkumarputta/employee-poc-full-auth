@@ -196,7 +196,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   }, [page, sortBy, sortOrder, search, statusFilter, accessToken]);
 
   const handleTerminate = async (id: number) => {
-    if (currentRole !== "admin" || !accessToken) return;
+    if (currentRole !== "director" || !accessToken) return;
     try {
       await graphqlRequest(
         TERMINATE_MUTATION,
@@ -211,7 +211,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   };
 
   const handleDelete = async (id: number) => {
-    if (currentRole !== "admin" || !accessToken) return;
+    if (currentRole !== "director" || !accessToken) return;
     if (!window.confirm("Delete this employee permanently?")) return;
     try {
       await graphqlRequest(
@@ -232,7 +232,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   };
 
   const handleFlag = async (emp: Employee) => {
-    if (currentRole !== "admin" || !accessToken) return;
+    if ((currentRole !== "director" && currentRole !== "manager") || !accessToken) return;
     const newStatus = emp.status === "flagged" ? "active" : "flagged";
     try {
       await graphqlRequest(
@@ -261,7 +261,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   };
 
   const handleUnterminate = async (emp: Employee) => {
-    if (currentRole !== "admin" || !accessToken) return;
+    if (currentRole !== "director" || !accessToken) return;
     try {
       await graphqlRequest(
         UPDATE_MUTATION,
@@ -383,7 +383,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
             </button>
           </div>
 
-          {currentRole === "admin" && (
+          {(currentRole === "director" || currentRole === "manager") && (
             <button
               className="primary-btn"
               onClick={handleAddNew}
@@ -494,7 +494,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                           <button onClick={() => handleViewDetails(e)}>
                             View details
                           </button>
-                          {currentRole === "admin" && (
+                          {(currentRole === "director" || currentRole === "manager") && (
                             <>
                               <button onClick={() => handleEdit(e)}>Edit</button>
                               <button onClick={() => handleFlag(e)}>
@@ -566,7 +566,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                       <button onClick={() => setSelected(e)}>
                         View details
                       </button>
-                      {currentRole === "admin" && (
+                      {(currentRole === "director" || currentRole === "manager") && (
                         <>
                           <button onClick={() => handleEdit(e)}>Edit</button>
                           <button onClick={() => handleFlag(e)}>

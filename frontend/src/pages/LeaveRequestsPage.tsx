@@ -83,7 +83,7 @@ export const LeaveRequestsPage: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [adminNote, setAdminNote] = useState("");
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "director" || user?.role === "manager";
 
   useEffect(() => {
     fetchRequests();

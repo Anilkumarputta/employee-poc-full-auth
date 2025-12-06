@@ -42,14 +42,14 @@ export const AdminsPage: React.FC = () => {
     }
   };
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "director") {
     return (
       <div style={{ padding: "2rem" }}>
         <h1>Admin Users</h1>
         <div style={{ marginTop: "2rem", padding: "2rem", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px" }}>
           <h2 style={{ margin: "0 0 1rem 0", color: "#991b1b" }}>Access Denied</h2>
           <p style={{ color: "#7f1d1d", margin: 0 }}>
-            Only administrators can view admin user list.
+            Only directors can view admin user list.
           </p>
         </div>
       </div>

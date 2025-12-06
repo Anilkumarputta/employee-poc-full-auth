@@ -98,15 +98,15 @@ export const SendNotePage: React.FC = () => {
     }
   };
 
-  // Check if user is admin
-  if (user?.role !== "admin") {
+  // Check if user is director or manager
+  if (user?.role !== "director" && user?.role !== "manager") {
     return (
       <div style={{ padding: "2rem" }}>
         <h1>Send Note</h1>
         <div style={{ marginTop: "2rem", padding: "2rem", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px" }}>
           <h2 style={{ margin: "0 0 1rem 0", color: "#991b1b" }}>Access Denied</h2>
           <p style={{ color: "#7f1d1d", margin: 0 }}>
-            Only administrators can send notes to employees.
+            Only directors and managers can send notes to employees.
           </p>
         </div>
       </div>

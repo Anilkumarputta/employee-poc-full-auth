@@ -80,8 +80,8 @@ export const SettingsPage: React.FC = () => {
             <p style={{ margin: 0, color: "#374151" }}>
               <strong>Role:</strong> <span style={{ 
                 padding: "0.25rem 0.5rem", 
-                background: user?.role === "admin" ? "#dbeafe" : "#fef3c7",
-                color: user?.role === "admin" ? "#1e40af" : "#92400e",
+                background: user?.role === "director" ? "#dbeafe" : "#fef3c7",
+                color: user?.role === "director" ? "#1e40af" : "#92400e",
                 borderRadius: "4px",
                 fontSize: "0.875rem"
               }}>{user?.role}</span>
