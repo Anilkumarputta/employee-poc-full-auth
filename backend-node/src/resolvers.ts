@@ -114,6 +114,23 @@ export const resolvers = {
   },
 
   /**
+   * MESSAGE TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   * createdAt, updatedAt, readAt: Properly serialize dates
+   */
+  Message: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
+    readAt: (parent: any) => {
+      return parent.readAt ? parent.readAt.toISOString() : null;
+    },
+  },
+
+  /**
    * ======================
    * QUERY RESOLVERS
    * ======================
@@ -401,7 +418,7 @@ export const resolvers = {
             participant: otherPersonEmail || "Broadcast",
             participantRole: otherPersonRole || "all",
             lastMessage: msg.message,
-            lastMessageTime: msg.createdAt,
+            lastMessageTime: msg.createdAt.toISOString(),
             unreadCount: isUnread ? 1 : 0,
           });
         } else if (isUnread) {

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { formatRelativeTime } from "../lib/dateUtils";
 
 type AccessLog = {
   id: number;
@@ -110,7 +111,7 @@ export const AccessLogsPage: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: "1rem", borderBottom: "1px solid #e5e7eb", color: "#6b7280" }}>{log.details || "-"}</td>
-                  <td style={{ padding: "1rem", borderBottom: "1px solid #e5e7eb" }}>{new Date(log.createdAt).toLocaleString()}</td>
+                  <td style={{ padding: "1rem", borderBottom: "1px solid #e5e7eb" }}>{formatRelativeTime(log.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

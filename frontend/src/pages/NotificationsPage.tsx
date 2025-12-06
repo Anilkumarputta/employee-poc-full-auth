@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { formatRelativeTime } from "../lib/dateUtils";
 
 type Note = {
   id: number;
@@ -128,7 +129,7 @@ export const NotificationsPage: React.FC = () => {
                     </span>
                     <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>•</span>
                     <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>
-                      {new Date(note.createdAt).toLocaleString()}
+                      {formatRelativeTime(note.createdAt)}
                     </span>
                   </div>
                   <p style={{ margin: "0.5rem 0 0 0", color: "#374151", lineHeight: "1.6" }}>

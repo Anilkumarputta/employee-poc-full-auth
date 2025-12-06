@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { formatRelativeTime } from "../lib/dateUtils";
 
 // Add Props type for navigation
 type DashboardPageProps = {
@@ -308,7 +309,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       {emp.name}
                     </div>
                     <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
-                      Updated {new Date(emp.updatedAt).toLocaleDateString()} • {emp.role}
+                      Updated {formatRelativeTime(emp.updatedAt)} • {emp.role}
                     </div>
                   </div>
                 ))}

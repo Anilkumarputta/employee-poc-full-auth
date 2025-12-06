@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { formatRelativeTime } from "../lib/dateUtils";
 
 type LeaveRequest = {
   id: number;
@@ -279,7 +280,7 @@ export const LeaveRequestsPage: React.FC = () => {
                       </p>
                     )}
                     <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.875rem", color: "#9ca3af" }}>
-                      Submitted: {new Date(req.createdAt).toLocaleString()}
+                      Submitted: {formatRelativeTime(req.createdAt)}
                     </p>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>

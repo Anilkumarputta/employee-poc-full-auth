@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState, useRef } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { formatMessageTime, formatConversationTime } from "../lib/dateUtils";
 
 type Message = {
   id: number;
@@ -247,19 +248,6 @@ export const MessagesPage: React.FC = () => {
     setMessageSubject("");
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    if (diffMins < 10080) return `${Math.floor(diffMins / 1440)}d ago`;
-    return date.toLocaleDateString();
-  };
-
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 70px)', background: '#f5f7fa' }}>
       {/* Conversations List */}
@@ -388,7 +376,7 @@ export const MessagesPage: React.FC = () => {
                   {conv.lastMessage}
                 </div>
                 <div style={{ fontSize: '12px', color: '#95a5a6', marginTop: '4px' }}>
-                  {formatTime(conv.lastMessageTime)}
+                  {formatConversationTime(conv.lastMessageTime)}
                 </div>
               </div>
             ))
@@ -632,7 +620,7 @@ export const MessagesPage: React.FC = () => {
                         opacity: 0.8,
                         textAlign: 'right'
                       }}>
-                        {formatTime(msg.createdAt)}
+                        {formatMessageTime(msg.createdAt)}
                         {isMyMessage && msg.isRead && ' ✓✓'}
                       </div>
                     </div>
