@@ -93,6 +93,12 @@ export const resolvers = {
       }
       return null;
     },
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
   },
 
   /**
@@ -111,6 +117,15 @@ export const resolvers = {
         where: { id: parent.employeeId },
       });
     },
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
+    reviewedAt: (parent: any) => {
+      return parent.reviewedAt ? parent.reviewedAt.toISOString() : null;
+    },
   },
 
   /**
@@ -127,6 +142,78 @@ export const resolvers = {
     },
     readAt: (parent: any) => {
       return parent.readAt ? parent.readAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * EMPLOYEE TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  Employee: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * NOTIFICATION TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  Notification: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
+    readAt: (parent: any) => {
+      return parent.readAt ? parent.readAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * NOTE TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  Note: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * THREAD TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  ThreadMessage: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * LEAVE REQUEST TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  LeaveRequest: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
+    },
+    updatedAt: (parent: any) => {
+      return parent.updatedAt ? parent.updatedAt.toISOString() : null;
+    },
+  },
+
+  /**
+   * ACCESS LOG TYPE RESOLVER
+   * Converts DateTime fields to ISO strings for GraphQL
+   */
+  AccessLog: {
+    createdAt: (parent: any) => {
+      return parent.createdAt ? parent.createdAt.toISOString() : null;
     },
   },
 
