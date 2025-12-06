@@ -15,6 +15,7 @@ import { LeaveRequestsPage } from "./pages/LeaveRequestsPage";
 import ProfileEditPage from "./pages/ProfileEditPage";
 import EmployeeLoginsPage from "./pages/EmployeeLoginsPage";
 import { MessagesPage } from "./pages/MessagesPage";
+import { ReviewRequestsPage } from "./pages/ReviewRequestsPage";
 import { HorizontalNav } from "./components/layout/HorizontalNav";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
@@ -24,7 +25,7 @@ import { AuthContext, AuthUser } from "./auth/authContext";
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -38,7 +39,7 @@ const App: React.FC = () => {
     refreshToken: null,
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<AppPage>("employees");
+  const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
 
   const handleAuthChange = (data: {
     user: AuthUser | null;
@@ -49,6 +50,7 @@ const App: React.FC = () => {
     if (data.user && data.accessToken) {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken || '');
+      setCurrentPage("dashboard"); // Always start at dashboard after login
       setView("app");
     } else {
       localStorage.removeItem('accessToken');
@@ -112,6 +114,7 @@ const App: React.FC = () => {
             {currentPage === "leaveRequests" && <LeaveRequestsPage />}
             {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
             {currentPage === "messages" && <MessagesPage />}
+            {currentPage === "review-requests" && <ReviewRequestsPage />}
           </main>
         </div>
       )}

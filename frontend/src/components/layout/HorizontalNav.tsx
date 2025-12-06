@@ -537,6 +537,26 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               {isDirector && (
                 <>
                   <button
+                    onClick={() => { onNavigate('review-requests'); setDrawerOpen(false); }}
+                    style={{
+                      width: '100%',
+                      background: currentPage === 'review-requests' ? '#f0f4ff' : 'transparent',
+                      border: 'none',
+                      color: currentPage === 'review-requests' ? '#667eea' : '#2c3e50',
+                      padding: '14px 16px 14px 28px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      marginBottom: '8px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    ✅ Review Requests
+                  </button>
+
+                  <button
                     onClick={() => { onNavigate('admins'); setDrawerOpen(false); }}
                     style={{
                       width: '100%',
