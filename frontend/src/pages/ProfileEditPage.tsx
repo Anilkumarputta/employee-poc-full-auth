@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { graphqlClient } from '../auth/api';
+import { graphqlRequest } from '../lib/graphqlClient';
 import { useAuth } from '../auth/authContext';
 
 interface Employee {
@@ -47,7 +47,7 @@ const UPDATE_MY_PROFILE_MUTATION = `
 `;
 
 export default function ProfileEditPage() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [profile, setProfile] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,7 +67,7 @@ export default function ProfileEditPage() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const data = await graphqlClient(MY_PROFILE_QUERY);
+      const data = await graphqlRequest(MY_PROFILE_QUERY, {}, accessToken!);
       setProfile(data.myProfile);
       setFormData({
         name: data.myProfile.name,
@@ -90,14 +90,14 @@ export default function ProfileEditPage() {
       setSaving(true);
       setMessage(null);
       
-      await graphqlClient(UPDATE_MY_PROFILE_MUTATION, {
+      await graphqlRequest(UPDATE_MY_PROFILE_MUTATION, {
         input: {
           name: formData.name,
           email: formData.email,
           age: parseInt(formData.age.toString()),
           location: formData.location
         }
-      });
+      }, accessToken!);
       
       setMessage({ type: 'success', text: '✅ Profile updated successfully!' });
       fetchProfile(); // Refresh profile data

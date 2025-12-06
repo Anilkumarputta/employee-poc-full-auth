@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { graphqlClient } from '../auth/api';
+import { graphqlRequest } from '../lib/graphqlClient';
 import { useAuth } from '../auth/authContext';
 
 interface Employee {
@@ -39,7 +39,7 @@ const GENERATE_LOGINS_MUTATION = `
 `;
 
 export default function EmployeeLoginsPage() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -54,7 +54,7 @@ export default function EmployeeLoginsPage() {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const data = await graphqlClient(EMPLOYEES_QUERY);
+      const data = await graphqlRequest(EMPLOYEES_QUERY, {}, accessToken!);
       setEmployees(data.employees.items);
     } catch (error: any) {
       console.error('Failed to fetch employees:', error);
@@ -73,7 +73,7 @@ export default function EmployeeLoginsPage() {
       setGenerating(true);
       setMessage(null);
       
-      const data = await graphqlClient(GENERATE_LOGINS_MUTATION);
+      const data = await graphqlRequest(GENERATE_LOGINS_MUTATION, {}, accessToken!);
       const result = data.generateEmployeeLogins;
       
       if (result.success) {

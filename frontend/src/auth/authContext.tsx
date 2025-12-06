@@ -1,4 +1,4 @@
-import React, { createContext } from "react";
+import React, { createContext, useContext } from "react";
 
 export type AuthUser = {
   id: number;
@@ -25,3 +25,5 @@ export const AuthContext = createContext<AuthContextType>({
   setAuth: () => {},
   logout: () => {},
 });
+
+export const useAuth = () => useContext(AuthContext);
