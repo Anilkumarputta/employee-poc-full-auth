@@ -1,24 +1,61 @@
+/**
+ * GRAPHQL RESOLVERS - The "Brain" of the Backend
+ * 
+ * Resolvers are functions that fetch data for GraphQL queries and mutations.
+ * Think of GraphQL as a menu, and resolvers as the kitchen that prepares each dish.
+ * 
+ * Organization:
+ * - Query resolvers: Fetch data (GET requests)
+ * - Mutation resolvers: Modify data (POST/PUT/DELETE requests)
+ * - Type resolvers: Calculate fields on existing objects
+ * 
+ * Permission Levels:
+ * 1. Director: Supreme admin - can do EVERYTHING
+ * 2. Manager: Can manage teams, approve leaves, flag employees
+ * 3. Employee: Can view own data, request leaves, send messages
+ * 
+ * Every resolver has access to:
+ * - ctx.prisma: Database client to query PostgreSQL
+ * - ctx.user: Current logged-in user (or null if not logged in)
+ */
+
 import { PrismaClient, Employee as PrismaEmployee } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
+// Context type = what every resolver receives
 type Context = {
-  prisma: PrismaClient;
-  user: { id: number; role: string; email: string } | null;
+  prisma: PrismaClient; // Database client
+  user: { id: number; role: string; email: string } | null; // Current user (from JWT)
 };
 
+/**
+ * PERMISSION GUARD: Require Authentication
+ * Throws error if user is not logged in (no JWT token)
+ * Use this for any operation that requires login
+ */
 function requireAuth(ctx: Context) {
   if (!ctx.user) {
     throw new Error("Not authenticated");
   }
 }
 
+/**
+ * PERMISSION GUARD: Require Director Role
+ * Only the supreme admin (Director) can perform this action
+ * Examples: Delete users, approve terminations, view all logs
+ */
 function requireDirector(ctx: Context) {
-  requireAuth(ctx);
+  requireAuth(ctx); // Must be logged in
   if (ctx.user!.role !== "director") {
     throw new Error("Director only - highest level access required");
   }
 }
 
+/**
+ * PERMISSION GUARD: Require Manager or Director
+ * Mid-level and high-level admins can perform this action
+ * Examples: Send notes, create review requests, approve leaves
+ */
 function requireManagerOrAbove(ctx: Context) {
   requireAuth(ctx);
   if (!["director", "manager"].includes(ctx.user!.role)) {
@@ -26,6 +63,11 @@ function requireManagerOrAbove(ctx: Context) {
   }
 }
 
+/**
+ * PERMISSION GUARD: Require Admin (Director, Manager, or legacy Admin role)
+ * Most administrative actions require this level
+ * Examples: Add employees, view access logs, manage leave requests
+ */
 function requireAdmin(ctx: Context) {
   requireAuth(ctx);
   if (!["director", "manager", "admin"].includes(ctx.user!.role)) {
@@ -33,30 +75,67 @@ function requireAdmin(ctx: Context) {
   }
 }
 
+/**
+ * RESOLVERS EXPORT
+ * This object contains all our GraphQL resolvers organized by type
+ */
 export const resolvers = {
+  /**
+   * THREAD TYPE RESOLVER
+   * Adds computed fields to Thread objects
+   * lastMessage: Returns the most recent message in a thread (for preview)
+   */
   Thread: {
     lastMessage: async (parent: any) => {
+      // If messages were already loaded (from include), use them
       if (parent.messages && parent.messages.length > 0) {
-        return parent.messages[0];
+        return parent.messages[0]; // Already sorted desc, so first = latest
       }
       return null;
     },
   },
 
+  /**
+   * REVIEW REQUEST TYPE RESOLVER
+   * Adds computed fields to ReviewRequest objects
+   * employee: Returns the full employee object being reviewed
+   */
   ReviewRequest: {
     employee: async (parent: any, _: any, ctx: Context) => {
+      // If employee was already loaded (from include), return it
       if (parent.employee) {
         return parent.employee;
       }
+      // Otherwise fetch it from database
       return ctx.prisma.employee.findUnique({
         where: { id: parent.employeeId },
       });
     },
   },
 
+  /**
+   * ======================
+   * QUERY RESOLVERS
+   * ======================
+   * These fetch data - they don't modify anything (read-only)
+   * Think of these as "GET" requests in REST
+   */
   Query: {
+    /**
+     * GET EMPLOYEES WITH PAGINATION & FILTERING
+     * Returns paginated list of employees with sorting and filtering
+     * 
+     * Args:
+     * - filter: Search by name, class, status, role
+     * - page: Current page number (starts at 1)
+     * - pageSize: How many employees per page (default 10)
+     * - sortBy: Which field to sort by (NAME, AGE, ATTENDANCE, CREATED_AT)
+     * - sortOrder: ASC (A→Z) or DESC (Z→A)
+     * 
+     * Returns: { items: [], total, page, pageSize }
+     */
     employees: async (_: any, args: any, ctx: Context) => {
-      requireAuth(ctx);
+      requireAuth(ctx); // Must be logged in to view employees
       const { prisma } = ctx;
       const {
         filter,
