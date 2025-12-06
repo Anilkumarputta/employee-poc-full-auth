@@ -63,6 +63,42 @@ model Note {
   employee    Employee? @relation("EmployeeNotes", fields: [toEmployeeId], references: [id], onDelete: Cascade)
 }
 
+model Message {
+  id              Int       @id @default(autoincrement())
+  conversationId  String    // Groups related messages together
+  senderId        Int       // User ID who sent the message
+  senderEmail     String
+  senderRole      String    // "director", "manager", "employee"
+  recipientId     Int?      // Specific recipient User ID (null for broadcast)
+  recipientEmail  String?
+  recipientRole   String?   // Filter by role for broadcast
+  subject         String?   // Optional subject line
+  message         String
+  messageType     String    @default("direct") // "direct", "broadcast", "reply"
+  isRead          Boolean   @default(false)
+  readAt          DateTime?
+  priority        String    @default("normal") // "normal", "high", "urgent"
+  replyToId       Int?      // Reference to parent message for threading
+  attachments     String[]  @default([]) // File URLs if needed
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  userId      Int       // Recipient user ID
+  userEmail   String
+  title       String
+  message     String
+  type        String    @default("info") // "info", "message", "alert", "approval"
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  actionUrl   String?   // Link to relevant page
+  metadata    Json?     // Additional data (message ID, sender info, etc.)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 model LeaveRequest {
   id          Int      @id @default(autoincrement())
   employeeId  Int

@@ -237,6 +237,150 @@ export const resolvers = {
       requireAuth(ctx);
       return ctx.prisma.user.findUnique({ where: { id: ctx.user!.id } });
     },
+
+    // Messaging System
+    messages: async (_: any, { conversationId }: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      return prisma.message.findMany({
+        where: {
+          conversationId,
+          OR: [
+            { senderId: user!.id },
+            { recipientId: user!.id },
+          ],
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    },
+
+    myMessages: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      return prisma.message.findMany({
+        where: {
+          OR: [
+            { senderId: user!.id },
+            { recipientId: user!.id },
+            { AND: [{ recipientId: null }, { recipientRole: user!.role }] },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    },
+
+    myConversations: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      const messages = await prisma.message.findMany({
+        where: {
+          OR: [
+            { senderId: user!.id },
+            { recipientId: user!.id },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Group by conversation and get stats
+      const conversationMap = new Map<string, any>();
+      
+      messages.forEach((msg) => {
+        const convId = msg.conversationId;
+        const isUnread = !msg.isRead && msg.recipientId === user!.id;
+        
+        if (!conversationMap.has(convId)) {
+          const otherPersonEmail = msg.senderId === user!.id ? msg.recipientEmail : msg.senderEmail;
+          const otherPersonRole = msg.senderId === user!.id ? msg.recipientRole : msg.senderRole;
+          
+          conversationMap.set(convId, {
+            conversationId: convId,
+            participant: otherPersonEmail || "Broadcast",
+            participantRole: otherPersonRole || "all",
+            lastMessage: msg.message,
+            lastMessageTime: msg.createdAt,
+            unreadCount: isUnread ? 1 : 0,
+          });
+        } else if (isUnread) {
+          conversationMap.get(convId).unreadCount++;
+        }
+      });
+
+      return Array.from(conversationMap.values());
+    },
+
+    messageStats: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      const [total, unread, messages] = await Promise.all([
+        prisma.message.count({
+          where: {
+            OR: [
+              { senderId: user!.id },
+              { recipientId: user!.id },
+            ],
+          },
+        }),
+        prisma.message.count({
+          where: {
+            recipientId: user!.id,
+            isRead: false,
+          },
+        }),
+        prisma.message.findMany({
+          where: {
+            OR: [
+              { senderId: user!.id },
+              { recipientId: user!.id },
+            ],
+          },
+          select: { conversationId: true },
+          distinct: ["conversationId"],
+        }),
+      ]);
+
+      return {
+        total,
+        unread,
+        conversations: messages.length,
+      };
+    },
+
+    // Notifications
+    notifications: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      return ctx.prisma.notification.findMany({
+        where: { userId: ctx.user!.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+    },
+
+    unreadNotifications: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      return ctx.prisma.notification.findMany({
+        where: {
+          userId: ctx.user!.id,
+          isRead: false,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    },
+
+    notificationCount: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      return ctx.prisma.notification.count({
+        where: {
+          userId: ctx.user!.id,
+          isRead: false,
+        },
+      });
+    },
   },
 
   Mutation: {
@@ -556,6 +700,185 @@ export const resolvers = {
           ipAddress: null
         }
       });
+    },
+
+    // Messaging mutations
+    sendMessage: async (_: any, { input }: any, ctx: Context) => {
+      requireAuth(ctx);
+      const { prisma, user } = ctx;
+
+      // Validate hierarchical permissions
+      const senderRole = user!.role;
+      const recipientRole = input.recipientRole;
+
+      // Employees cannot message Directors directly
+      if (senderRole === "employee" && recipientRole === "director") {
+        throw new Error("Employees cannot message Directors directly. Please contact your Manager or email the Director.");
+      }
+
+      // Generate conversation ID
+      let conversationId = "";
+      if (input.replyToId) {
+        // Get conversation ID from parent message
+        const parentMsg = await prisma.message.findUnique({
+          where: { id: input.replyToId },
+        });
+        conversationId = parentMsg?.conversationId || "";
+      } else if (input.recipientId) {
+        // Direct message: sort IDs for consistent conversation ID
+        const ids = [user!.id, input.recipientId].sort();
+        conversationId = `dm_${ids[0]}_${ids[1]}`;
+      } else {
+        // Broadcast message
+        conversationId = `broadcast_${user!.id}_${Date.now()}`;
+      }
+
+      // Get recipient details if specified
+      let recipientEmail = input.recipientId ? null : null;
+      let resolvedRecipientRole = input.recipientRole || null;
+      
+      if (input.recipientId) {
+        const recipient = await prisma.user.findUnique({
+          where: { id: input.recipientId },
+        });
+        if (recipient) {
+          recipientEmail = recipient.email;
+          resolvedRecipientRole = recipient.role;
+        }
+      }
+
+      // Create message
+      const message = await prisma.message.create({
+        data: {
+          conversationId,
+          senderId: user!.id,
+          senderEmail: user!.email,
+          senderRole: user!.role,
+          recipientId: input.recipientId || null,
+          recipientEmail,
+          recipientRole: resolvedRecipientRole,
+          subject: input.subject || null,
+          message: input.message,
+          messageType: input.recipientId ? "direct" : input.replyToId ? "reply" : "broadcast",
+          priority: input.priority || "normal",
+          replyToId: input.replyToId || null,
+          isRead: false,
+        },
+      });
+
+      // Create notification for recipient(s)
+      if (input.recipientId) {
+        // Single recipient notification
+        await prisma.notification.create({
+          data: {
+            userId: input.recipientId,
+            userEmail: recipientEmail!,
+            title: `New message from ${user!.email}`,
+            message: input.subject || input.message.substring(0, 100),
+            type: "message",
+            actionUrl: `/messages?conversation=${conversationId}`,
+            metadata: { messageId: message.id, senderId: user!.id },
+          },
+        });
+      } else if (input.recipientRole) {
+        // Broadcast to role - create notifications for all users of that role
+        const recipients = await prisma.user.findMany({
+          where: { 
+            role: input.recipientRole,
+            id: { not: user!.id } // Don't notify sender
+          },
+        });
+
+        const notifications = recipients.map((recipient) => ({
+          userId: recipient.id,
+          userEmail: recipient.email,
+          title: `Broadcast from ${user!.role}: ${user!.email}`,
+          message: input.subject || input.message.substring(0, 100),
+          type: "message",
+          actionUrl: `/messages?conversation=${conversationId}`,
+          metadata: { messageId: message.id, senderId: user!.id },
+        }));
+
+        await prisma.notification.createMany({ data: notifications });
+      }
+
+      return message;
+    },
+
+    markMessageAsRead: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      return ctx.prisma.message.update({
+        where: { id },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    },
+
+    markConversationAsRead: async (_: any, { conversationId }: any, ctx: Context) => {
+      requireAuth(ctx);
+      await ctx.prisma.message.updateMany({
+        where: {
+          conversationId,
+          recipientId: ctx.user!.id,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+      return true;
+    },
+
+    deleteMessage: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      // Only sender or director can delete
+      const message = await ctx.prisma.message.findUnique({
+        where: { id },
+      });
+
+      if (message && (message.senderId === ctx.user!.id || ctx.user!.role === "director")) {
+        await ctx.prisma.message.delete({ where: { id } });
+        return true;
+      }
+      throw new Error("Not authorized to delete this message");
+    },
+
+    // Notification mutations
+    markNotificationAsRead: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      return ctx.prisma.notification.update({
+        where: { id },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    },
+
+    markAllNotificationsAsRead: async (_: any, __: any, ctx: Context) => {
+      requireAuth(ctx);
+      await ctx.prisma.notification.updateMany({
+        where: {
+          userId: ctx.user!.id,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+      return true;
+    },
+
+    deleteNotification: async (_: any, { id }: any, ctx: Context) => {
+      requireAuth(ctx);
+      await ctx.prisma.notification.delete({
+        where: { id },
+      });
+      return true;
     },
   },
 };

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/authContext';
+import { graphqlRequest } from '../../lib/graphqlClient';
 
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages";
 
 type Props = {
   currentPage: AppPage;
@@ -9,9 +10,18 @@ type Props = {
   onLogout: () => void;
 };
 
+const UNREAD_MESSAGE_COUNT_QUERY = `
+  query GetUnreadMessageCount {
+    messageStats {
+      unread
+    }
+  }
+`;
+
 export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogout }) => {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   const isDirector = user?.role === 'director';
   const isManager = user?.role === 'manager';
@@ -23,6 +33,29 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
     if (isManager) return '👔 Manager Portal';
     return '👤 Employee Portal';
   };
+
+  // Poll for unread message count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!accessToken) return;
+      
+      try {
+        const data = await graphqlRequest<{ messageStats: { unread: number } }>(
+          UNREAD_MESSAGE_COUNT_QUERY,
+          {},
+          accessToken
+        );
+        setUnreadMessageCount(data.messageStats.unread);
+      } catch (error) {
+        console.error('Error fetching unread message count:', error);
+      }
+    };
+
+    fetchUnreadCount(); // Initial fetch
+    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [accessToken]);
 
   return (
     <>
@@ -188,9 +221,31 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               background: 'rgba(255,255,255,0.2)', 
               padding: '10px 20px', 
               borderRadius: '25px',
-              fontSize: '14px'
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              position: 'relative'
             }}>
               {user?.email}
+              {unreadMessageCount > 0 && (
+                <span style={{
+                  background: '#e74c3c',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 6px rgba(231, 76, 60, 0.4)',
+                  animation: 'pulse 2s infinite'
+                }}>
+                  {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                </span>
+              )}
             </div>
             <button
               onClick={onLogout}
@@ -381,6 +436,42 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               Actions
             </div>
             
+            <button
+              onClick={() => { onNavigate('messages'); setDrawerOpen(false); }}
+              style={{
+                width: '100%',
+                background: currentPage === 'messages' ? '#f0f4ff' : 'transparent',
+                border: 'none',
+                color: currentPage === 'messages' ? '#667eea' : '#2c3e50',
+                padding: '14px 16px',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: '600',
+                textAlign: 'left',
+                marginBottom: '8px',
+                transition: 'all 0.3s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <span>💬 Messages</span>
+              {unreadMessageCount > 0 && (
+                <span style={{
+                  background: 'linear-gradient(135deg, #e74c3c, #c0392b)',
+                  color: 'white',
+                  borderRadius: '12px',
+                  padding: '3px 9px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 8px rgba(231, 76, 60, 0.3)'
+                }}>
+                  {unreadMessageCount}
+                </span>
+              )}
+            </button>
+            
             {isManagerOrAbove && (
               <button
                 onClick={() => { onNavigate('sendNote'); setDrawerOpen(false); }}
@@ -399,7 +490,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                   transition: 'all 0.3s'
                 }}
               >
-                💬 Send Message
+                📝 Send Note
               </button>
             )}
 

@@ -95,6 +95,65 @@ export const typeDefs = gql`
     createdAt: String!
   }
 
+  type Message {
+    id: Int!
+    conversationId: String!
+    senderId: Int!
+    senderEmail: String!
+    senderRole: String!
+    recipientId: Int
+    recipientEmail: String
+    recipientRole: String
+    subject: String
+    message: String!
+    messageType: String!
+    isRead: Boolean!
+    readAt: String
+    priority: String!
+    replyToId: Int
+    attachments: [String!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type Notification {
+    id: Int!
+    userId: Int!
+    userEmail: String!
+    title: String!
+    message: String!
+    type: String!
+    isRead: Boolean!
+    readAt: String
+    actionUrl: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type Conversation {
+    conversationId: String!
+    participant: String!
+    participantRole: String!
+    lastMessage: String!
+    lastMessageTime: String!
+    unreadCount: Int!
+  }
+
+  type MessageStats {
+    total: Int!
+    unread: Int!
+    conversations: Int!
+  }
+
+  input SendMessageInput {
+    recipientId: Int
+    recipientRole: String
+    subject: String
+    message: String!
+    priority: String
+    replyToId: Int
+  }
+
   type LeaveRequest {
     id: Int!
     employeeId: Int!
@@ -156,6 +215,15 @@ export const typeDefs = gql`
     notes(employeeId: Int): [Note!]!
     myNotes: [Note!]!
     
+    messages(conversationId: String): [Message!]!
+    myMessages: [Message!]!
+    myConversations: [Conversation!]!
+    messageStats: MessageStats!
+    
+    notifications: [Notification!]!
+    unreadNotifications: [Notification!]!
+    notificationCount: Int!
+    
     leaveRequests(status: String): [LeaveRequest!]!
     myLeaveRequests: [LeaveRequest!]!
     
@@ -185,6 +253,15 @@ export const typeDefs = gql`
     
     sendNote(input: NoteInput!): Note!
     markNoteAsRead(id: Int!): Note!
+    
+    sendMessage(input: SendMessageInput!): Message!
+    markMessageAsRead(id: Int!): Message!
+    markConversationAsRead(conversationId: String!): Boolean!
+    deleteMessage(id: Int!): Boolean!
+    
+    markNotificationAsRead(id: Int!): Notification!
+    markAllNotificationsAsRead: Boolean!
+    deleteNotification(id: Int!): Boolean!
     
     createLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
     updateLeaveRequestStatus(id: Int!, status: String!, adminNote: String): LeaveRequest!
