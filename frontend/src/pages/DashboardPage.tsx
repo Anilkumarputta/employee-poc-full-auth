@@ -67,10 +67,58 @@ const LEAVE_REQUESTS_QUERY = `
   }
 `;
 
+const RECENT_ACTIVITIES_QUERY = `
+  query RecentActivities {
+    accessLogs(page: 1, pageSize: 10) {
+      id
+      action
+      details
+      createdAt
+    }
+  }
+`;
+
+const MY_NOTIFICATIONS_QUERY = `
+  query MyNotifications {
+    notifications {
+      id
+      title
+      message
+      type
+      createdAt
+    }
+  }
+`;
+
+type Activity = {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  time: string;
+  color: string;
+};
+
+type AccessLog = {
+  id: number;
+  action: string;
+  details: string | null;
+  createdAt: string;
+};
+
+type Notification = {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  createdAt: string;
+};
+
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const { accessToken, user } = useContext(AuthContext);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isDirector = user?.role === 'director';
@@ -81,18 +129,94 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     fetchData();
   }, []);
 
+  const getActivityIcon = (action: string): string => {
+    if (action.includes('LOGIN') || action.includes('LOGOUT')) return '🔐';
+    if (action.includes('UPDATE') || action.includes('EDIT')) return '✏️';
+    if (action.includes('CREATE') || action.includes('ADD')) return '➕';
+    if (action.includes('DELETE') || action.includes('REMOVE')) return '🗑️';
+    if (action.includes('ROLE')) return '👤';
+    if (action.includes('STATUS')) return '🔄';
+    if (action.includes('FLAG')) return '🚩';
+    return '📝';
+  };
+
+  const formatActivityTitle = (action: string): string => {
+    return action.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ');
+  };
+
+  const getActivityColor = (action: string): string => {
+    if (action.includes('LOGIN')) return '#27ae60';
+    if (action.includes('LOGOUT')) return '#95a5a6';
+    if (action.includes('UPDATE') || action.includes('EDIT')) return '#3498db';
+    if (action.includes('CREATE')) return '#2ecc71';
+    if (action.includes('DELETE')) return '#e74c3c';
+    if (action.includes('ROLE')) return '#9b59b6';
+    if (action.includes('FLAG')) return '#e67e22';
+    return '#34495e';
+  };
+
+  const getNotificationIcon = (type: string): string => {
+    if (type === 'MESSAGE') return '💬';
+    if (type === 'APPROVAL') return '✅';
+    if (type === 'WARNING') return '⚠️';
+    if (type === 'CRITICAL') return '🚨';
+    return 'ℹ️';
+  };
+
+  const getNotificationColor = (type: string): string => {
+    if (type === 'MESSAGE') return '#3498db';
+    if (type === 'APPROVAL') return '#27ae60';
+    if (type === 'WARNING') return '#f39c12';
+    if (type === 'CRITICAL') return '#e74c3c';
+    return '#95a5a6';
+  };
+
   const fetchData = async () => {
     if (!accessToken) return;
     
     setLoading(true);
     try {
-      const [employeesData, leaveData] = await Promise.all([
+      const [employeesData, leaveData, logsData, notificationsData] = await Promise.all([
         graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
-        graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] }))
+        graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] })),
+        graphqlRequest(RECENT_ACTIVITIES_QUERY, {}, accessToken).catch(() => ({ accessLogs: [] })),
+        graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] }))
       ]);
       
       setEmployees(employeesData.employees.items);
       setLeaveRequests(leaveData.leaveRequests || []);
+      
+      // Combine activities from access logs and notifications
+      const recentActivities: Activity[] = [];
+      
+      // Add access logs
+      (logsData.accessLogs || []).forEach((log: AccessLog) => {
+        recentActivities.push({
+          id: `log-${log.id}`,
+          icon: getActivityIcon(log.action),
+          title: formatActivityTitle(log.action),
+          description: log.details || log.action,
+          time: log.createdAt,
+          color: getActivityColor(log.action)
+        });
+      });
+      
+      // Add notifications
+      (notificationsData.notifications || []).slice(0, 5).forEach((notif: Notification) => {
+        recentActivities.push({
+          id: `notif-${notif.id}`,
+          icon: getNotificationIcon(notif.type),
+          title: notif.title,
+          description: notif.message.substring(0, 80) + (notif.message.length > 80 ? '...' : ''),
+          time: notif.createdAt,
+          color: getNotificationColor(notif.type)
+        });
+      });
+      
+      // Sort by time (most recent first) and take top 8
+      recentActivities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      setActivities(recentActivities.slice(0, 8));
+      
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -752,34 +876,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             📜 Recent Activity
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <ActivityItem 
-              icon="✏️" 
-              title="Profile Updated"
-              description="You updated your profile information"
-              time="2 hours ago"
-              color="#3498db"
-            />
-            <ActivityItem 
-              icon="✅" 
-              title="Leave Approved"
-              description="Your leave request for Dec 20-22 was approved"
-              time="1 day ago"
-              color="#27ae60"
-            />
-            <ActivityItem 
-              icon="📊" 
-              title="Attendance Logged"
-              description="Attendance marked for today"
-              time="Today"
-              color="#9b59b6"
-            />
-            <ActivityItem 
-              icon="💬" 
-              title="Message from Manager"
-              description="New message regarding project update"
-              time="2 days ago"
-              color="#f39c12"
-            />
+            {activities.length > 0 ? (
+              activities.map(activity => (
+                <ActivityItem 
+                  key={activity.id}
+                  icon={activity.icon}
+                  title={activity.title}
+                  description={activity.description}
+                  time={formatRelativeTime(activity.time)}
+                  color={activity.color}
+                />
+              ))
+            ) : (
+              <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>No recent activities</p>
+            )}
           </div>
         </div>
 
