@@ -1,4 +1,5 @@
 @import './styles/enhancements.css';
+@import './styles/mobile.css';
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -345,6 +346,13 @@ body {
 .app-main {
   padding: 1.5rem;
   margin-top: 64px;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 1025px) {
+  .app-main {
+    margin-left: 230px;
+  }
 }
 
 /* Employees styles are in pages/employees.css */

@@ -97,9 +97,28 @@ const App: React.FC = () => {
         <div style={{ minHeight: '100vh', background: '#f5f7fa' }}>
           <HorizontalNav
             currentPage={currentPage}
-            onNavigate={(page) => setCurrentPage(page)}
+            onNavigate={(page) => {
+              setCurrentPage(page);
+              setSidebarOpen(false); // Close sidebar on navigation (mobile)
+            }}
             onLogout={handleLogout}
           />
+          {/* Mobile overlay to close sidebar */}
+          {sidebarOpen && (
+            <div
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'fixed',
+                top: '56px',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 25,
+                display: window.innerWidth > 768 ? 'none' : 'block'
+              }}
+            />
+          )}
           <main style={{ padding: '0' }}>
             {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
             {currentPage === "dashboard" && <DashboardPage onNavigate={(page) => setCurrentPage(page as AppPage)} />}
