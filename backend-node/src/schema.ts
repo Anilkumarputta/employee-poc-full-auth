@@ -34,6 +34,9 @@ export const typeDefs = gql`
     status: String!
     location: String!
     lastLogin: String!
+    flagged: Boolean!
+    avatar: String
+    managerId: Int
     createdAt: String!
     updatedAt: String!
   }
@@ -77,6 +80,9 @@ export const typeDefs = gql`
     status: String!
     location: String!
     lastLogin: String!
+    flagged: Boolean
+    avatar: String
+    managerId: Int
   }
 
   type Note {
@@ -174,6 +180,7 @@ export const typeDefs = gql`
     deleteEmployee(id: Int!): Boolean!
     deleteUser(id: Int!): Boolean!
     terminateEmployee(id: Int!): Employee!
+    flagEmployee(id: Int!, flagged: Boolean!): Employee!
     generateEmployeeLogins: GenerateLoginsResult!
     
     sendNote(input: NoteInput!): Note!

@@ -332,6 +332,17 @@ export const resolvers = {
       });
     },
 
+    flagEmployee: async (_: any, { id, flagged }: any, ctx: Context) => {
+      requireAdmin(ctx);
+      return ctx.prisma.employee.update({
+        where: { id },
+        data: {
+          flagged,
+          updatedAt: new Date(),
+        },
+      });
+    },
+
     generateEmployeeLogins: async (_: any, __: any, ctx: Context) => {
       requireDirector(ctx);
       
