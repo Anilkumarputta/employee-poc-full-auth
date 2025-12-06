@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/authContext';
 import { graphqlRequest } from '../../lib/graphqlClient';
+import { NotificationBell } from '../NotificationBell';
 
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads";
 
 type Props = {
   currentPage: AppPage;
@@ -247,6 +248,10 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 </span>
               )}
             </div>
+            
+            {/* Notification Bell */}
+            <NotificationBell onNavigate={onNavigate} />
+            
             <button
               onClick={onLogout}
               style={{
