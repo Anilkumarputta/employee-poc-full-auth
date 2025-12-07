@@ -85,6 +85,7 @@ export const LeaveRequestsPage: React.FC = () => {
   const [adminNote, setAdminNote] = useState("");
 
   const isAdmin = user?.role === "director" || user?.role === "manager";
+  const canApprove = user?.role === "manager"; // Only managers can approve, directors just view
 
   useEffect(() => {
     fetchRequests();
@@ -293,20 +294,35 @@ export const LeaveRequestsPage: React.FC = () => {
                     <span style={{ padding: "0.5rem 1rem", background: statusStyle.bg, color: statusStyle.color, borderRadius: "6px", fontSize: "0.875rem", fontWeight: "600" }}>
                       {req.status.toUpperCase()}
                     </span>
-                    {isAdmin && req.status === "pending" && (
+                    {canApprove && req.status === "pending" && (
                       <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                         <button
                           onClick={() => setSelectedRequest(req)}
-                          style={{ padding: "0.5rem 1rem", background: "#10b981", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                          style={{ padding: "0.5rem 1rem", background: "#10b981", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
                         >
-                          Approve
+                          ✓ Approve
                         </button>
                         <button
                           onClick={() => setSelectedRequest(req)}
-                          style={{ padding: "0.5rem 1rem", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                          style={{ padding: "0.5rem 1rem", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
                         >
-                          Reject
+                          ✗ Reject
                         </button>
+                      </div>
+                    )}
+                    {!canApprove && isAdmin && req.status === "pending" && (
+                      <div style={{
+                        padding: "0.5rem 1rem",
+                        background: "#f0f4ff",
+                        border: "2px solid #667eea",
+                        borderRadius: "6px",
+                        fontSize: "0.875rem",
+                        color: "#667eea",
+                        fontWeight: "600",
+                        marginTop: "0.5rem",
+                        textAlign: "center"
+                      }}>
+                        👁️ View Only
                       </div>
                     )}
                   </div>
@@ -318,10 +334,10 @@ export const LeaveRequestsPage: React.FC = () => {
       </div>
 
       {/* Admin Action Modal */}
-      {selectedRequest && (
+      {selectedRequest && canApprove && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "white", borderRadius: "8px", padding: "2rem", maxWidth: "500px", width: "90%" }}>
-            <h3 style={{ margin: "0 0 1rem 0" }}>Review Leave Request</h3>
+            <h3 style={{ margin: "0 0 1rem 0" }}>Review Leave Request (Manager Approval)</h3>
             <p style={{ margin: "0 0 1rem 0", color: "#6b7280" }}>
               Employee: <strong>{selectedRequest.employeeName}</strong>
             </p>

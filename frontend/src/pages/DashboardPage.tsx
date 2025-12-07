@@ -296,19 +296,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     );
   }
 
-  // Calculate stats for all roles
-  const totalEmployees = employees.length;
-  const activeEmployees = employees.filter(e => e.status === 'active').length;
-  const inactiveEmployees = employees.filter(e => e.status !== 'active').length;
-  const flaggedEmployees = employees.filter(e => e.flagged).length;
-  const avgAttendance = employees.length > 0 
-    ? Math.round(employees.reduce((sum, e) => sum + e.attendance, 0) / employees.length) 
+  // Filter employees based on role
+  const filteredEmployees = isDirector 
+    ? employees.filter(e => e.role !== 'director') // Director sees all except directors
+    : isManager 
+    ? employees.filter(e => e.managerId === user?.id) // Manager sees only their team
+    : employees.filter(e => e.managerId === (employees.find(emp => emp.email === user?.email)?.managerId)) // Employee sees team members with same manager
+      .filter(e => e.email !== user?.email); // Exclude self
+
+  // Calculate stats based on filtered employees
+  const totalEmployees = filteredEmployees.length;
+  const activeEmployees = filteredEmployees.filter(e => e.status === 'active').length;
+  const inactiveEmployees = filteredEmployees.filter(e => e.status !== 'active').length;
+  const flaggedEmployees = filteredEmployees.filter(e => e.flagged).length;.length;
+  const avgAttendance = filteredEmployees.length > 0 
+    ? Math.round(filteredEmployees.reduce((sum, e) => sum + e.attendance, 0) / filteredEmployees.length) 
     : 0;
 
   // Calculate month-related stats
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const newHiresThisMonth = employees.filter(e => 
+  const newHiresThisMonth = filteredEmployees.filter(e => 
     new Date(e.createdAt) >= firstDayOfMonth
   ).length;
 
@@ -322,7 +330,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   ).length;
 
   // Department grouping
-  const departmentCounts = employees.reduce((acc, e) => {
+  const departmentCounts = filteredEmployees.reduce((acc, e) => {
     acc[e.className] = (acc[e.className] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -911,7 +919,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             clickable={true}
             onClick={() => {
               setModalType('total-employees');
-              setModalData(employees);
+              setModalData(filteredEmployees);
               setShowModal(true);
             }}
           />
@@ -924,7 +932,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             clickable={true}
             onClick={() => {
               setModalType('active-inactive');
-              setModalData({ active: employees.filter(e => e.status === 'active'), inactive: employees.filter(e => e.status !== 'active') });
+              setModalData({ active: filteredEmployees.filter(e => e.status === 'active'), inactive: filteredEmployees.filter(e => e.status !== 'active') });
               setShowModal(true);
             }}
           />
@@ -938,7 +946,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             onClick={() => {
               const thirtyDaysAgo = new Date();
               thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-              const newHires = employees.filter(e => new Date(e.createdAt) >= thirtyDaysAgo);
+              const newHires = filteredEmployees.filter(e => new Date(e.createdAt) >= thirtyDaysAgo);
               setModalType('new-hires');
               setModalData(newHires);
               setShowModal(true);
@@ -1082,7 +1090,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
                 {/* Flagged Employees */}
-                {employees.filter(e => e.flagged).map(emp => (
+                {filteredEmployees.filter(e => e.flagged).map(emp => (
                   <div key={emp.id} style={{
                     padding: '15px',
                     background: '#fff5f5',
@@ -1121,7 +1129,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   </div>
                 ))}
                 {/* Terminated/Inactive Employees */}
-                {employees.filter(e => e.status === 'inactive').map(emp => (
+                {filteredEmployees.filter(e => e.status === 'inactive').map(emp => (
                   <div key={`inactive-${emp.id}`} style={{
                     padding: '15px',
                     background: '#f8f9fa',
