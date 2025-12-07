@@ -42,6 +42,26 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
 
+  // Restore authentication on page refresh
+  React.useEffect(() => {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    const userStr = localStorage.getItem('user');
+    
+    if (accessToken && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setAuth({ user, accessToken, refreshToken });
+        setView("app");
+      } catch (error) {
+        console.error('Failed to restore auth:', error);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
   const handleAuthChange = (data: {
     user: AuthUser | null;
     accessToken: string | null;
@@ -51,11 +71,13 @@ const App: React.FC = () => {
     if (data.user && data.accessToken) {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken || '');
+      localStorage.setItem('user', JSON.stringify(data.user));
       setCurrentPage("dashboard"); // Always start at dashboard after login
       setView("app");
     } else {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
       setView("login");
     }
   };
@@ -63,6 +85,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     setAuth({ user: null, accessToken: null, refreshToken: null });
     setView("login");
   };

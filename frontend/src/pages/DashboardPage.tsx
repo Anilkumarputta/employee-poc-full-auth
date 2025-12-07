@@ -762,11 +762,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-              }}>🏢</span>
-              Director Dashboard - Company Control
+              }}>{isDirector ? '🏢' : isManager ? '👨‍💼' : '👤'}</span>
+              {(() => {
+                const hour = currentTime.getHours();
+                const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+                const userName = user?.email?.split('@')[0] || 'there';
+                const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+              })()}
             </h1>
             <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
-              Complete oversight of all employees and operations
+              {isDirector 
+                ? 'Welcome back! Here\'s your complete overview of company operations and team performance.' 
+                : isManager 
+                ? 'Great to see you! Manage your team and track their progress from here.' 
+                : 'Welcome! Stay updated with your work status and team activities.'}
             </p>
           </div>
 
@@ -1050,47 +1060,103 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             border: flaggedEmployees > 0 ? '2px solid #e74c3c' : '2px solid #e3e8ef'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              🚩 Flagged Employees <span style={{
+              🚩 Flagged & Terminated Employees <span style={{
                 background: '#e74c3c',
                 color: 'white',
                 padding: '4px 12px',
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 'bold'
-              }}>{flaggedEmployees}</span>
+              }}>{flaggedEmployees + inactiveEmployees}</span>
             </h3>
-            {flaggedEmployees === 0 ? (
-              <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
-                No employees flagged for review
-              </p>
+            {(flaggedEmployees === 0 && inactiveEmployees === 0) ? (
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                <div style={{ fontSize: '48px', marginBottom: '10px' }}>✅</div>
+                <p style={{ color: '#27ae60', fontWeight: '600', marginBottom: '5px' }}>
+                  All Clear!
+                </p>
+                <p style={{ color: '#95a5a6', fontSize: '14px' }}>
+                  No employees flagged or terminated
+                </p>
+              </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {employees.filter(e => e.flagged).slice(0, 5).map(emp => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
+                {/* Flagged Employees */}
+                {employees.filter(e => e.flagged).map(emp => (
                   <div key={emp.id} style={{
                     padding: '15px',
                     background: '#fff5f5',
                     borderRadius: '10px',
-                    border: '2px solid #ffebee',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+                    border: '2px solid #ffebee'
                   }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
-                      <div style={{ fontSize: '13px', color: '#7f8c8d' }}>{emp.role} • {emp.className}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                          <span style={{ fontSize: '20px' }}>🚩</span>
+                          <div style={{ fontWeight: '700', color: '#e74c3c', fontSize: '16px' }}>{emp.name}</div>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginLeft: '28px' }}>{emp.role} • {emp.className}</div>
+                      </div>
+                      <span style={{
+                        background: '#e74c3c',
+                        color: 'white',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '700'
+                      }}>FLAGGED</span>
                     </div>
-                    <button style={{
-                      padding: '8px 16px',
-                      background: '#e74c3c',
-                      color: 'white',
-                      border: 'none',
+                    <div style={{
+                      marginLeft: '28px',
+                      padding: '10px',
+                      background: 'white',
                       borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '600'
+                      borderLeft: '3px solid #e74c3c'
                     }}>
-                      Review
-                    </button>
+                      <div style={{ fontSize: '12px', color: '#95a5a6', marginBottom: '3px', fontWeight: '600' }}>Reason:</div>
+                      <div style={{ fontSize: '13px', color: '#2c3e50' }}>
+                        Low attendance ({emp.attendance}%) and performance issues requiring immediate review
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {/* Terminated/Inactive Employees */}
+                {employees.filter(e => e.status === 'inactive').map(emp => (
+                  <div key={`inactive-${emp.id}`} style={{
+                    padding: '15px',
+                    background: '#f8f9fa',
+                    borderRadius: '10px',
+                    border: '2px solid #dee2e6'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                          <span style={{ fontSize: '20px' }}>❌</span>
+                          <div style={{ fontWeight: '700', color: '#6c757d', fontSize: '16px', textDecoration: 'line-through' }}>{emp.name}</div>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} • {emp.className}</div>
+                      </div>
+                      <span style={{
+                        background: '#6c757d',
+                        color: 'white',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '700'
+                      }}>TERMINATED</span>
+                    </div>
+                    <div style={{
+                      marginLeft: '28px',
+                      padding: '10px',
+                      background: 'white',
+                      borderRadius: '6px',
+                      borderLeft: '3px solid #6c757d'
+                    }}>
+                      <div style={{ fontSize: '12px', color: '#95a5a6', marginBottom: '3px', fontWeight: '600' }}>Termination Reason:</div>
+                      <div style={{ fontSize: '13px', color: '#2c3e50' }}>
+                        Contract ended / Policy violation / Resigned on {new Date(emp.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
