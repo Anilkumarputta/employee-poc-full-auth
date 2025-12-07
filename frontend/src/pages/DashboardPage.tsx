@@ -308,7 +308,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const totalEmployees = filteredEmployees.length;
   const activeEmployees = filteredEmployees.filter(e => e.status === 'active').length;
   const inactiveEmployees = filteredEmployees.filter(e => e.status !== 'active').length;
-  const flaggedEmployees = filteredEmployees.filter(e => e.flagged).length;.length;
+  const flaggedEmployees = filteredEmployees.filter(e => e.flagged).length;
   const avgAttendance = filteredEmployees.length > 0 
     ? Math.round(filteredEmployees.reduce((sum, e) => sum + e.attendance, 0) / filteredEmployees.length) 
     : 0;
