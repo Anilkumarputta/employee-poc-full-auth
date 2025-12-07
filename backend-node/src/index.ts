@@ -72,13 +72,14 @@ async function start() {
           // Verify token signature and decode payload
           const decoded: any = jwt.verify(
             token,
-            process.env.JWT_ACCESS_SECRET || "dev-secret"
+            process.env.JWT_ACCESS_SECRET || "dev-access-secret"
           );
           // Token is valid! Fetch full user from database
           user = await prisma.user.findUnique({ where: { id: decoded.userId } });
         } catch (err) {
           // Token is invalid/expired - keep user null
           // This is fine, just means they're not logged in
+          console.error("JWT verification failed:", err);
         }
       }
 
