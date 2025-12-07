@@ -87,6 +87,16 @@ export const LeaveRequestsPage: React.FC = () => {
   const isAdmin = user?.role === "director" || user?.role === "manager";
   const canApprove = user?.role === "manager"; // Only managers can approve, directors just view
 
+  // Debug: Log auth state on mount
+  useEffect(() => {
+    console.log("LeaveRequestsPage - Auth State:", { 
+      hasToken: !!accessToken, 
+      tokenLength: accessToken?.length || 0,
+      user: user?.email,
+      role: user?.role 
+    });
+  }, []);
+
   useEffect(() => {
     fetchRequests();
   }, [statusFilter]);
@@ -115,11 +125,18 @@ export const LeaveRequestsPage: React.FC = () => {
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate authentication
+    if (!accessToken) {
+      alert("Authentication error: Please log out and log back in");
+      return;
+    }
+    
     try {
       await graphqlRequest(
         CREATE_LEAVE_REQUEST_MUTATION,
         { input: { reason, startDate, endDate } },
-        accessToken!
+        accessToken
       );
       setReason("");
       setStartDate("");
@@ -133,11 +150,17 @@ export const LeaveRequestsPage: React.FC = () => {
   };
 
   const handleUpdateStatus = async (id: number, status: string) => {
+    // Validate authentication
+    if (!accessToken) {
+      alert("Authentication error: Please log out and log back in");
+      return;
+    }
+    
     try {
       await graphqlRequest(
         UPDATE_LEAVE_STATUS_MUTATION,
         { id, status, adminNote: adminNote || null },
-        accessToken!
+        accessToken
       );
       setSelectedRequest(null);
       setAdminNote("");
