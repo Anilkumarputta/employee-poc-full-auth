@@ -121,6 +121,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<{temp: number, condition: string, icon: string, location: string} | null>(null);
+  
+  // Modal states for interactive cards
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState<string>('');
+  const [modalData, setModalData] = useState<any>(null);
 
   const isDirector = user?.role === 'director';
   const isManager = user?.role === 'manager';
@@ -334,10 +339,389 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     .filter(lr => lr.status === 'approved' && lr.startDate > todayStr)
     .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 
+  // Render Modal Component
+  const renderModal = () => {
+    if (!showModal) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '20px',
+        animation: 'fadeIn 0.3s ease-out'
+      }}
+      onClick={() => setShowModal(false)}>
+        <div style={{
+          background: 'white',
+          borderRadius: '20px',
+          padding: '40px',
+          maxWidth: '900px',
+          maxHeight: '80vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          animation: 'slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          position: 'relative'
+        }}
+        onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setShowModal(false)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              fontSize: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.3s',
+              boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'rotate(90deg) scale(1.1)';
+              e.currentTarget.style.background = '#c0392b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+              e.currentTarget.style.background = '#e74c3c';
+            }}>
+            ✕
+          </button>
+
+          {modalType === 'total-employees' && (
+            <div>
+              <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ fontSize: '36px' }}>👥</span>
+                All Employees ({modalData?.length || 0})
+              </h2>
+              <div style={{ display: 'grid', gap: '15px' }}>
+                {modalData?.map((emp: Employee) => (
+                  <div key={emp.id} style={{
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(5px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}>
+                    <div>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '5px' }}>
+                        {emp.name}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
+                        {emp.email} • {emp.role} • {emp.className}
+                      </div>
+                    </div>
+                    <div style={{
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      background: emp.status === 'active' ? '#27ae60' : '#e74c3c',
+                      color: 'white',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}>
+                      {emp.status === 'active' ? '✅ Active' : '❌ Inactive'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {modalType === 'active-inactive' && (
+            <div>
+              <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50' }}>
+                Employee Status Overview
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                <div>
+                  <h3 style={{ color: '#27ae60', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>✅</span>
+                    Active ({modalData?.active?.length || 0})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {modalData?.active?.map((emp: Employee) => (
+                      <div key={emp.id} style={{
+                        padding: '15px',
+                        background: '#d5f4e6',
+                        borderRadius: '10px',
+                        borderLeft: '4px solid #27ae60'
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
+                          {emp.role} • {emp.attendance}% attendance
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 style={{ color: '#e74c3c', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>❌</span>
+                    Inactive ({modalData?.inactive?.length || 0})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {modalData?.inactive?.map((emp: Employee) => (
+                      <div key={emp.id} style={{
+                        padding: '15px',
+                        background: '#fadbd8',
+                        borderRadius: '10px',
+                        borderLeft: '4px solid #e74c3c'
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
+                          {emp.role} • Last seen: {formatRelativeTime(emp.updatedAt)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {modalType === 'new-hires' && (
+            <div>
+              <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ fontSize: '36px' }}>🆕</span>
+                New Hires - Last 30 Days ({modalData?.length || 0})
+              </h2>
+              <div style={{ display: 'grid', gap: '15px' }}>
+                {modalData?.map((emp: Employee) => (
+                  <div key={emp.id} style={{
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, #e0f7fa 0%, #80deea 100%)',
+                    borderRadius: '12px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '20px',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '5px' }}>
+                        {emp.name}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#546e7a', marginBottom: '8px' }}>
+                        {emp.email} • {emp.role}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#78909c', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>📅</span>
+                        Joined {formatRelativeTime(emp.createdAt)}
+                      </div>
+                    </div>
+                    <div style={{
+                      background: '#00acc1',
+                      color: 'white',
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 12px rgba(0, 172, 193, 0.3)'
+                    }}>
+                      🌟 NEW
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {modalType === 'attendance' && (
+            <div>
+              <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ fontSize: '36px' }}>📊</span>
+                Attendance Rankings
+              </h2>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {modalData?.slice(0, 20).map((emp: Employee, index: number) => {
+                  const getRankColor = (rank: number) => {
+                    if (rank === 0) return 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)';
+                    if (rank === 1) return 'linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%)';
+                    if (rank === 2) return 'linear-gradient(135deg, #CD7F32 0%, #B87333 100%)';
+                    return 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
+                  };
+                  
+                  const getAttendanceColor = (attendance: number) => {
+                    if (attendance >= 95) return '#27ae60';
+                    if (attendance >= 85) return '#f39c12';
+                    if (attendance >= 75) return '#e67e22';
+                    return '#e74c3c';
+                  };
+
+                  return (
+                    <div key={emp.id} style={{
+                      padding: '18px',
+                      background: getRankColor(index),
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '20px',
+                      boxShadow: index < 3 ? '0 4px 15px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
+                      transition: 'transform 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: index < 3 ? 'rgba(255,255,255,0.9)' : '#667eea',
+                        color: index < 3 ? '#2c3e50' : 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '18px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                      }}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '4px' }}>
+                          {emp.name}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#546e7a' }}>
+                          {emp.role} • {emp.className}
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '8px 20px',
+                        borderRadius: '20px',
+                        background: getAttendanceColor(emp.attendance),
+                        color: 'white',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      }}>
+                        {emp.attendance}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {modalType === 'on-leave' && (
+            <div>
+              <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ fontSize: '36px' }}>🏖️</span>
+                Employees on Leave Today ({modalData?.employees?.length || 0})
+              </h2>
+              {modalData?.employees?.length > 0 ? (
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {modalData.employees.map((emp: Employee) => {
+                    const leave = modalData.requests.find((lr: LeaveRequest) => lr.employeeId === emp.id);
+                    return (
+                      <div key={emp.id} style={{
+                        padding: '25px',
+                        background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                        borderRadius: '15px',
+                        borderLeft: '5px solid #f59e0b',
+                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.2)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px' }}>
+                          <div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '8px' }}>
+                              {emp.name}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#78716c', marginBottom: '4px' }}>
+                              {emp.email}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#a8a29e' }}>
+                              {emp.role} • {emp.className}
+                            </div>
+                          </div>
+                          <div style={{
+                            background: '#f59e0b',
+                            color: 'white',
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                          }}>
+                            🏖️ ON LEAVE
+                          </div>
+                        </div>
+                        {leave && (
+                          <div style={{
+                            background: 'white',
+                            padding: '15px',
+                            borderRadius: '10px',
+                            marginTop: '12px'
+                          }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>START DATE</div>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
+                                  📅 {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>END DATE</div>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
+                                  📅 {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>REASON</div>
+                            <div style={{ fontSize: '14px', color: '#44403c', lineHeight: '1.5' }}>
+                              {leave.reason || 'No reason provided'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{
+                  padding: '60px',
+                  textAlign: 'center',
+                  color: '#95a5a6'
+                }}>
+                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎉</div>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#2c3e50', marginBottom: '10px' }}>
+                    Everyone is at work today!
+                  </div>
+                  <div style={{ fontSize: '14px' }}>
+                    No employees are currently on leave.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // DIRECTOR DASHBOARD
   if (isDirector) {
     return (
-      <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
+      <>
+        {renderModal()}
+        <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
         {/* Title */}
         <div style={{ marginBottom: '30px' }}>
           <h1 style={{ 
@@ -389,6 +773,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             subtitle="All employees"
             color="#667eea"
             trend="+5% vs last month"
+            clickable={true}
+            onClick={() => {
+              setModalType('total-employees');
+              setModalData(employees);
+              setShowModal(true);
+            }}
           />
           <MetricCard
             icon="✅"
@@ -396,6 +786,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             value={`${activeEmployees}/${inactiveEmployees}`}
             subtitle="Active / Inactive"
             color="#27ae60"
+            clickable={true}
+            onClick={() => {
+              setModalType('active-inactive');
+              setModalData({ active: employees.filter(e => e.status === 'active'), inactive: employees.filter(e => e.status !== 'active') });
+              setShowModal(true);
+            }}
           />
           <MetricCard
             icon="🆕"
@@ -403,6 +799,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             value={newHiresThisMonth}
             subtitle="This month"
             color="#3498db"
+            clickable={true}
+            onClick={() => {
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              const newHires = employees.filter(e => new Date(e.createdAt) >= thirtyDaysAgo);
+              setModalType('new-hires');
+              setModalData(newHires);
+              setShowModal(true);
+            }}
           />
           <MetricCard
             icon="📊"
@@ -410,6 +815,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             value={`${avgAttendance}%`}
             subtitle="Company average"
             color="#f39c12"
+            clickable={true}
+            onClick={() => {
+              setModalType('attendance');
+              setModalData(employees.sort((a, b) => b.attendance - a.attendance));
+              setShowModal(true);
+            }}
           />
           <MetricCard
             icon="🏖️"
@@ -417,6 +828,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             value={onLeaveToday}
             subtitle="Currently out"
             color="#e74c3c"
+            clickable={true}
+            onClick={() => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const onLeave = leaveRequests.filter(lr => 
+                lr.status === 'approved' && 
+                lr.startDate <= todayStr && 
+                lr.endDate >= todayStr
+              );
+              const employeesOnLeave = employees.filter(e => 
+                onLeave.some(lr => lr.employeeId === e.id)
+              );
+              setModalType('on-leave');
+              setModalData({ employees: employeesOnLeave, requests: onLeave });
+              setShowModal(true);
+            }}
           />
         </div>
 
@@ -590,7 +1016,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -1014,7 +1441,9 @@ const MetricCard: React.FC<{
   subtitle: string;
   color: string;
   trend?: string;
-}> = ({ icon, title, value, subtitle, color, trend }) => (
+  onClick?: () => void;
+  clickable?: boolean;
+}> = ({ icon, title, value, subtitle, color, trend, onClick, clickable = false }) => (
   <div style={{
     background: 'rgba(255, 255, 255, 0.9)',
     backdropFilter: 'blur(10px)',
@@ -1022,21 +1451,26 @@ const MetricCard: React.FC<{
     padding: '25px',
     borderRadius: '15px',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
+    border: clickable ? `2px solid ${color}40` : '1px solid rgba(255, 255, 255, 0.3)',
     transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-    cursor: 'pointer',
+    cursor: clickable ? 'pointer' : 'default',
     position: 'relative',
     overflow: 'hidden'
   }}
+  onClick={onClick}
   onMouseEnter={(e) => {
-    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
-    e.currentTarget.style.borderColor = `${color}40`;
+    if (clickable) {
+      e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+      e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+      e.currentTarget.style.borderColor = color;
+    }
   }}
   onMouseLeave={(e) => {
-    e.currentTarget.style.transform = 'translateY(0) scale(1)';
-    e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
-    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+    if (clickable) {
+      e.currentTarget.style.transform = 'translateY(0) scale(1)';
+      e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
+      e.currentTarget.style.borderColor = `${color}40`;
+    }
   }}>
     <div style={{ 
       fontSize: '36px', 
@@ -1065,6 +1499,38 @@ const MetricCard: React.FC<{
       <div style={{ fontSize: '12px', color: '#27ae60', marginTop: '8px', fontWeight: '600' }}>
         {trend}
       </div>
+    )}
+    {clickable && (
+      <>
+        <div style={{
+          position: 'absolute',
+          top: '15px',
+          right: '15px',
+          background: color,
+          color: 'white',
+          borderRadius: '50%',
+          width: '32px',
+          height: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          animation: 'pulse 2s infinite'
+        }}>
+          👁️
+        </div>
+        <div style={{ 
+          fontSize: '11px', 
+          color: color, 
+          marginTop: '12px', 
+          fontWeight: '700',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }}>
+          Click for details →
+        </div>
+      </>
     )}
   </div>
 );
