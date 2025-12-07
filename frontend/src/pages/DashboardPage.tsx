@@ -1223,33 +1223,154 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     }).length;
 
     return (
-      <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #fef3c7 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
-        {/* Title */}
-        <div style={{ marginBottom: '30px' }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '32px', 
-            fontWeight: 'bold',
-            color: '#2c3e50',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px'
-          }}>
-            <span style={{
-              width: '50px',
-              height: '50px',
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              borderRadius: '50%',
+      <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
+        {/* Top Header with Weather Widget */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr auto', 
+          gap: '30px', 
+          marginBottom: '30px',
+          alignItems: 'center'
+        }}>
+          {/* Title Section */}
+          <div>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '32px', 
+              fontWeight: 'bold',
+              color: '#2c3e50',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px'
-            }}>👔</span>
-            Manager Dashboard - Team Performance
-          </h1>
-          <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
-            Monitor and support your team's success
-          </p>
+              gap: '15px'
+            }}>
+              <span style={{
+                width: '50px',
+                height: '50px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+              }}>👨‍💼</span>
+              {(() => {
+                const hour = currentTime.getHours();
+                const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+                const userName = user?.email?.split('@')[0] || 'there';
+                const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+              })()}
+            </h1>
+            <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
+              Great to see you! Manage your team and track their progress from here.
+            </p>
+          </div>
+
+          {/* Weather & Time Widget */}
+          {weather && (
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '25px 30px',
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
+              color: 'white',
+              minWidth: '320px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-30px',
+                right: '-30px',
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)'
+              }} />
+              <div style={{
+                position: 'absolute',
+                bottom: '-40px',
+                left: '-40px',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.08)',
+                backdropFilter: 'blur(10px)'
+              }} />
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ 
+                  fontSize: '36px', 
+                  fontWeight: 'bold', 
+                  marginBottom: '5px',
+                  letterSpacing: '1px',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                }}>
+                  {currentTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                  })}
+                </div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  opacity: 0.9, 
+                  marginBottom: '15px',
+                  fontWeight: '500'
+                }}>
+                  {currentTime.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '15px',
+                  paddingTop: '15px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.3)'
+                }}>
+                  <div style={{ 
+                    fontSize: '48px',
+                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
+                  }}>
+                    {weather.icon}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: '32px', 
+                      fontWeight: 'bold',
+                      lineHeight: '1',
+                      marginBottom: '5px'
+                    }}>
+                      {weather.temp}°C
+                    </div>
+                    <div style={{ 
+                      fontSize: '14px', 
+                      opacity: 0.9,
+                      fontWeight: '500'
+                    }}>
+                      {weather.condition}
+                    </div>
+                    <div style={{ 
+                      fontSize: '12px', 
+                      opacity: 0.8,
+                      marginTop: '3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <span>📍</span>
+                      {weather.location}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Hero Metrics Row */}
@@ -1461,21 +1582,170 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   // EMPLOYEE DASHBOARD
   return (
-    <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #dbeafe 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
-      {/* Welcome Hero Card */}
-      <div style={{
-        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        padding: '40px',
-        borderRadius: '20px',
-        color: 'white',
+    <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
+      {/* Top Header with Weather Widget */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr auto', 
+        gap: '30px', 
         marginBottom: '30px',
-        boxShadow: '0 10px 30px rgba(79, 172, 254, 0.3)'
+        alignItems: 'center'
+      }}>
+        {/* Title Section */}
+        <div>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '32px', 
+            fontWeight: 'bold',
+            color: '#2c3e50',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            <span style={{
+              width: '50px',
+              height: '50px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+            }}>👤</span>
+            {(() => {
+              const hour = currentTime.getHours();
+              const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+              const userName = user?.email?.split('@')[0] || 'there';
+              const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+              return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+            })()}
+          </h1>
+          <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
+            Welcome! Stay updated with your work status and team activities.
+          </p>
+        </div>
+
+        {/* Weather & Time Widget */}
+        {weather && (
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '25px 30px',
+            borderRadius: '20px',
+            boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
+            color: 'white',
+            minWidth: '320px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-30px',
+              right: '-30px',
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)'
+            }} />
+            <div style={{
+              position: 'absolute',
+              bottom: '-40px',
+              left: '-40px',
+              width: '150px',
+              height: '150px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(10px)'
+            }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ 
+                fontSize: '36px', 
+                fontWeight: 'bold', 
+                marginBottom: '5px',
+                letterSpacing: '1px',
+                textShadow: '0 2px 10px rgba(0,0,0,0.2)'
+              }}>
+                {currentTime.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: true 
+                })}
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                opacity: 0.9, 
+                marginBottom: '15px',
+                fontWeight: '500'
+              }}>
+                {currentTime.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '15px',
+                paddingTop: '15px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <div style={{ 
+                  fontSize: '48px',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
+                }}>
+                  {weather.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    fontSize: '32px', 
+                    fontWeight: 'bold',
+                    lineHeight: '1',
+                    marginBottom: '5px'
+                  }}>
+                    {weather.temp}°C
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    opacity: 0.9,
+                    fontWeight: '500'
+                  }}>
+                    {weather.condition}
+                  </div>
+                  <div style={{ 
+                    fontSize: '12px', 
+                    opacity: 0.8,
+                    marginTop: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <span>📍</span>
+                    {weather.location}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* My Stats Card */}
+      <div style={{
+        background: 'white',
+        padding: '30px',
+        borderRadius: '15px',
+        marginBottom: '30px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        border: '2px solid #e0e7ff'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
           <div style={{
-            width: '100px',
-            height: '100px',
-            background: 'rgba(255,255,255,0.2)',
+            width: '80px',
+            height: '80px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
