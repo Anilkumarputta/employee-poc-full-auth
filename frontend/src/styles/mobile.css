@@ -88,6 +88,16 @@ textarea {
     max-width: 320px !important;
   }
 
+  /* Weather Widget - Stack on mobile */
+  div[style*="gridTemplateColumns: '1fr auto'"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Weather widget itself - adjust on mobile */
+  div[style*="minWidth: '320px'"] {
+    min-width: 100% !important;
+  }
+
   /* Auth pages - better mobile spacing */
   .auth-shell {
     padding: 1rem;
