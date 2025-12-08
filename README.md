@@ -4,7 +4,7 @@
 
 ### 🚀 Complete Enterprise HR Platform with Role-Based Access Control
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20App-blue?style=for-the-badge&logo=vercel)](https://employee-poc-full-auth.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20App-blue?style=for-the-badge&logo=vercel)](https://employeepoc-frontend.vercel.app)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![GraphQL](https://img.shields.io/badge/GraphQL-API-E10098?style=for-the-badge&logo=graphql)](https://graphql.org/)
@@ -12,7 +12,7 @@
 
 **🌟 Full-stack application with authentication, messaging, notifications & approval workflows**
 
-[🎯 Live Demo](https://employee-poc-full-auth.vercel.app) • [📖 Documentation](#-what-is-this) • [🔐 Test Accounts](#-try-it-out---test-accounts) • [🛠️ Setup Guide](#-running-locally-step-by-step)
+[🎯 Live Demo](https://employeepoc-frontend.vercel.app) • [📖 Documentation](#-what-is-this) • [🔐 Test Accounts](#-try-it-out---test-accounts) • [🛠️ Setup Guide](#-running-locally-step-by-step)
 
 </div>
 
@@ -22,22 +22,20 @@
 
 ### **🎯 Frontend App (Live & Ready):** 
 ```
-🔗 https://employee-poc-full-auth.vercel.app
+🔗 https://employeepoc-frontend.vercel.app
 ```
 
-### **👉 [CLICK HERE TO OPEN THE APP](https://employee-poc-full-auth.vercel.app)** 👈
+### **👉 [CLICK HERE TO OPEN THE APP](https://employeepoc-frontend.vercel.app)** 👈
 
 > ✨ No installation needed! Works instantly on any device - Desktop, Tablet, or Mobile
-
-> ⚠️ **Note:** If the link doesn't work, the app might be deploying or the URL might need updating. Check your Vercel dashboard for the actual deployment URL, or run locally following the setup guide below.
 
 ### **Quick Access Test Accounts:**
 
 | Role | Login Link | Email | Password |
 |------|------------|-------|----------|
-| 👑 **Director** | [Open as Director](https://employee-poc-full-auth.vercel.app) | director@example.com | director123 |
-| 👔 **Manager** | [Open as Manager](https://employee-poc-full-auth.vercel.app) | manager@example.com | manager123 |
-| 👤 **Employee** | [Open as Employee](https://employee-poc-full-auth.vercel.app) | employee@example.com | employee123 |
+| 👑 **Director** | [Open as Director](https://employeepoc-frontend.vercel.app) | director@example.com | director123 |
+| 👔 **Manager** | [Open as Manager](https://employeepoc-frontend.vercel.app) | manager@example.com | manager123 |
+| 👤 **Employee** | [Open as Employee](https://employeepoc-frontend.vercel.app) | employee@example.com | employee123 |
 
 **📱 Works on Desktop, Tablet & Mobile!**
 
@@ -442,7 +440,7 @@ Just visit the live app and try it out:
 
 ### **🔗 Live Application URL:**
 ```
-https://employee-poc-full-auth.vercel.app
+https://employeepoc-frontend.vercel.app
 ```
 
 ### **🎭 Test Each Role:**
@@ -655,14 +653,14 @@ What to check: Request leave, view team members, update profile
 Want to show this to your team, recruiter, or friends? Just share this link:
 
 ```
-🔗 https://employee-poc-full-auth.vercel.app
+🔗 https://employeepoc-frontend.vercel.app
 ```
 
 **Quick Copy-Paste for Email/Message:**
 ```
 Check out this Employee Management System I built!
 
-Live App: https://employee-poc-full-auth.vercel.app
+Live App: https://employeepoc-frontend.vercel.app
 
 Test it with these accounts:
 👑 Director: director@example.com / director123
@@ -749,17 +747,10 @@ lsof -ti:4000 | xargs kill -9
 ## 🌟 Deployment Info
 
 ### **Frontend (Vercel)**
-- ✅ **Live URL:** https://employee-poc-full-auth.vercel.app
+- ✅ **Live URL:** https://employeepoc-frontend.vercel.app
 - 🔄 **Auto-deploys:** Every git push to main branch
 - ⚡ **CDN:** Global edge network for fast loading worldwide
 - 📱 **Mobile Optimized:** Responsive design works on all devices
-
-**🔍 To Find Your Actual Vercel URL:**
-1. Go to https://vercel.com/dashboard
-2. Find your `employee-poc-full-auth` project
-3. Click on it → You'll see the deployment URL
-4. It might be: `https://employee-poc-full-auth-[username].vercel.app`
-5. Update this README with your actual URL!
 
 **⚙️ Vercel Environment Variables (IMPORTANT!):**
 Make sure these are set in your Vercel project settings:
@@ -803,7 +794,7 @@ This is a portfolio project. Feel free to explore the code and learn from it!
 
 ### ⭐ If you like this project, give it a star on GitHub!
 
-[![Live Demo](https://img.shields.io/badge/🚀-Try%20Live%20Demo-success?style=for-the-badge)](https://employee-poc-full-auth.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🚀-Try%20Live%20Demo-success?style=for-the-badge)](https://employeepoc-frontend.vercel.app)
 
 *Last Updated: December 2025*
 
