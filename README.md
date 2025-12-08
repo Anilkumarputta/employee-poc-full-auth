@@ -29,6 +29,8 @@
 
 > ✨ No installation needed! Works instantly on any device - Desktop, Tablet, or Mobile
 
+> ⚠️ **Note:** If the link doesn't work, the app might be deploying or the URL might need updating. Check your Vercel dashboard for the actual deployment URL, or run locally following the setup guide below.
+
 ### **Quick Access Test Accounts:**
 
 | Role | Login Link | Email | Password |
@@ -617,6 +619,37 @@ What to check: Request leave, view team members, update profile
 
 ---
 
+## ✅ Deployment Checklist (Before Sharing)
+
+**Make sure everything is working:**
+
+1. **Backend Check** (Do this first!)
+   - [ ] Visit: https://employee-poc-full-auth.onrender.com/graphql
+   - [ ] Should see GraphQL Playground (not an error page)
+   - [ ] If sleeping, wait 30-60 seconds for it to wake up
+
+2. **Frontend Check**
+   - [ ] Visit your Vercel URL from your dashboard
+   - [ ] Should see the login page
+   - [ ] Open browser console (F12) - no red errors
+
+3. **Test Login**
+   - [ ] Try logging in with: director@example.com / director123
+   - [ ] Should redirect to dashboard (not stay on login page)
+   - [ ] Dashboard should show employee data (not "0 employees")
+
+4. **Environment Variables**
+   - [ ] Vercel: VITE_API_URL is set to your Render backend URL
+   - [ ] Render: DATABASE_URL, JWT secrets are configured
+
+**🚨 If something doesn't work:**
+- Backend not responding? → Check Render logs
+- Frontend not loading? → Check Vercel deployment logs
+- "Not authenticated" errors? → Backend might not be connected
+- Empty dashboard? → Database might not be seeded
+
+---
+
 ## 📤 Share This App
 
 Want to show this to your team, recruiter, or friends? Just share this link:
@@ -675,9 +708,16 @@ lsof -ti:4000 | xargs kill -9
 
 ### Live site not loading?
 **Check:**
-- Try clearing browser cache (Ctrl+F5)
-- Check if backend is running on Render
+- Try clearing browser cache (Ctrl+F5 or Shift+Reload)
+- Verify the Vercel deployment status at https://vercel.com/dashboard
+- Check if backend is running: Visit https://employee-poc-full-auth.onrender.com/graphql
 - Open browser console (F12) for any errors
+- The backend might be sleeping (free Render tier) - first load can take 30-60 seconds
+
+**Backend Status Check:**
+- Open https://employee-poc-full-auth.onrender.com/graphql in a new tab
+- You should see the GraphQL Playground interface
+- If you see "Cannot GET /graphql", the backend needs to be restarted on Render
 
 ---
 
@@ -689,11 +729,31 @@ lsof -ti:4000 | xargs kill -9
 - ⚡ **CDN:** Global edge network for fast loading worldwide
 - 📱 **Mobile Optimized:** Responsive design works on all devices
 
+**🔍 To Find Your Actual Vercel URL:**
+1. Go to https://vercel.com/dashboard
+2. Find your `employee-poc-full-auth` project
+3. Click on it → You'll see the deployment URL
+4. It might be: `https://employee-poc-full-auth-[username].vercel.app`
+5. Update this README with your actual URL!
+
+**⚙️ Vercel Environment Variables (IMPORTANT!):**
+Make sure these are set in your Vercel project settings:
+```
+VITE_API_URL = https://employee-poc-full-auth.onrender.com
+```
+
 ### **Backend (Render)**
-- 🔗 **GraphQL API:** Running on Render cloud platform
+- 🔗 **GraphQL API:** https://employee-poc-full-auth.onrender.com/graphql
 - 🗄️ **Database:** PostgreSQL on Render
 - 🔐 **Secure:** HTTPS, JWT authentication, environment variables
 - 🚀 **Always On:** Production-ready deployment
+- ⚠️ **Free Tier Note:** First request may take 30-60 seconds (cold start)
+
+**🔍 To Check Backend Status:**
+1. Visit: https://employee-poc-full-auth.onrender.com/graphql
+2. You should see GraphQL Playground
+3. If it shows "Application Error", check your Render dashboard
+4. Backend logs: https://dashboard.render.com → Your Service → Logs
 
 ---
 
