@@ -42,6 +42,17 @@ app.use(cors({
 // Parse JSON in request bodies - converts JSON to JavaScript objects
 app.use(express.json());
 
+// Health check endpoint to prevent Render free tier from sleeping
+// Ping this every 10 minutes to keep the server awake
+app.get("/health", (_req, res) => {
+  res.status(200).json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()) + "s",
+    message: "Backend is alive and healthy!"
+  });
+});
+
 // Mount REST authentication routes at /auth
 // These handle: /auth/login, /auth/register, /auth/refresh, /auth/google
 app.use("/auth", authRouter);
@@ -72,14 +83,13 @@ async function start() {
           // Verify token signature and decode payload
           const decoded: any = jwt.verify(
             token,
-            process.env.JWT_ACCESS_SECRET || "dev-access-secret"
+            process.env.JWT_ACCESS_SECRET || "dev-secret"
           );
           // Token is valid! Fetch full user from database
           user = await prisma.user.findUnique({ where: { id: decoded.userId } });
         } catch (err) {
           // Token is invalid/expired - keep user null
           // This is fine, just means they're not logged in
-          console.error("JWT verification failed:", err);
         }
       }
 

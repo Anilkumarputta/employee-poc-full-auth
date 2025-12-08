@@ -706,15 +706,40 @@ taskkill /PID <process_id> /F  # Kill that process
 lsof -ti:4000 | xargs kill -9
 ```
 
+### App keeps disconnecting or showing "Not authenticated"?
+**This is a Render Free Tier limitation!**
+
+**Problem:** Free Render services sleep after 15 minutes of inactivity. When the backend is asleep:
+- Login fails or takes 30-60 seconds
+- API calls timeout
+- You see "Not authenticated" errors
+
+**Solutions:**
+
+1. **Wait 30-60 seconds** - The backend is waking up from sleep
+2. **Keep backend alive** - Use a free service to ping your backend every 10 minutes:
+   - Visit https://cron-job.org/en/ (free)
+   - Create account → Add new cron job
+   - URL: `https://employee-poc-full-auth.onrender.com/health`
+   - Interval: Every 10 minutes
+   - This prevents the backend from sleeping!
+
+3. **Upgrade Render** - Paid plans ($7/month) keep services always awake
+
+**Quick Backend Health Check:**
+- Visit: https://employee-poc-full-auth.onrender.com/health
+- Should show: `{"status":"ok", "message":"Backend is alive and healthy!"}`
+- If it takes 30+ seconds to load, the backend was sleeping
+
 ### Live site not loading?
 **Check:**
 - Try clearing browser cache (Ctrl+F5 or Shift+Reload)
 - Verify the Vercel deployment status at https://vercel.com/dashboard
-- Check if backend is running: Visit https://employee-poc-full-auth.onrender.com/graphql
+- Check if backend is running: Visit https://employee-poc-full-auth.onrender.com/health
 - Open browser console (F12) for any errors
 - The backend might be sleeping (free Render tier) - first load can take 30-60 seconds
 
-**Backend Status Check:**
+**GraphQL Playground Check:**
 - Open https://employee-poc-full-auth.onrender.com/graphql in a new tab
 - You should see the GraphQL Playground interface
 - If you see "Cannot GET /graphql", the backend needs to be restarted on Render
