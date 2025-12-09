@@ -6,15 +6,24 @@ export async function graphqlRequest<T = any>(
   variables: Record<string, any> = {},
   accessToken?: string
 ): Promise<T> {
+  // Ensure a token is sent even if the caller forgot to pass it.
+  let token = accessToken;
+  if (!token && typeof window !== "undefined") {
+    token = localStorage.getItem("accessToken") || undefined;
+    if (token) {
+      console.log("[graphqlClient] Using token from localStorage as fallback");
+    }
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-    console.log('[graphqlClient] Request with auth token');
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+    console.log("[graphqlClient] Request with auth token");
   } else {
-    console.warn('[graphqlClient] Request without auth token!');
+    console.warn("[graphqlClient] Request without auth token!");
   }
 
   const response = await fetch(GRAPHQL_URL, {
