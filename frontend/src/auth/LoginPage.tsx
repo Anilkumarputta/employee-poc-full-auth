@@ -18,14 +18,18 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    console.log('[LoginPage] Attempting login with:', email);
     try {
       const res = await apiLogin(email, password);
+      console.log('[LoginPage] ✅ Login successful, calling setAuth with token');
       setAuth({
         user: { id: res.user.id, email: res.user.email, role: res.user.role },
         accessToken: res.accessToken,
         refreshToken: res.refreshToken,
       });
+      console.log('[LoginPage] ✅ setAuth called successfully');
     } catch (err: any) {
+      console.log('[LoginPage] ❌ Login failed:', err.message);
       setError(err.message || "Login failed");
     } finally {
       setLoading(false);

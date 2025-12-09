@@ -7,13 +7,24 @@ type AuthResponse = {
 };
 
 export async function apiLogin(email: string, password: string) {
+  console.log('[apiLogin] Logging in as:', email);
   const res = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error("Login failed");
-  return (await res.json()) as AuthResponse;
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.log('[apiLogin] ❌ Login failed:', res.status, errorText);
+    throw new Error("Login failed");
+  }
+  const data = await res.json() as AuthResponse;
+  console.log('[apiLogin] ✅ Received response:', {
+    user: data.user.email,
+    hasAccessToken: !!data.accessToken,
+    hasRefreshToken: !!data.refreshToken,
+  });
+  return data;
 }
 
 export async function apiRegister(
