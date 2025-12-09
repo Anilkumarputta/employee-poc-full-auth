@@ -22,6 +22,7 @@ import { typeDefs } from "./schema"; // GraphQL schema (defines what data we can
 import { resolvers } from "./resolvers"; // Resolvers (functions that actually fetch the data)
 import { authRouter } from "./routes/auth"; // Authentication routes (login/register)
 import jwt from "jsonwebtoken"; // JWT = creates and verifies user tokens
+import bulkActionsRouter from "./routes/bulkActions"; // Bulk actions router
 
 // Initialize database connection - this connects us to PostgreSQL
 const prisma = new PrismaClient();
@@ -56,6 +57,10 @@ app.get("/health", (_req, res) => {
 // Mount REST authentication routes at /auth
 // These handle: /auth/login, /auth/register, /auth/refresh, /auth/google
 app.use("/auth", authRouter);
+
+// Mount REST bulk actions routes at /bulk-actions
+// These handle various bulk operations for admins
+app.use("/bulk-actions", bulkActionsRouter);
 
 /**
  * START APOLLO GRAPHQL SERVER

@@ -21,6 +21,8 @@
 
 import { PrismaClient, Employee as PrismaEmployee } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { sendSlackMessage } from "./utils/slack";
+import { generate2FASecret, verify2FACode } from "./utils/twofa";
 
 // Context type = what every resolver receives
 type Context = {
@@ -261,6 +263,21 @@ export const resolvers = {
       }
       if (filter?.roleNot) {
         where.role = { not: filter.roleNot };
+      }
+      if (filter?.emailContains) {
+        where.email = { contains: filter.emailContains, mode: "insensitive" };
+      }
+      if (filter?.role) {
+        where.role = filter.role;
+      }
+      if (filter?.location) {
+        where.location = { contains: filter.location, mode: "insensitive" };
+      }
+      if (filter?.attendanceMin !== undefined) {
+        where.attendance = { gte: filter.attendanceMin };
+      }
+      if (filter?.attendanceMax !== undefined) {
+        where.attendance = { lte: filter.attendanceMax };
       }
 
       const orderBy: any = {};
@@ -780,20 +797,90 @@ export const resolvers = {
         include: { employee: true },
       });
     },
+
+    // Performance & Attendance Analytics
+    employeePerformanceStats: async (_: any, { employeeId }: any, ctx: Context) => {
+      requireAdmin(ctx);
+      const employee = await ctx.prisma.employee.findUnique({ where: { id: employeeId } });
+      if (!employee) throw new Error("Employee not found");
+      // Example: Calculate average attendance, review requests, notes, etc.
+      const attendance = employee.attendance;
+      const notesCount = await ctx.prisma.note.count({ where: { toEmployeeId: employeeId } });
+      const reviewCount = await ctx.prisma.reviewRequest.count({ where: { employeeId } });
+      return {
+        attendance,
+        notesCount,
+        reviewCount,
+        status: employee.status,
+        flagged: employee.flagged,
+      };
+    },
+
+    attendanceTrends: async (_: any, { employeeId }: any, ctx: Context) => {
+      requireAdmin(ctx);
+      // Example: Return attendance history (stub)
+      // Replace with real attendance log model if available
+      return [
+        { date: "2025-12-01", attendance: 100 },
+        { date: "2025-12-02", attendance: 98 },
+        { date: "2025-12-03", attendance: 97 },
+      ];
+    },
   },
 
   Mutation: {
     addEmployee: async (_: any, { input }: any, ctx: Context) => {
       requireAdmin(ctx);
       const now = new Date().toISOString();
-      return ctx.prisma.employee.create({
-        data: {
-          ...input,
-          createdAt: new Date(now),
-          updatedAt: new Date(now),
-        },
-      } as any);
+        const employee = await ctx.prisma.employee.create({
+          data: {
+            ...input,
+            createdAt: new Date(now),
+            updatedAt: new Date(now),
+          },
+        } as any);
+        await ctx.prisma.accessLog.create({
+          data: {
+            userId: ctx.user!.id,
+            userEmail: ctx.user!.email,
+            action: "ADD_EMPLOYEE",
+            details: `Added employee ${input.name} (${employee.id})`,
+          },
+        });
+        return employee;
     },
+
+      setup2FA: async (_: any, __: any, ctx: Context) => {
+        requireAuth(ctx);
+        // Generate a new 2FA secret for the user
+        const { secret, otpauthUrl } = generate2FASecret(ctx.user!.email);
+        // Store secret in user table (encrypted or plain for POC)
+        await ctx.prisma.user.update({
+          where: { id: ctx.user!.id },
+          data: { twoFASecret: secret }
+        });
+        return { secret, otpauthUrl };
+      },
+
+      verify2FA: async (_: any, { code }: any, ctx: Context) => {
+        requireAuth(ctx);
+        // Get user's 2FA secret
+        const user = await ctx.prisma.user.findUnique({ where: { id: ctx.user!.id } });
+        if (!user || !user.twoFASecret) {
+          throw new Error("2FA not set up for this user");
+        }
+        // Verify code
+        const valid = verify2FACode(user.twoFASecret, code);
+        if (!valid) {
+          return { success: false, message: "Invalid 2FA code" };
+        }
+        // Optionally mark 2FA as enabled
+        await ctx.prisma.user.update({
+          where: { id: ctx.user!.id },
+          data: { twoFAEnabled: true }
+        });
+        return { success: true, message: "2FA verified and enabled" };
+      },
 
     updateEmployee: async (_: any, { id, input }: any, ctx: Context) => {
       requireAdmin(ctx);
@@ -812,13 +899,22 @@ export const resolvers = {
         }
       }
       
-      return ctx.prisma.employee.update({
+      const updated = await ctx.prisma.employee.update({
         where: { id },
         data: {
           ...input,
           updatedAt: new Date(),
         } as any,
       });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: "UPDATE_EMPLOYEE",
+          details: `Updated employee ${id}`,
+        },
+      });
+      return updated;
     },
 
     updateMyProfile: async (_: any, { input }: any, ctx: Context) => {
@@ -870,6 +966,14 @@ export const resolvers = {
       // Only Director can delete employees
       requireDirector(ctx);
       await ctx.prisma.employee.delete({ where: { id } });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: "DELETE_EMPLOYEE",
+          details: `Deleted employee ${id}`,
+        },
+      });
       return true;
     },
     
@@ -1114,7 +1218,7 @@ export const resolvers = {
         });
       }
 
-      return ctx.prisma.leaveRequest.create({
+      const leaveRequest = await ctx.prisma.leaveRequest.create({
         data: {
           employeeId: employee.id,
           reason: input.reason,
@@ -1123,11 +1227,20 @@ export const resolvers = {
           status: "pending"
         }
       });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: "CREATE_LEAVE_REQUEST",
+          details: `Created leave request for employee ${employee.id}`,
+        },
+      });
+      return leaveRequest;
     },
 
     updateLeaveRequestStatus: async (_: any, { id, status, adminNote }: any, ctx: Context) => {
       requireAdmin(ctx);
-      return ctx.prisma.leaveRequest.update({
+      const updated = await ctx.prisma.leaveRequest.update({
         where: { id },
         data: {
           status,
@@ -1135,6 +1248,40 @@ export const resolvers = {
           updatedAt: new Date()
         }
       });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: "UPDATE_LEAVE_REQUEST_STATUS",
+          details: `Updated leave request ${id} to ${status}`,
+        },
+      });
+
+      // Create notification for employee
+      const leaveReq = await ctx.prisma.leaveRequest.findUnique({
+        where: { id },
+        include: { employee: true }
+      });
+      if (leaveReq && leaveReq.employee && ["approved", "rejected"].includes(status)) {
+        await ctx.prisma.notification.create({
+          data: {
+            userId: leaveReq.employee.userId,
+            userEmail: leaveReq.employee.email,
+            title: `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+            message: `Your leave request from ${leaveReq.startDate} to ${leaveReq.endDate} was ${status}. ${adminNote ? "Note: " + adminNote : ""}`,
+            type: "LEAVE",
+            actionUrl: `/leaveRequests`,
+            metadata: { leaveRequestId: leaveReq.id, status },
+          }
+        });
+        // Send Slack alert if webhook is configured
+        const slackWebhook = process.env.SLACK_WEBHOOK_URL;
+        if (slackWebhook) {
+          const slackText = `Leave request for ${leaveReq.employee.email} (${leaveReq.startDate} to ${leaveReq.endDate}) was ${status}. ${adminNote ? "Note: " + adminNote : ""}`;
+          await sendSlackMessage(slackWebhook, slackText);
+        }
+      }
+      return updated;
     },
 
     changePassword: async (_: any, { currentPassword, newPassword }: any, ctx: Context) => {
@@ -1279,6 +1426,15 @@ export const resolvers = {
 
         await prisma.notification.createMany({ data: notifications });
       }
+
+      await prisma.accessLog.create({
+        data: {
+          userId: user!.id,
+          userEmail: user!.email,
+          action: "SEND_MESSAGE",
+          details: `Sent message to ${input.recipientId || input.recipientRole}`,
+        },
+      });
 
       return message;
     },
@@ -1585,6 +1741,14 @@ export const resolvers = {
         }
       }
 
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: user!.id,
+          userEmail: ctx.user!.email,
+          action: "CREATE_REVIEW_REQUEST",
+          details: `Created ${input.type} review request for employee ${input.employeeId}`,
+        },
+      });
       return request;
     },
 
@@ -1701,7 +1865,21 @@ export const resolvers = {
         }
       }
 
+      await prisma.accessLog.create({
+        data: {
+          userId: user!.id,
+          userEmail: ctx.user!.email,
+          action: "REVIEW_DECISION",
+          details: `Review decision ${input.decision} for request ${input.requestId}`,
+        },
+      });
       return updatedRequest;
+    },
+
+    sendSlackNotification: async (_: any, { webhookUrl, text }: any, ctx: Context) => {
+      requireAdmin(ctx);
+      await sendSlackMessage(webhookUrl, text);
+      return { success: true };
     },
   },
 };
