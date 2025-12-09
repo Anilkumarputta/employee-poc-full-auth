@@ -127,7 +127,20 @@ const UPDATE_MUTATION = `
 const PAGE_SIZE = 6;
 
 export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => {
-  const { accessToken } = useContext(AuthContext);
+  let { accessToken } = useContext(AuthContext);
+  
+  // Fallback: if token is not in context, try to get it from localStorage
+  if (!accessToken) {
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    console.log('[EmployeesPage] accessToken from context:', accessToken ? 'present' : 'null');
+    console.log('[EmployeesPage] localStorage token:', storedToken ? 'present' : 'null');
+    if (storedToken) {
+      accessToken = storedToken;
+      console.log('[EmployeesPage] ✅ Using token from localStorage as fallback');
+    } else {
+      console.log('[EmployeesPage] ❌ No token in context or localStorage!');
+    }
+  }
 
   const [view, setView] = useState<"grid" | "tiles">("grid");
 

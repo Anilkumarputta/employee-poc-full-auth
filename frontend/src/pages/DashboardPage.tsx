@@ -115,7 +115,17 @@ type Notification = {
 };
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
-  const { accessToken, user } = useContext(AuthContext);
+  let { accessToken, user } = useContext(AuthContext);
+  
+  // Fallback: if token is not in context, try to get it from localStorage
+  if (!accessToken) {
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (storedToken) {
+      accessToken = storedToken;
+      console.log('[DashboardPage] Using token from localStorage as fallback');
+    }
+  }
+  
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
