@@ -40,7 +40,21 @@ export async function graphqlRequest<T = any>(
   const result = await response.json();
 
   if (result.errors) {
-    throw new Error(result.errors.map((e: any) => e.message).join(", "));
+    const message = result.errors.map((e: any) => e.message).join(", ");
+
+    // Auto-logout if backend says token is invalid/expired
+    if (message.toLowerCase().includes("not authenticated") || message.toLowerCase().includes("unauthorized")) {
+      if (typeof window !== "undefined") {
+        console.warn("[graphqlClient] Auth failed, clearing tokens and reloading to login");
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        // Do a soft reload to force login view
+        window.location.href = "/";
+      }
+    }
+
+    throw new Error(message);
   }
 
   return result.data as T;
