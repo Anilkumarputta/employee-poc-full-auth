@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+// Use deployed API as safe default so production works even if env var missing
+const API_URL = import.meta.env.VITE_API_URL || "https://employee-poc-full-auth.onrender.com";
 const GRAPHQL_URL = `${API_URL}/graphql`;
 
 export async function graphqlRequest<T = any>(
