@@ -48,6 +48,12 @@ const App: React.FC = () => {
     const refreshToken = localStorage.getItem('refreshToken');
     const userStr = localStorage.getItem('user');
     
+    console.log('[App.tsx] Restoring auth from localStorage:', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      hasUser: !!userStr,
+    });
+    
     if (accessToken && userStr) {
       try {
         const user = JSON.parse(userStr);
@@ -67,14 +73,22 @@ const App: React.FC = () => {
     accessToken: string | null;
     refreshToken: string | null;
   }) => {
+    console.log('[App.tsx] handleAuthChange called with:', {
+      user: data.user?.email,
+      hasAccessToken: !!data.accessToken,
+      hasRefreshToken: !!data.refreshToken,
+    });
+    
     setAuth(data);
     if (data.user && data.accessToken) {
+      console.log('[App.tsx] Storing tokens to localStorage');
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken || '');
       localStorage.setItem('user', JSON.stringify(data.user));
       setCurrentPage("dashboard"); // Always start at dashboard after login
       setView("app");
     } else {
+      console.log('[App.tsx] Clearing tokens from localStorage');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');

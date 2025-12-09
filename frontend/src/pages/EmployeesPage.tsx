@@ -155,7 +155,11 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const fetchEmployees = async () => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setError("Not authenticated. Please log in again.");
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -192,6 +196,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   };
 
   useEffect(() => {
+    console.log('[EmployeesPage] useEffect triggered, accessToken:', accessToken ? 'present' : 'null');
     fetchEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sortBy, sortOrder, search, statusFilter, accessToken]);

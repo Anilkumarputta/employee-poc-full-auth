@@ -12,6 +12,9 @@ export async function graphqlRequest<T = any>(
 
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
+    console.log('[graphqlClient] Request with auth token');
+  } else {
+    console.warn('[graphqlClient] Request without auth token!');
   }
 
   const response = await fetch(GRAPHQL_URL, {
