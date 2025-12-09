@@ -9,8 +9,8 @@ type Props = {
 
 export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   const { setAuth } = useContext(AuthContext);
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("director@example.com");
+  const [password, setPassword] = useState("director123");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
