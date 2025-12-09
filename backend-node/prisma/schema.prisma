@@ -1,3 +1,67 @@
+model AccessLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  userEmail String
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model ReviewRequest {
+  id                    Int       @id @default(autoincrement())
+  employeeId            Int
+  requestedByManagerId  Int       // User ID of the manager
+  requestedByEmail      String
+  type                  String    // "FLAG" or "TERMINATE"
+  status                String    @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  managerReasonType     String    // "Performance", "Behaviour", "Attendance", "Policy Violation", "Other"
+  managerReasonText     String
+  visibleToEmployee     Boolean   @default(false)
+  adminComment          String?
+  reviewedByAdminId     Int?      // User ID of admin who reviewed
+  reviewedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  employee              Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  threadId              Int?
+}
+
+model Thread {
+  id                Int       @id @default(autoincrement())
+  participants      Int[]     // Array of User IDs
+  linkedEmployeeId  Int?      // Link to employee if discussion is about them
+  linkedRequestId   Int?      // Link to ReviewRequest if applicable
+  title             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  messages          ThreadMessage[]
+}
+
+model ThreadMessage {
+  id          Int       @id @default(autoincrement())
+  threadId    Int
+  senderId    Int       // User ID or 0 for SYSTEM
+  senderEmail String
+  senderRole  String
+  body        String
+  type        String    @default("USER") // "USER" or "SYSTEM"
+  createdAt   DateTime  @default(now())
+  thread      Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model UserStatistics {
+  id                  Int      @id @default(autoincrement())
+  date                DateTime @default(now())
+  totalUsers          Int
+  activeUsers         Int
+  blockedUsers        Int
+  directors           Int
+  managers            Int
+  employees           Int
+  loginAttempts       Int      @default(0)
+  failedLoginAttempts Int      @default(0)
+}
 generator client {
   provider = "prisma-client-js"
 }
@@ -52,6 +116,7 @@ model Employee {
   updatedAt         DateTime       @updatedAt
   notesReceived     Note[]         @relation("EmployeeNotes")
   leaveRequests     LeaveRequest[]
+  reviewRequests    ReviewRequest[]
   user              User?          @relation("UserEmployee", fields: [userId], references: [id])
 }
 
