@@ -23,7 +23,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Debug: print contents of dist folder
-RUN echo "Contents of dist after build:" && ls -l dist
+RUN echo "Contents of dist after build:" && ls -R dist
 
 # Ensure dist/index.js is present
 RUN ls -l dist && ls -l dist/index.js || (echo "dist/index.js missing!" && exit 1)
