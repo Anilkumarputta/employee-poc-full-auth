@@ -9,7 +9,8 @@ const router = Router();
 const upload = multer({ dest: "uploads/" });
 
 // Bulk import employees from CSV
-router.post("/bulk-import", upload.single("file"), async (req, res) => {
+import { Request } from "express";
+router.post("/bulk-import", upload.single("file"), async (req: Request & { file: multer.File }, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   const results = [];
   const errors = [];
@@ -31,6 +32,9 @@ router.post("/bulk-import", upload.single("file"), async (req, res) => {
               status: row.status,
               location: row.location,
               attendance: Number(row.attendance),
+              className: row.className || "",
+              lastLogin: new Date().toISOString(),
+              updatedAt: new Date(),
             },
             create: {
               name: row.name,
@@ -40,6 +44,10 @@ router.post("/bulk-import", upload.single("file"), async (req, res) => {
               status: row.status,
               location: row.location,
               attendance: Number(row.attendance),
+              className: row.className || "",
+              lastLogin: new Date().toISOString(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
             },
           });
         } catch (err) {

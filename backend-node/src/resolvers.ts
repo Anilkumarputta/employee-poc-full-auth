@@ -19,7 +19,8 @@
  * - ctx.user: Current logged-in user (or null if not logged in)
  */
 
-import { PrismaClient, Employee as PrismaEmployee } from "@prisma/client";
+import prisma from "@prisma/client";
+import type { Employee } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { sendSlackMessage } from "./utils/slack";
 import { generate2FASecret, verify2FACode } from "./utils/twofa";
@@ -853,28 +854,25 @@ export const resolvers = {
       setup2FA: async (_: any, __: any, ctx: Context) => {
         requireAuth(ctx);
         // Generate a new 2FA secret for the user
-        const { secret, otpauthUrl } = generate2FASecret(ctx.user!.email);
-        // Store secret in user table (encrypted or plain for POC)
-        await ctx.prisma.user.update({
-          where: { id: ctx.user!.id },
-          data: { twoFASecret: secret }
-        });
-        return { secret, otpauthUrl };
+        const { otpauthUrl, qrCode } = await generate2FASecret(ctx.user!.id);
+        // Secret is already stored in user by util
+        return { otpauthUrl, qrCode };
       },
 
       verify2FA: async (_: any, { code }: any, ctx: Context) => {
         requireAuth(ctx);
         // Get user's 2FA secret
-        const user = await ctx.prisma.user.findUnique({ where: { id: ctx.user!.id } });
-        if (!user || !user.twoFASecret) {
+        const user = await ctx.prisma.user.findUnique({ where: { id: ctx.user!.id }, select: { twoFASecret: true, twoFAEnabled: true } });
+        const twoFASecret: string | undefined = user?.twoFASecret;
+        if (!twoFASecret) {
           throw new Error("2FA not set up for this user");
         }
         // Verify code
-        const valid = verify2FACode(user.twoFASecret, code);
+        const valid = verify2FACode(twoFASecret, code);
         if (!valid) {
           return { success: false, message: "Invalid 2FA code" };
         }
-        // Optionally mark 2FA as enabled
+        // Mark 2FA as enabled
         await ctx.prisma.user.update({
           where: { id: ctx.user!.id },
           data: { twoFAEnabled: true }
@@ -1220,7 +1218,7 @@ export const resolvers = {
 
       const leaveRequest = await ctx.prisma.leaveRequest.create({
         data: {
-          employeeId: employee.id,
+          employee: { connect: { id: employee.id } },
           reason: input.reason,
           startDate: input.startDate,
           endDate: input.endDate,
@@ -1244,7 +1242,6 @@ export const resolvers = {
         where: { id },
         data: {
           status,
-          adminNote: adminNote || null,
           updatedAt: new Date()
         }
       });
