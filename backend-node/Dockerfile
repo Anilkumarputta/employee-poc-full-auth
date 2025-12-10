@@ -11,8 +11,10 @@ COPY prisma ./prisma/
 RUN npm ci
 
 
-# Copy source code except node_modules and dist
-COPY . .
+# Copy source code explicitly
+COPY src ./src
+COPY tsconfig.json ./
+COPY .env ./
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -20,8 +22,8 @@ RUN npx prisma generate
 # Build TypeScript
 RUN npm run build
 
-# Ensure dist folder is present
-RUN ls -l dist || echo "dist folder missing!"
+# Ensure dist/index.js is present
+RUN ls -l dist && ls -l dist/index.js || echo "dist/index.js missing!"
 # Expose port
 EXPOSE 4000
 
