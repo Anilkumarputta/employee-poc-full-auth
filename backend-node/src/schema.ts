@@ -63,6 +63,14 @@ export const typeDefs = gql`
     lastReviewDate: String
   }
 
+  type AttendanceTrend {
+    date: String!
+    present: Int!
+    absent: Int!
+    late: Int!
+    total: Int!
+  }
+
   type Query {
     employees(
       filter: EmployeeFilter
@@ -374,6 +382,7 @@ export const typeDefs = gql`
     dashboardStats: DashboardStats!
     userStatistics(days: Int = 7): [UserStatistics!]!
     employeePerformanceStats(employeeId: Int!): EmployeePerformanceStats
+    attendanceTrends(days: Int = 30): [AttendanceTrend!]!
   }
 
   input ProfileUpdateInput {
