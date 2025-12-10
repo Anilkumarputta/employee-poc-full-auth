@@ -12,9 +12,9 @@ RUN npm ci
 
 
 # Copy source code explicitly
-COPY src ./src
-COPY tsconfig.json ./
-COPY .env ./
+
+# Copy all backend files except node_modules and dist (handled by .dockerignore)
+COPY . .
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -23,7 +23,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Ensure dist/index.js is present
-RUN ls -l dist && ls -l dist/index.js || echo "dist/index.js missing!"
+RUN ls -l dist && ls -l dist/index.js || (echo "dist/index.js missing!" && exit 1)
 # Expose port
 EXPOSE 4000
 
