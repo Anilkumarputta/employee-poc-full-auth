@@ -393,7 +393,7 @@ export const typeDefs = gql`
     terminateEmployee(id: Int!): Employee!
     flagEmployee(id: Int!, flagged: Boolean!): Employee!
     generateEmployeeLogins: GenerateLoginsResult!
-    
+      sendSlackNotification(message: String!, channel: String!): Boolean
     sendNote(input: NoteInput!): Note!
     markNoteAsRead(id: Int!): Note!
     
