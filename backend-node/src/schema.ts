@@ -418,5 +418,6 @@ export const typeDefs = gql`
     changePassword(currentPassword: String!, newPassword: String!): PasswordChangeResult!
     
     logAccess(action: String!, details: String): AccessLog!
+    setup2FA: Boolean!
   }
 `;
