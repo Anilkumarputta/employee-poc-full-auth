@@ -71,18 +71,7 @@ export const typeDefs = gql`
     total: Int!
   }
 
-  type Query {
-    employees(
-      filter: EmployeeFilter
-      page: Int = 1
-      pageSize: Int = 10
-      sortBy: EmployeeSortBy = CREATED_AT
-      sortOrder: SortOrder = DESC
-    ): EmployeesPage!
-
-    employee(id: Int!): Employee
-    myProfile: Employee
-  }
+  # All queries are now in a single type Query block below
 
   input EmployeeInput {
     name: String!
