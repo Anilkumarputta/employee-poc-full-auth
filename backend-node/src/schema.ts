@@ -419,5 +419,6 @@ export const typeDefs = gql`
     
     logAccess(action: String!, details: String): AccessLog!
     setup2FA: Boolean!
+    verify2FA(code: String!): Boolean!
   }
 `;
