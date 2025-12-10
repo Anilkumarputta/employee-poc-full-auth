@@ -336,6 +336,7 @@ export const typeDefs = gql`
     ): EmployeesPage!
 
     employee(id: Int!): Employee
+    myProfile: Employee
     
     notes(employeeId: Int): [Note!]!
     myNotes: [Note!]!
