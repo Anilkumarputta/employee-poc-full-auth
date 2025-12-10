@@ -31,4 +31,4 @@ RUN ls -l dist && ls -l dist/index.js || (echo "dist/index.js missing!" && exit 
 EXPOSE 4000
 
 # Start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]
