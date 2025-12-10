@@ -19,8 +19,7 @@
  * - ctx.user: Current logged-in user (or null if not logged in)
  */
 
-import prisma from "@prisma/client";
-import type { Employee } from "@prisma/client";
+import { PrismaClient, Employee } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { sendSlackMessage } from "./utils/slack";
 import { generate2FASecret, verify2FACode } from "./utils/twofa";
@@ -1222,6 +1221,7 @@ export const resolvers = {
           reason: input.reason,
           startDate: input.startDate,
           endDate: input.endDate,
+          type: input.type || "annual", // Default to 'annual' if not provided
           status: "pending"
         }
       });
