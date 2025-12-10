@@ -55,6 +55,14 @@ export const typeDefs = gql`
     roleNot: String
   }
 
+  type EmployeePerformanceStats {
+    employeeId: Int!
+    name: String!
+    attendance: Int!
+    performanceScore: Float!
+    lastReviewDate: String
+  }
+
   type Query {
     employees(
       filter: EmployeeFilter
@@ -365,6 +373,7 @@ export const typeDefs = gql`
     accessControlLogs(userId: Int, limit: Int = 50): [AccessControlLog!]!
     dashboardStats: DashboardStats!
     userStatistics(days: Int = 7): [UserStatistics!]!
+    employeePerformanceStats(employeeId: Int!): EmployeePerformanceStats
   }
 
   input ProfileUpdateInput {
