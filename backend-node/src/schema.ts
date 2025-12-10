@@ -422,3 +422,4 @@ export const typeDefs = gql`
     verify2FA(code: String!): Boolean!
   }
 `;
+
