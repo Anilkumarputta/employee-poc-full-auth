@@ -1,0 +1,6 @@
+node_modules
+npm-debug.log
+dist/*.map
+.env
+# Do NOT exclude dist folder itself
+# If you previously had 'dist' or '/dist' here, remove it.
