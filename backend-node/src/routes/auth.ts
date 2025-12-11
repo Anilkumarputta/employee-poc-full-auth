@@ -84,12 +84,17 @@ authRouter.post("/register", async (req, res) => {
     // This creates a one-way encrypted string - can't be reversed to get original password!
     const passwordHash = await bcrypt.hash(password, 10);
 
+
+    // Allow only valid roles
+    const validRoles = ["admin", "director", "manager", "employee"];
+    const userRole = validRoles.includes(role) ? role : "employee";
+
     // Create new user in database
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash, // Store encrypted password, not the real one
-        role: role === "admin" ? "admin" : "employee", // Default to employee
+        role: userRole,
         provider: "local", // "local" means email/password (vs "google")
       },
     });
