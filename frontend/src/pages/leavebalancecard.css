@@ -1,0 +1,27 @@
+.balance-card {
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #f9f9f9;
+  margin-bottom: 12px;
+}
+
+.balance {
+  background: #ffdddd;
+  border: 1px solid #ff5c5c;
+  color: #a70000;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.balance-green {
+  background: #ddffdd;
+  border: 1px solid #5cff5c;
+  color: #007a00;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: bold;
+  display: inline-block;
+}
