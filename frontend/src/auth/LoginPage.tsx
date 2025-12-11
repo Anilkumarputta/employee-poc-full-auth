@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import "./login-animated.css";
 import { AuthContext } from "./authContext";
 import { apiLogin, apiGoogleLogin } from "./api";
 
@@ -86,15 +87,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
           }}>
             👥
           </div>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '32px', 
-            fontWeight: 'bold',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
+          <h1 className="animated-employee-poc" style={{margin: 0}}>
             Employee POC
           </h1>
           <p style={{ 

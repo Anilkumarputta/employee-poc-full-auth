@@ -563,7 +563,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       borderRadius: '20px',
                       fontSize: '13px',
                       fontWeight: 'bold',
-                      boxShadow: '0 4px 12px rgba(0, 172, 193, 0.3)'
+                      boxShadow: '0 4px 12px rgba(0,172,193,0.3)'
                     }}>
                       🌟 NEW
                     </div>

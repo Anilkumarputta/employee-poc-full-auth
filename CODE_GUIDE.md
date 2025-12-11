@@ -4,6 +4,43 @@ This guide explains every part of the codebase in simple, human-friendly languag
 
 ---
 
+
+## 📝 Audit Logs & Activity Tracking
+
+### What Are Audit Logs?
+Audit logs record every important action in the system for security, compliance, and troubleshooting. They help directors/admins see who did what, when, and from where.
+
+### Backend Implementation
+- All key mutations (add/update/delete employee, review requests, messaging, leave requests) now create an `AccessLog` entry.
+- Each log includes: user ID, user email, action type, details, timestamp, and optional IP address.
+- Example actions: `ADD_EMPLOYEE`, `UPDATE_EMPLOYEE`, `DELETE_EMPLOYEE`, `CREATE_REVIEW_REQUEST`, `REVIEW_DECISION`, `SEND_MESSAGE`, `CREATE_LEAVE_REQUEST`, `UPDATE_LEAVE_REQUEST_STATUS`.
+
+### How to View Audit Logs
+- Directors and managers can query audit logs via GraphQL (`accessLogs` query).
+- Logs can be filtered by date, user, action, or details.
+- Frontend page (for directors/admins) will show a searchable, filterable table of all audit logs.
+
+### Example Log Entry
+```
+{
+  id: 123,
+  userId: 5,
+  userEmail: "manager@example.com",
+  action: "CREATE_REVIEW_REQUEST",
+  details: "Created FLAG review request for employee 42",
+  ipAddress: "192.168.1.10",
+  createdAt: "2025-12-09T10:15:00Z"
+}
+```
+
+### Why Audit Logs Matter
+- Detect suspicious activity (e.g., unauthorized deletions)
+- Track who approved/rejected requests
+- Troubleshoot user issues
+- Meet compliance requirements
+
+---
+
 ## 🗂️ Project Structure
 
 ```

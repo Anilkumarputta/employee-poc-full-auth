@@ -22,11 +22,19 @@ import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
 import { AuthContext, AuthUser } from "./auth/authContext";
+import { AuditLogsPage } from "./pages/AuditLogsPage";
+import { BulkActionsPage } from "./pages/BulkActionsPage";
+import { AdvancedEmployeeSearch } from "./pages/AdvancedEmployeeSearch";
+import { NotificationInbox } from "./pages/NotificationInbox";
+import MessagingInbox from "./pages/MessagingInbox";
 
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard" | "bulkActions" | "auditLogs" | "advancedEmployeeSearch" | "notificationInbox" | "messagingInbox" | "analyticsDashboard" | "employeeSelfServicePortal" | "slackIntegration";
+import SlackIntegrationPage from "./pages/SlackIntegrationPage";
+import EmployeeSelfServicePortal from "./pages/EmployeeSelfServicePortal";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -173,6 +181,14 @@ const App: React.FC = () => {
             {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
             {currentPage === "messages" && <MessagesPage />}
             {currentPage === "review-requests" && <ReviewRequestsPage />}
+            {currentPage === "auditLogs" && <AuditLogsPage />}
+            {currentPage === "bulkActions" && <BulkActionsPage />}
+            {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
+            {currentPage === "notificationInbox" && <NotificationInbox />}
+            {currentPage === "messagingInbox" && <MessagingInbox />}
+            {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
+            {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
+            {currentPage === "slackIntegration" && <SlackIntegrationPage />}
           </main>
         </div>
       )}

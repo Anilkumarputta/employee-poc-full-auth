@@ -376,6 +376,20 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
+  // RBAC helper for frontend
+  function canPerform(action: string, role: UserRole) {
+    if (action === "add" || action === "terminate" || action === "delete") {
+      return role === "director";
+    }
+    if (action === "edit") {
+      return role === "director" || role === "manager";
+    }
+    if (action === "view") {
+      return ["director", "manager", "employee"].includes(role);
+    }
+    return false;
+  }
+
   return (
     <div className="employees-page">
       <div className="employees-header-row">
@@ -402,7 +416,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
             </button>
           </div>
 
-          {(currentRole === "director" || currentRole === "manager") && (
+          {canPerform("add", currentRole) && (
             <button
               className="primary-btn"
               onClick={handleAddNew}
@@ -513,31 +527,35 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                           <button onClick={() => handleViewDetails(e)}>
                             View details
                           </button>
-                          {(currentRole === "director" || currentRole === "manager") && (
-                            <>
-                              <button onClick={() => handleEdit(e)}>Edit</button>
-                              <button onClick={() => handleFlag(e)}>
-                                {e.status === "flagged" ? "Unflag" : "Flag"}
-                              </button>
-                              {e.status === "terminated" ? (
-                                <button onClick={() => handleUnterminate(e)}>
-                                  Unterminate
-                                </button>
-                              ) : (
-                                <button
-                                  className="danger-btn"
-                                  onClick={() => handleTerminate(e.id)}
-                                >
-                                  Terminate
-                                </button>
-                              )}
+                          {(canPerform("edit", currentRole)) && (
+                            <button onClick={() => handleEdit(e)}>Edit</button>
+                          )}
+                          {(canPerform("terminate", currentRole)) && (
+                            <button onClick={() => handleFlag(e)}>
+                              {e.status === "flagged" ? "Unflag" : "Flag"}
+                            </button>
+                          )}
+                          {e.status === "terminated" ? (
+                            <button onClick={() => handleUnterminate(e)}>
+                              Unterminate
+                            </button>
+                          ) : (
+                            (canPerform("terminate", currentRole)) && (
                               <button
                                 className="danger-btn"
-                                onClick={() => handleDelete(e.id)}
+                                onClick={() => handleTerminate(e.id)}
                               >
-                                Delete
+                                Terminate
                               </button>
-                            </>
+                            )
+                          )}
+                          {(canPerform("delete", currentRole)) && (
+                            <button
+                              className="danger-btn"
+                              onClick={() => handleDelete(e.id)}
+                            >
+                              Delete
+                            </button>
                           )}
                         </div>
                       )}
@@ -585,28 +603,32 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                       <button onClick={() => setSelected(e)}>
                         View details
                       </button>
-                      {(currentRole === "director" || currentRole === "manager") && (
-                        <>
-                          <button onClick={() => handleEdit(e)}>Edit</button>
-                          <button onClick={() => handleFlag(e)}>
-                            {e.status === "flagged" ? "Unflag" : "Flag"}
+                      {(canPerform("edit", currentRole)) && (
+                        <button onClick={() => handleEdit(e)}>Edit</button>
+                      )}
+                      {(canPerform("terminate", currentRole)) && (
+                        <button onClick={() => handleFlag(e)}>
+                          {e.status === "flagged" ? "Unflag" : "Flag"}
+                        </button>
+                      )}
+                      {e.status === "terminated" ? (
+                        <button onClick={() => handleUnterminate(e)}>
+                          Unterminate
+                        </button>
+                      ) : (
+                        (canPerform("terminate", currentRole)) && (
+                          <button onClick={() => handleTerminate(e.id)}>
+                            Terminate
                           </button>
-                          {e.status === "terminated" ? (
-                            <button onClick={() => handleUnterminate(e)}>
-                              Unterminate
-                            </button>
-                          ) : (
-                            <button onClick={() => handleTerminate(e.id)}>
-                              Terminate
-                            </button>
-                          )}
-                          <button
-                            className="danger"
-                            onClick={() => handleDelete(e.id)}
-                          >
-                            Delete
-                          </button>
-                        </>
+                        )
+                      )}
+                      {(canPerform("delete", currentRole)) && (
+                        <button
+                          className="danger"
+                          onClick={() => handleDelete(e.id)}
+                        >
+                          Delete
+                        </button>
                       )}
                     </div>
                   )}

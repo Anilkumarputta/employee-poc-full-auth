@@ -61,3 +61,38 @@ export async function apiForgotPassword(email: string) {
   if (!res.ok) throw new Error("Request failed");
   return await res.json();
 }
+
+// Messaging API
+export async function fetchMessages(conversationId?: string) {
+  const url = conversationId
+    ? `${API_URL}/messages?conversationId=${conversationId}`
+    : `${API_URL}/messages`;
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to fetch messages");
+  return await res.json();
+}
+
+export async function sendMessage({ conversationId, message, replyToId }: { conversationId: string; message: string; replyToId?: number }) {
+  const res = await fetch(`${API_URL}/messages/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ conversationId, message, replyToId }),
+  });
+  if (!res.ok) throw new Error("Failed to send message");
+  return await res.json();
+}
+
+export async function markAsRead(conversationId: string) {
+  const res = await fetch(`${API_URL}/messages/mark-read`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ conversationId }),
+  });
+  if (!res.ok) throw new Error("Failed to mark as read");
+  return await res.json();
+}

@@ -1152,13 +1152,15 @@ export const resolvers = {
 
     sendNote: async (_: any, { input }: any, ctx: Context) => {
       requireAuth(ctx);
-      const { message, toEmployeeId, toAll } = input;
-      
+      const { message, toEmployeeId, toUserId, toAll } = input;
+      // If toUserId is provided, send to any user (manager/employee)
+      // If toEmployeeId is provided, send to employee (legacy)
       return ctx.prisma.note.create({
         data: {
           message,
           fromUserId: ctx.user!.id,
           toEmployeeId: toEmployeeId || null,
+          toUserId: toUserId || null,
           toAll: toAll || false,
           isRead: false
         }

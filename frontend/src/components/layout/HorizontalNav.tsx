@@ -3,7 +3,7 @@ import { useAuth } from '../../auth/authContext';
 import { graphqlRequest } from '../../lib/graphqlClient';
 import { NotificationBell } from '../NotificationBell';
 
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard";
+type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard" | "messagingInbox" | "bulkActions" | "auditLogs" | "advancedEmployeeSearch" | "notificationInbox" | "analyticsDashboard" | "employeeSelfServicePortal" | "slackIntegration";
 
 type Props = {
   currentPage: AppPage;
@@ -443,12 +443,12 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
             </div>
             
             <button
-              onClick={() => { onNavigate('messages'); setDrawerOpen(false); }}
+              onClick={() => { onNavigate('messagingInbox'); setDrawerOpen(false); }}
               style={{
                 width: '100%',
-                background: currentPage === 'messages' ? '#f0f4ff' : 'transparent',
+                background: currentPage === 'messagingInbox' ? '#f0f4ff' : 'transparent',
                 border: 'none',
-                color: currentPage === 'messages' ? '#667eea' : '#2c3e50',
+                color: currentPage === 'messagingInbox' ? '#667eea' : '#2c3e50',
                 padding: '14px 16px',
                 borderRadius: '10px',
                 cursor: 'pointer',

@@ -94,6 +94,7 @@ model User {
   messagesSent        Message[]             @relation("SentMessages")
   messagesReceived    Message[]             @relation("ReceivedMessages")
   notifications       Notification[]
+  notesReceived       Note[]         @relation("UserNotes")
 }
 
 model Employee {
@@ -136,15 +137,17 @@ model LeaveRequest {
 }
 
 model Note {
-  id          Int      @id @default(autoincrement())
-  message     String
-  fromUserId  Int
+  id           Int       @id @default(autoincrement())
+  message      String
+  fromUserId   Int
   toEmployeeId Int?
-  toAll       Boolean  @default(false)
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  employee    Employee? @relation("EmployeeNotes", fields: [toEmployeeId], references: [id], onDelete: Cascade)
+  toUserId     Int?
+  toAll        Boolean   @default(false)
+  isRead       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  employee     Employee? @relation("EmployeeNotes", fields: [toEmployeeId], references: [id], onDelete: Cascade)
+  user         User?     @relation("UserNotes", fields: [toUserId], references: [id], onDelete: Cascade)
 }
 
 model Message {

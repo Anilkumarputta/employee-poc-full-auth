@@ -68,8 +68,14 @@ const UPDATE_LEAVE_STATUS_MUTATION = `
   }
 `;
 
+// RBAC helper for leave requests
+function canManageLeave(role: string) {
+  return role === "director" || role === "manager";
+}
+
 export const LeaveRequestsPage: React.FC = () => {
   const { accessToken, user } = useContext(AuthContext);
+  const role = user?.role || "employee";
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -97,31 +103,23 @@ export const LeaveRequestsPage: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [statusFilter]);
 
-  const fetchRequests = async () => {
-    if (!accessToken) return;
+  const fetchRequests = () => {
     setLoading(true);
-    try {
-      if (isAdmin) {
-        const data: any = await graphqlRequest(
-          ALL_LEAVE_REQUESTS_QUERY,
-          { status: statusFilter || undefined },
-          accessToken
-        );
-        setRequests(data.leaveRequests);
-      } else {
-        const data: any = await graphqlRequest(MY_LEAVE_REQUESTS_QUERY, {}, accessToken);
-        setRequests(data.myLeaveRequests);
-      }
-    } catch (err) {
-      console.error("Failed to fetch leave requests:", err);
-    } finally {
-      setLoading(false);
+    if (canManageLeave(role)) {
+      graphqlRequest(ALL_LEAVE_REQUESTS_QUERY, { status: statusFilter }, accessToken)
+        .then((data) => setRequests(data.leaveRequests))
+        .finally(() => setLoading(false));
+    } else {
+      graphqlRequest(MY_LEAVE_REQUESTS_QUERY, {}, accessToken)
+        .then((data) => setRequests(data.myLeaveRequests))
+        .finally(() => setLoading(false));
     }
   };
+
+  useEffect(() => {
+    fetchRequests();
+  }, [accessToken, role, statusFilter]);
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,6 +209,13 @@ export const LeaveRequestsPage: React.FC = () => {
             {showForm ? "Cancel" : "+ New Leave Request"}
           </button>
         )}
+      </div>
+
+      {/* Notification link for leave requests */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <a href="/notificationInbox" style={{ color: "#667eea", textDecoration: "underline", fontWeight: 500 }}>
+          View related notifications
+        </a>
       </div>
 
       {/* Employee: New Leave Request Form */}
@@ -317,7 +322,7 @@ export const LeaveRequestsPage: React.FC = () => {
                     <span style={{ padding: "0.5rem 1rem", background: statusStyle.bg, color: statusStyle.color, borderRadius: "6px", fontSize: "0.875rem", fontWeight: "600" }}>
                       {req.status.toUpperCase()}
                     </span>
-                    {canApprove && req.status === "pending" && (
+                    {canManageLeave(role) && req.status === "pending" && (
                       <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                         <button
                           onClick={() => setSelectedRequest(req)}

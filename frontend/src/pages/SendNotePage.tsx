@@ -2,20 +2,20 @@ import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 
-type Employee = {
+type User = {
   id: number;
-  name: string;
+  name?: string;
+  email: string;
   role: string;
 };
 
-const EMPLOYEES_QUERY = `
-  query Employees {
-    employees(page: 1, pageSize: 1000, filter: { roleNot: "admin" }) {
-      items {
-        id
-        name
-        role
-      }
+const USERS_QUERY = `
+  query AllUsers($roleFilter: String) {
+    allUsers(roleFilter: $roleFilter) {
+      id
+      email
+      role
+      name
     }
   }
 `;
@@ -32,25 +32,26 @@ const SEND_NOTE_MUTATION = `
 
 export const SendNotePage: React.FC = () => {
   const { accessToken, user } = useContext(AuthContext);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [usersList, setUsersList] = useState<User[]>([]);
   const [message, setMessage] = useState("");
   const [sendToAll, setSendToAll] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<"success" | "error">("success");
 
   useEffect(() => {
-    fetchEmployees();
+    fetchUsers();
   }, []);
 
-  const fetchEmployees = async () => {
+  const fetchUsers = async () => {
     if (!accessToken) return;
     try {
-      const data: any = await graphqlRequest(EMPLOYEES_QUERY, {}, accessToken);
-      setEmployees(data.employees.items);
+      const data: any = await graphqlRequest(USERS_QUERY, {}, accessToken);
+      // Only include managers and employees
+      setUsersList(data.allUsers.filter((u: User) => u.role === "manager" || u.role === "employee"));
     } catch (err) {
-      console.error("Failed to fetch employees:", err);
+      console.error("Failed to fetch users:", err);
     }
   };
 
@@ -63,9 +64,9 @@ export const SendNotePage: React.FC = () => {
       return;
     }
 
-    if (!sendToAll && !selectedEmployeeId) {
+    if (!sendToAll && !selectedUserId) {
       setStatusType("error");
-      setStatusMessage("Please select an employee or choose to send to all");
+      setStatusMessage("Please select a recipient or choose to send to all");
       return;
     }
 
@@ -79,16 +80,24 @@ export const SendNotePage: React.FC = () => {
           input: {
             message,
             toAll: sendToAll,
-            toEmployeeId: sendToAll ? null : selectedEmployeeId
+            // If sending to manager, use toUserId; if employee, use toEmployeeId
+            toUserId: sendToAll ? null : (() => {
+              const selected = usersList.find(u => u.id === selectedUserId);
+              return selected?.role === "manager" ? selectedUserId : null;
+            })(),
+            toEmployeeId: sendToAll ? null : (() => {
+              const selected = usersList.find(u => u.id === selectedUserId);
+              return selected?.role === "employee" ? selectedUserId : null;
+            })()
           }
         },
         accessToken!
       );
 
       setStatusType("success");
-      setStatusMessage(`Note sent successfully to ${sendToAll ? "all employees" : "selected employee"}!`);
+      setStatusMessage(`Note sent successfully to ${sendToAll ? "all users" : "selected user"}!`);
       setMessage("");
-      setSelectedEmployeeId(null);
+      setSelectedUserId(null);
       setSendToAll(false);
     } catch (err: any) {
       setStatusType("error");
@@ -142,7 +151,7 @@ export const SendNotePage: React.FC = () => {
                   onChange={(e) => {
                     setSendToAll(e.target.checked);
                     if (e.target.checked) {
-                      setSelectedEmployeeId(null);
+                      setSelectedUserId(null);
                     }
                   }}
                   style={{ width: "18px", height: "18px", cursor: "pointer" }}
@@ -156,11 +165,11 @@ export const SendNotePage: React.FC = () => {
             {!sendToAll && (
               <div style={{ marginBottom: "1.5rem" }}>
                 <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
-                  Select Employee
+                  Select Recipient (Manager or Employee)
                 </label>
                 <select
-                  value={selectedEmployeeId || ""}
-                  onChange={(e) => setSelectedEmployeeId(Number(e.target.value))}
+                  value={selectedUserId || ""}
+                  onChange={(e) => setSelectedUserId(Number(e.target.value))}
                   required={!sendToAll}
                   disabled={sendToAll}
                   style={{
@@ -171,10 +180,10 @@ export const SendNotePage: React.FC = () => {
                     background: sendToAll ? "#f3f4f6" : "white"
                   }}
                 >
-                  <option value="">-- Choose an employee --</option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} (ID: {emp.id})
+                  <option value="">-- Choose a recipient --</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.role === "manager" ? `Manager: ${u.email}` : `Employee: ${u.name || u.email}`} (ID: {u.id})
                     </option>
                   ))}
                 </select>
@@ -210,9 +219,14 @@ export const SendNotePage: React.FC = () => {
               <p style={{ margin: 0, fontSize: "0.875rem", color: "#1e40af" }}>
                 <strong>Preview:</strong> This message will be sent to{" "}
                 {sendToAll
-                  ? <strong>all {employees.length} employees</strong>
-                  : selectedEmployeeId
-                    ? <strong>{employees.find(e => e.id === selectedEmployeeId)?.name}</strong>
+                  ? <strong>all {usersList.length} users</strong>
+                  : selectedUserId
+                    ? <strong>{(() => {
+                        const selected = usersList.find(u => u.id === selectedUserId);
+                        return selected?.role === "manager"
+                          ? `Manager: ${selected.email}`
+                          : `Employee: ${selected?.name || selected?.email}`;
+                      })()}</strong>
                     : <strong>no one (please select a recipient)</strong>
                 }
               </p>
@@ -239,7 +253,7 @@ export const SendNotePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setMessage("");
-                  setSelectedEmployeeId(null);
+                  setSelectedUserId(null);
                   setSendToAll(false);
                   setStatusMessage("");
                 }}

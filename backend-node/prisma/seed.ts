@@ -7,9 +7,14 @@ async function main() {
   // Create director user
   const directorPassword = await bcrypt.hash("director123", 10);
   
+
+  // Always update director password and role
   const director = await prisma.user.upsert({
     where: { email: "director@example.com" },
-    update: {},
+    update: {
+      passwordHash: directorPassword,
+      role: "director",
+    },
     create: {
       email: "director@example.com",
       passwordHash: directorPassword,

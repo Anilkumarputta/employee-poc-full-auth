@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Note" ADD COLUMN     "toUserId" INTEGER;
+
+-- AddForeignKey
+ALTER TABLE "Note" ADD CONSTRAINT "Note_toUserId_fkey" FOREIGN KEY ("toUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
