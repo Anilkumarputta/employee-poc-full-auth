@@ -1221,8 +1221,8 @@ export const resolvers = {
         data: {
           employee: { connect: { id: employee.id } },
           reason: input.reason,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
           type: input.type || "annual", // Default to 'annual' if not provided
           status: "pending"
         }
