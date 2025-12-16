@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import "./login-animated.css";
 import { AuthContext } from "./authContext";
 import { apiLogin, apiGoogleLogin } from "./api";
-import { getCurrentFestivalTheme } from "../festivalThemes";
+import { getCurrentFestivalTheme, FESTIVAL_THEMES, setFestivalDemoOverride } from "../festivalThemes";
 
 type Props = {
   goRegister: () => void;
@@ -15,6 +15,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   const [password, setPassword] = useState("director123");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [demoFestival, setDemoFestival] = useState<string>("");
   const festival = getCurrentFestivalTheme();
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -56,6 +57,13 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
     }
   };
 
+  // Demo dropdown handler
+  const handleDemoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const name = e.target.value;
+    setDemoFestival(name);
+    setFestivalDemoOverride(name ? { name } : null);
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -76,6 +84,19 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
         maxWidth: '480px',
         width: '100%'
       }}>
+        {/* DEMO: Festival Theme Selector */}
+        <div style={{ marginBottom: 16, textAlign: 'center' }}>
+          <label style={{ fontSize: 14, color: '#888' }}>
+            Demo Festival Theme:
+            <select value={demoFestival} onChange={handleDemoChange} style={{ marginLeft: 8, padding: 4 }}>
+              <option value="">(Auto)</option>
+              {FESTIVAL_THEMES.map(f => (
+                <option key={f.name} value={f.name}>{f.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         {/* Festival Greeting */}
         {festival && (
           <div style={{

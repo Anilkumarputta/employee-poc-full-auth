@@ -37,8 +37,23 @@ export const FESTIVAL_THEMES: FestivalTheme[] = [
   // Add more festivals here
 ];
 
+// DEMO: Allow override of festival theme by name or date
+let demoOverride: { name?: string; date?: Date } | null = null;
+export function setFestivalDemoOverride(override: { name?: string; date?: Date } | null) {
+  demoOverride = override;
+}
+
 // Utility to get the current festival theme (if any)
 export function getCurrentFestivalTheme(date: Date = new Date()): FestivalTheme | null {
+  // DEMO: If override is set, use it
+  if (demoOverride) {
+    if (demoOverride.name) {
+      return FESTIVAL_THEMES.find(f => f.name === demoOverride.name) || null;
+    }
+    if (demoOverride.date) {
+      date = demoOverride.date;
+    }
+  }
   const mmdd = (d: Date) => `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const today = mmdd(date);
   for (const fest of FESTIVAL_THEMES) {
