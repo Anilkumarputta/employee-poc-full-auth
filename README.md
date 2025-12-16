@@ -799,3 +799,16 @@ This is a portfolio project. Feel free to explore the code and learn from it!
 *Last Updated: December 2025*
 
 </div>
+
+---
+
+## 🎉 Automatic Festival Theme System
+
+- The app automatically updates its look and feel for major festivals (like Christmas, New Year, Diwali, and more)!
+- On the login page and dashboard, you’ll see:
+  - Festive greetings and themed colors
+  - Special backgrounds and vibes for each festival
+- You can preview any festival theme instantly using the demo dropdown at the top of the login and dashboard pages (for demo/testing purposes).
+- To add or customize festivals, edit the `frontend/src/festivalThemes.ts` file.
+
+This feature brings a lively, engaging experience for users during special occasions—no manual updates needed!
