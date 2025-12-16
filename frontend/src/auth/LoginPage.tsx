@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import "./login-animated.css";
 import { AuthContext } from "./authContext";
 import { apiLogin, apiGoogleLogin } from "./api";
+import { getCurrentFestivalTheme } from "../festivalThemes";
 
 type Props = {
   goRegister: () => void;
@@ -14,6 +15,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   const [password, setPassword] = useState("director123");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const festival = getCurrentFestivalTheme();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,8 +62,11 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '20px'
+      background: festival
+        ? `linear-gradient(135deg, ${festival.colors[0]} 0%, ${festival.colors[1]} 100%)`
+        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px',
+      transition: 'background 0.5s',
     }}>
       <div style={{
         background: 'white',
@@ -71,19 +76,40 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
         maxWidth: '480px',
         width: '100%'
       }}>
+        {/* Festival Greeting */}
+        {festival && (
+          <div style={{
+            background: festival.colors[1],
+            color: festival.colors[2],
+            borderRadius: '12px',
+            padding: '12px',
+            textAlign: 'center',
+            marginBottom: '24px',
+            fontWeight: 600,
+            fontSize: '1.2rem',
+            letterSpacing: '0.5px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}>
+            {festival.greeting}
+          </div>
+        )}
         {/* Logo/Title */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
             width: '80px',
             height: '80px',
             margin: '0 auto 20px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: festival
+              ? `linear-gradient(135deg, ${festival.colors[0]} 0%, ${festival.colors[1]} 100%)`
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '36px',
-            boxShadow: '0 10px 25px rgba(102, 126, 234, 0.3)'
+            boxShadow: festival
+              ? `0 10px 25px ${festival.colors[0]}33`
+              : '0 10px 25px rgba(102, 126, 234, 0.3)'
           }}>
             👥
           </div>

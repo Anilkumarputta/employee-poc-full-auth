@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { formatRelativeTime } from "../lib/dateUtils";
+import { getCurrentFestivalTheme } from "../festivalThemes";
 
 // Add Props type for navigation
 type DashboardPageProps = {
@@ -1331,6 +1332,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     hour12: true 
                   })}
                 </div>
+
                 <div style={{ 
                   fontSize: '14px', 
                   opacity: 0.9, 
@@ -1344,6 +1346,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     day: 'numeric' 
                   })}
                 </div>
+
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -1600,7 +1603,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   // EMPLOYEE DASHBOARD
   return (
-    <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)', minHeight: '100vh' }}>
+    <div style={{
+      padding: '40px',
+      background: festival
+        ? `linear-gradient(135deg, ${festival.colors[0]} 0%, ${festival.colors[1]} 100%)`
+        : 'linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #f5f7fa 100%)',
+      minHeight: '100vh',
+      transition: 'background 0.5s',
+    }}>
+      {/* Festival Greeting */}
+      {festival && (
+        <div style={{
+          background: festival.colors[1],
+          color: festival.colors[2],
+          borderRadius: '12px',
+          padding: '12px',
+          textAlign: 'center',
+          marginBottom: '24px',
+          fontWeight: 600,
+          fontSize: '1.2rem',
+          letterSpacing: '0.5px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        }}>
+          {festival.greeting}
+        </div>
+      )}
+
       {/* Top Header with Weather Widget */}
       <div style={{ 
         display: 'grid', 
@@ -1690,6 +1718,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   hour12: true 
                 })}
               </div>
+
               <div style={{ 
                 fontSize: '14px', 
                 opacity: 0.9, 
@@ -1703,6 +1732,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   day: 'numeric' 
                 })}
               </div>
+
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -1724,6 +1754,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     marginBottom: '5px'
                   }}>
                     {weather.temp}°C
+
                   </div>
                   <div style={{ 
                     fontSize: '14px', 
