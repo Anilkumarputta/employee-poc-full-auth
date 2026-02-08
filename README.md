@@ -776,7 +776,7 @@ VITE_API_URL = https://employee-poc-full-auth.onrender.com
 ## 📞 Questions or Contact
 
 - 📧 **Email:** axputta91@gmail.com
-- 💼 **LinkedIn:** [Your LinkedIn Profile](http://linkedin.com/in/anil-putta)
+- 💼 **LinkedIn:** [My LinkedIn Profile](http://linkedin.com/in/anil-putta)
 - 💻 **GitHub:** [View Source Code](https://github.com/Anilkumarputta/employee-poc-full-auth)
 - 💬 **Issues:** [Report a Bug](https://github.com/Anilkumarputta/employee-poc-full-auth/issues)
 
