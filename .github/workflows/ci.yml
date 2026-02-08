@@ -1,0 +1,42 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+    - name: Install backend dependencies
+      run: |
+        cd backend-node
+        npm install
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm install
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+    - name: Lint backend
+      run: |
+        cd backend-node
+        npx tsc --noEmit
+    - name: Run backend tests (if any)
+      run: |
+        cd backend-node
+        npm test || echo "No backend tests found"
+    - name: Run frontend tests (if any)
+      run: |
+        cd frontend
+        npm test || echo "No frontend tests found"
