@@ -1,179 +1,178 @@
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   // Create director user
-  const directorPassword = await bcrypt.hash("director123", 10);
-  
+  const directorPassword = await bcrypt.hash('director123', 10);
 
   // Always update director password and role
   const director = await prisma.user.upsert({
-    where: { email: "director@example.com" },
+    where: { email: 'director@example.com' },
     update: {
       passwordHash: directorPassword,
-      role: "director",
+      role: 'director',
     },
     create: {
-      email: "director@example.com",
+      email: 'director@example.com',
       passwordHash: directorPassword,
-      role: "director",
+      role: 'director',
     },
   });
 
-  console.log("✅ Director user created:", director.email);
+  console.log('✅ Director user created:', director.email);
 
   // Create manager user
-  const managerPassword = await bcrypt.hash("manager123", 10);
-  
+  const managerPassword = await bcrypt.hash('manager123', 10);
+
   const manager = await prisma.user.upsert({
-    where: { email: "manager@example.com" },
+    where: { email: 'manager@example.com' },
     update: {},
     create: {
-      email: "manager@example.com",
+      email: 'manager@example.com',
       passwordHash: managerPassword,
-      role: "manager",
+      role: 'manager',
     },
   });
 
-  console.log("✅ Manager user created:", manager.email);
+  console.log('✅ Manager user created:', manager.email);
 
   // Create employee user
-  const employeePassword = await bcrypt.hash("employee123", 10);
-  
+  const employeePassword = await bcrypt.hash('employee123', 10);
+
   const employee = await prisma.user.upsert({
-    where: { email: "employee@example.com" },
+    where: { email: 'employee@example.com' },
     update: {},
     create: {
-      email: "employee@example.com",
+      email: 'employee@example.com',
       passwordHash: employeePassword,
-      role: "employee",
+      role: 'employee',
     },
   });
 
-  console.log("✅ Employee user created:", employee.email);
+  console.log('✅ Employee user created:', employee.email);
 
   // Create sample employee records
   const employees = [
     {
-      name: "John Smith",
+      name: 'John Smith',
       age: 28,
-      className: "10-A",
-      subjects: ["Math", "Physics"],
+      className: '10-A',
+      subjects: ['Math', 'Physics'],
       attendance: 95,
-      role: "Teacher",
-      status: "active",
-      location: "Building A",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building A',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Sarah Johnson",
+      name: 'Sarah Johnson',
       age: 32,
-      className: "9-B",
-      subjects: ["English", "History"],
+      className: '9-B',
+      subjects: ['English', 'History'],
       attendance: 98,
-      role: "Teacher",
-      status: "active",
-      location: "Building B",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building B',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Michael Chen",
+      name: 'Michael Chen',
       age: 45,
-      className: "Admin",
-      subjects: ["Management"],
+      className: 'Admin',
+      subjects: ['Management'],
       attendance: 100,
-      role: "Principal",
-      status: "active",
-      location: "Main Office",
+      role: 'Principal',
+      status: 'active',
+      location: 'Main Office',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Emily Davis",
+      name: 'Emily Davis',
       age: 26,
-      className: "8-C",
-      subjects: ["Science", "Biology"],
+      className: '8-C',
+      subjects: ['Science', 'Biology'],
       attendance: 92,
-      role: "Teacher",
-      status: "active",
-      location: "Building A",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building A',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Robert Wilson",
+      name: 'Robert Wilson',
       age: 38,
-      className: "11-A",
-      subjects: ["Computer Science"],
+      className: '11-A',
+      subjects: ['Computer Science'],
       attendance: 88,
-      role: "Teacher",
-      status: "on-leave",
-      location: "Building C",
+      role: 'Teacher',
+      status: 'on-leave',
+      location: 'Building C',
       lastLogin: new Date().toISOString(),
     },
     // Additional sample employees
     {
-      name: "Jessica Lee",
+      name: 'Jessica Lee',
       age: 29,
-      className: "10-B",
-      subjects: ["Math", "English"],
+      className: '10-B',
+      subjects: ['Math', 'English'],
       attendance: 97,
-      role: "Teacher",
-      status: "active",
-      location: "Building B",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building B',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "David Brown",
+      name: 'David Brown',
       age: 41,
-      className: "Admin",
-      subjects: ["Management"],
+      className: 'Admin',
+      subjects: ['Management'],
       attendance: 100,
-      role: "Vice Principal",
-      status: "active",
-      location: "Main Office",
+      role: 'Vice Principal',
+      status: 'active',
+      location: 'Main Office',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Priya Patel",
+      name: 'Priya Patel',
       age: 34,
-      className: "12-A",
-      subjects: ["Chemistry", "Physics"],
+      className: '12-A',
+      subjects: ['Chemistry', 'Physics'],
       attendance: 93,
-      role: "Teacher",
-      status: "active",
-      location: "Building D",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building D',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Ahmed Khan",
+      name: 'Ahmed Khan',
       age: 30,
-      className: "7-A",
-      subjects: ["Geography", "History"],
+      className: '7-A',
+      subjects: ['Geography', 'History'],
       attendance: 90,
-      role: "Teacher",
-      status: "active",
-      location: "Building E",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building E',
       lastLogin: new Date().toISOString(),
     },
     {
-      name: "Maria Garcia",
+      name: 'Maria Garcia',
       age: 27,
-      className: "9-C",
-      subjects: ["Spanish", "Art"],
+      className: '9-C',
+      subjects: ['Spanish', 'Art'],
       attendance: 96,
-      role: "Teacher",
-      status: "active",
-      location: "Building F",
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building F',
       lastLogin: new Date().toISOString(),
     },
   ];
 
   for (const emp of employees) {
     const existing = await prisma.employee.findFirst({
-      where: { name: emp.name }
+      where: { name: emp.name },
     });
-    
+
     if (!existing) {
       await prisma.employee.create({
         data: emp,

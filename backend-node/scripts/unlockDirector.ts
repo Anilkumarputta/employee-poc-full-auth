@@ -10,8 +10,8 @@ async function unlockDirector() {
       failedLoginAttempts: 0,
       lockedUntil: null,
       accessBlockedUntil: null,
-      accessBlockReason: null
-    }
+      accessBlockReason: null,
+    },
   });
   console.log('Director account unlocked and reset.');
   await prisma.$disconnect();

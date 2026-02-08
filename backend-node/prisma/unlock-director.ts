@@ -6,8 +6,8 @@ async function main() {
     where: { email: 'director@example.com' },
     data: {
       failedLoginAttempts: 0,
-      lockedUntil: null
-    }
+      lockedUntil: null,
+    },
   });
   console.log('Director account unlocked.');
 }

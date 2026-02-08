@@ -1,4 +1,4 @@
-import { gql } from "apollo-server-express";
+import { gql } from 'apollo-server-express';
 
 export const typeDefs = gql`
   enum EmployeeSortBy {
@@ -337,36 +337,36 @@ export const typeDefs = gql`
 
     employee(id: Int!): Employee
     myProfile: Employee
-    
+
     notes(employeeId: Int): [Note!]!
     myNotes: [Note!]!
-    
+
     messages(conversationId: String): [Message!]!
     myMessages: [Message!]!
     myConversations: [Conversation!]!
     messageStats: MessageStats!
-    
+
     notifications: [Notification!]!
     unreadNotifications: [Notification!]!
     notificationCount: Int!
-    
+
     threads: [Thread!]!
     thread(id: Int!): Thread
     myThreads: [Thread!]!
-    
+
     reviewRequests(status: String): [ReviewRequest!]!
     reviewRequest(id: Int!): ReviewRequest
     myReviewRequests: [ReviewRequest!]!
-    
+
     leaveRequests(status: String): [LeaveRequest!]!
     myLeaveRequests: [LeaveRequest!]!
-    
+
     accessLogs(page: Int = 1, pageSize: Int = 50): [AccessLog!]!
-    
+
     adminUsers: [User!]!
     allUsers(searchTerm: String, roleFilter: String, statusFilter: String): [User!]!
     me: User
-    
+
     # New: Enhanced queries for features
     accessControlLogs(userId: Int, limit: Int = 50): [AccessControlLog!]!
     dashboardStats: DashboardStats!
@@ -393,33 +393,32 @@ export const typeDefs = gql`
     terminateEmployee(id: Int!): Employee!
     flagEmployee(id: Int!, flagged: Boolean!): Employee!
     generateEmployeeLogins: GenerateLoginsResult!
-      sendSlackNotification(message: String!, channel: String!): Boolean
+    sendSlackNotification(message: String!, channel: String!): Boolean
     sendNote(input: NoteInput!): Note!
     markNoteAsRead(id: Int!): Note!
-    
+
     sendMessage(input: SendMessageInput!): Message!
     markMessageAsRead(id: Int!): Message!
     markConversationAsRead(conversationId: String!): Boolean!
     deleteMessage(id: Int!): Boolean!
-    
+
     markNotificationAsRead(id: Int!): Notification!
     markAllNotificationsAsRead: Boolean!
     deleteNotification(id: Int!): Boolean!
     createNotification(input: CreateNotificationInput!): Notification!
-    
+
     sendThreadMessage(input: SendThreadMessageInput!): ThreadMessage!
-    
+
     createReviewRequest(input: CreateReviewRequestInput!): ReviewRequest!
     reviewDecision(input: ReviewDecisionInput!): ReviewRequest!
-    
+
     createLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
     updateLeaveRequestStatus(id: Int!, status: String!, adminNote: String): LeaveRequest!
-    
+
     changePassword(currentPassword: String!, newPassword: String!): PasswordChangeResult!
-    
+
     logAccess(action: String!, details: String): AccessLog!
     setup2FA: Boolean!
     verify2FA(code: String!): Boolean!
   }
 `;
-

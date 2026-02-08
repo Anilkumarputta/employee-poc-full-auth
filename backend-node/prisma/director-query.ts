@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const director = await prisma.user.findUnique({
-    where: { email: 'director@example.com' }
+    where: { email: 'director@example.com' },
   });
   console.log(director);
 }
