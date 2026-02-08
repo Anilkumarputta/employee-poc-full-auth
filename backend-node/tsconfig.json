@@ -4,12 +4,13 @@
     "module": "CommonJS",
     "outDir": "dist",
     "esModuleInterop": true,
-    "strict": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
     "types": ["node"]
   },
-  "include": [
-    "src",
-    "prisma"
-  ]
+  "include": ["src", "prisma"]
 }

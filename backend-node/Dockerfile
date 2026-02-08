@@ -1,34 +1,41 @@
-# Backend Dockerfile
-FROM node:18-alpine
-
+# Builder stage
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package files
+# Install build dependencies
 COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install dependencies
 RUN npm ci
 
-
-# Copy source code explicitly
-
-# Copy all backend files except node_modules and dist (handled by .dockerignore)
+# Copy source and prisma schema
+COPY prisma ./prisma/
+COPY tsconfig.json ./
 COPY . .
 
-# Generate Prisma Client
+# Generate prisma client and build
 RUN npx prisma generate
-
-# Build TypeScript
 RUN npm run build
 
-# Debug: print contents of dist folder
-RUN echo "Contents of dist after build:" && ls -R dist
+# Production stage
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Ensure dist/index.js is present
-RUN ls -l dist && ls -l dist/index.js || (echo "dist/index.js missing!" && exit 1)
-# Expose port
+# Create app user
+RUN addgroup -S app && adduser -S app -G app
+
+# Copy only runtime artifacts
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+# Files permissions
+RUN chown -R app:app /app
+USER app
+
 EXPOSE 4000
 
-# Start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]
+# Do NOT run migrations automatically here in production.
+# Run migrations as part of deployment pipeline or a dedicated job:
+#   npx prisma migrate deploy --schema=./prisma/schema.prisma
+CMD ["node", "dist/src/index.js"]
