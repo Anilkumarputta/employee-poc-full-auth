@@ -833,7 +833,7 @@ export const resolvers = {
         where: { id: ctx.user!.id },
         select: { twoFASecret: true, twoFAEnabled: true },
       });
-      const twoFASecret: string | undefined = user?.twoFASecret;
+      const twoFASecret: string | undefined = user?.twoFASecret ?? undefined;
       if (!twoFASecret) {
         throw new Error('2FA not set up for this user');
       }
@@ -1226,7 +1226,13 @@ export const resolvers = {
         where: { id },
         include: { employee: true },
       });
-      if (leaveReq && leaveReq.employee && ['approved', 'rejected'].includes(status)) {
+      if (
+        leaveReq &&
+        leaveReq.employee &&
+        ['approved', 'rejected'].includes(status) &&
+        leaveReq.employee.userId &&
+        leaveReq.employee.email
+      ) {
         await ctx.prisma.notification.create({
           data: {
             userId: leaveReq.employee.userId,
@@ -1325,8 +1331,8 @@ export const resolvers = {
       }
 
       // Get recipient details if specified
-      let recipientEmail = input.recipientId ? null : null;
-      let resolvedRecipientRole = input.recipientRole || null;
+      let recipientEmail: string | null = null;
+      let resolvedRecipientRole: string | null = input.recipientRole || null;
 
       if (input.recipientId) {
         const recipient = await prisma.user.findUnique({

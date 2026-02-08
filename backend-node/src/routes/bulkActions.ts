@@ -9,15 +9,16 @@ const router = Router();
 const upload = multer({ dest: 'uploads/' });
 
 // Bulk import employees from CSV
-import { Request } from 'express';
+import { Request, Response } from 'express';
 router.post(
   '/bulk-import',
   upload.single('file'),
-  async (req: Request & { file: multer.File }, res) => {
+  async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const results = [];
-    const errors = [];
-    fs.createReadStream(req.file.path)
+    const results: any[] = [];
+    const errors: Array<{ email?: string; error: string }> = [];
+    const filePath = req.file.path;
+    fs.createReadStream(filePath)
       .pipe(csvParser())
       .on('data', (row) => {
         results.push(row);
@@ -53,11 +54,11 @@ router.post(
                 updatedAt: new Date(),
               },
             });
-          } catch (err) {
-            errors.push({ email: row.email, error: err.message });
+          } catch (err: any) {
+            errors.push({ email: row.email, error: (err && err.message) || String(err) });
           }
         }
-        fs.unlinkSync(req.file.path);
+        fs.unlinkSync(filePath);
         res.json({ imported: results.length - errors.length, errors });
       });
   },

@@ -11,6 +11,7 @@ export async function generate2FASecret(userId: number) {
     data: { twoFASecret: secret.base32 },
   });
   const otpauthUrl = secret.otpauth_url;
+  if (!otpauthUrl) throw new Error('Failed to generate 2FA otpauth URL');
   const qrCode = await qrcode.toDataURL(otpauthUrl);
   return { otpauthUrl, qrCode };
 }
