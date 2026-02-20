@@ -1,9 +1,11 @@
 import { GRAPHQL_URL } from "../config/api";
+import { trackClientError } from "./errorTracking";
 import { getStorageItem, removeStorageItem } from "./safeStorage";
 
 type GraphqlRequestOptions = {
   bypassCache?: boolean;
   cacheTtlMs?: number;
+  validate?: (data: unknown) => boolean;
 };
 
 type CacheEntry = {
@@ -86,6 +88,7 @@ export async function graphqlRequest<T = any>(
       if (error?.name === "AbortError") {
         throw new Error("Request timed out. Please try again.");
       }
+      trackClientError(error, "graphql.network", { query: normalizeQuery(query) });
       throw error;
     } finally {
       clearTimeout(timeoutId);
@@ -96,9 +99,13 @@ export async function graphqlRequest<T = any>(
     }
 
     const result = await response.json();
+    const payload = result as { data?: unknown; errors?: Array<{ message?: string }> };
 
-    if (result.errors) {
-      const message = result.errors.map((e: any) => e.message).join(", ");
+    if (payload.errors) {
+      const message = payload.errors.map((e: any) => e.message).join(", ");
+      trackClientError(new Error(message), "graphql.response", {
+        query: normalizeQuery(query),
+      });
 
       // Auto-logout if backend says token is invalid/expired
       if (message.toLowerCase().includes("not authenticated") || message.toLowerCase().includes("unauthorized")) {
@@ -115,7 +122,19 @@ export async function graphqlRequest<T = any>(
       throw new Error(message);
     }
 
-    const data = result.data as T;
+    if (typeof payload.data === "undefined") {
+      throw new Error("Invalid GraphQL response: missing data");
+    }
+
+    if (options.validate && !options.validate(payload.data)) {
+      const validationError = new Error("Invalid GraphQL response shape");
+      trackClientError(validationError, "graphql.validation", {
+        query: normalizeQuery(query),
+      });
+      throw validationError;
+    }
+
+    const data = payload.data as T;
 
     if (isMutation) {
       // Mutations can change list/query responses, so invalidate stale cache.

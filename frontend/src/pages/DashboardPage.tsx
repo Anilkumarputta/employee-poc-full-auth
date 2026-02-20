@@ -2,9 +2,12 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
+import { trackClientError } from "../lib/errorTracking";
 import { getStorageItem } from "../lib/safeStorage";
 import { formatRelativeTime } from "../lib/dateUtils";
+import { useCurrentTime } from "../hooks/useCurrentTime";
 import { getCurrentFestivalTheme } from "../festivalThemes";
+import { WeatherTimeWidget } from "../components/dashboard/WeatherTimeWidget";
 import type { AppPage } from "../types/navigation";
 
 // Add Props type for navigation
@@ -107,6 +110,16 @@ const MY_NOTIFICATIONS_QUERY = `
   }
 `;
 
+const UPDATE_LEAVE_STATUS_MUTATION = `
+  mutation UpdateLeaveRequestStatus($id: Int!, $status: String!, $adminNote: String) {
+    updateLeaveRequestStatus(id: $id, status: $status, adminNote: $adminNote) {
+      id
+      status
+      updatedAt
+    }
+  }
+`;
+
 type Activity = {
   id: string;
   icon: string;
@@ -131,6 +144,72 @@ type Notification = {
   createdAt: string;
 };
 
+type EmployeesResponse = {
+  employees: {
+    items: Employee[];
+  };
+};
+
+type LeaveRequestsResponse = {
+  leaveRequests: LeaveRequest[];
+};
+
+type MyLeaveRequestsResponse = {
+  myLeaveRequests: LeaveRequest[];
+};
+
+type LogsResponse = {
+  accessLogs: AccessLog[];
+};
+
+type NotificationsResponse = {
+  notifications: Notification[];
+};
+
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+type WeatherData = {
+  temp: number;
+  unit: "\u00B0C" | "\u00B0F";
+  condition: string;
+  icon: string;
+  location: string;
+};
+
+const WEATHER_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 7000;
+const GEOLOCATION_TIMEOUT_MS = 8000;
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isEmployeesResponse(value: unknown): value is EmployeesResponse {
+  if (!isObject(value) || !isObject(value.employees)) {
+    return false;
+  }
+  return Array.isArray(value.employees.items);
+}
+
+function isLeaveRequestsResponse(value: unknown): value is LeaveRequestsResponse {
+  return isObject(value) && Array.isArray(value.leaveRequests);
+}
+
+function isMyLeaveRequestsResponse(value: unknown): value is MyLeaveRequestsResponse {
+  return isObject(value) && Array.isArray(value.myLeaveRequests);
+}
+
+function isLogsResponse(value: unknown): value is LogsResponse {
+  return isObject(value) && Array.isArray(value.accessLogs);
+}
+
+function isNotificationsResponse(value: unknown): value is NotificationsResponse {
+  return isObject(value) && Array.isArray(value.notifications);
+}
+
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   let { accessToken, user } = useContext(AuthContext);
   
@@ -147,15 +226,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [weather, setWeather] = useState<{temp: number, condition: string, icon: string, location: string} | null>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherLastUpdated, setWeatherLastUpdated] = useState<Date | null>(null);
+  const [weatherRefreshing, setWeatherRefreshing] = useState(false);
+  const [updatingLeaveId, setUpdatingLeaveId] = useState<number | null>(null);
   
   // Modal states for interactive cards
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<string>('');
   const [modalData, setModalData] = useState<any>(null);
   
-  // Current time state
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const currentTime = useCurrentTime();
 
   const isDirector = user?.role === 'director';
   const isManager = user?.role === 'manager';
@@ -171,67 +252,208 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   }, [accessToken, isEmployee, isManager, isDirector, user?.id, user?.email]);
 
   useEffect(() => {
-    fetchWeather();
+    void fetchWeather();
+    const weatherInterval = window.setInterval(() => {
+      void fetchWeather();
+    }, WEATHER_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(weatherInterval);
   }, []);
 
-  useEffect(() => {
-    // Update header clock every minute to avoid expensive full-page rerenders.
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-
-    return () => clearInterval(timeInterval);
-  }, []);
-
-  const fetchWeather = async () => {
+  const fetchJsonWithTimeout = async (url: string, timeoutMs: number) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      // Using wttr.in - a simple weather API that does not require an API key
-      const response = await fetch("https://wttr.in/?format=j1", { signal: controller.signal });
-      const data = await response.json();
+      const response = await fetch(url, {
+        method: "GET",
+        signal: controller.signal,
+        cache: "no-store",
+      });
 
-      const current = data.current_condition[0];
-      setWeather({
-        temp: Math.round(parseFloat(current.temp_C)),
-        condition: current.weatherDesc[0].value,
-        icon: getWeatherIcon(current.weatherCode),
-        location: data.nearest_area[0].areaName[0].value,
-      });
-    } catch (error) {
-      console.error("Failed to fetch weather:", error);
-      setWeather({
-        temp: 22,
-        condition: "Partly Cloudy",
-        icon: "Cloudy",
-        location: "Local",
-      });
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
+      }
+
+      return response.json();
     } finally {
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
     }
   };
 
-  const getWeatherIcon = (code: string): string => {
-    const weatherCode = parseInt(code, 10);
-    if (weatherCode === 113) return "Sunny";
-    if (weatherCode === 116) return "Partly Cloudy";
-    if (weatherCode === 119 || weatherCode === 122) return "Cloudy";
-    if (weatherCode >= 200 && weatherCode <= 299) return "Storm";
-    if (weatherCode >= 176 && weatherCode < 200) return "Rain";
-    if (weatherCode >= 323 && weatherCode <= 395) return "Snow";
+  const getBrowserCoordinates = async (): Promise<Coordinates | null> => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }),
+        () => resolve(null),
+        {
+          enableHighAccuracy: true,
+          timeout: GEOLOCATION_TIMEOUT_MS,
+          maximumAge: 5 * 60 * 1000,
+        },
+      );
+    });
+  };
+
+  const getIpCoordinates = async (): Promise<(Coordinates & { locationHint?: string }) | null> => {
+    try {
+      const data = await fetchJsonWithTimeout("https://ipapi.co/json/", REQUEST_TIMEOUT_MS);
+      const latitude = Number(data?.latitude);
+      const longitude = Number(data?.longitude);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return null;
+      }
+
+      const locationHint = [data?.city, data?.region]
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+        .join(", ");
+
+      return {
+        latitude,
+        longitude,
+        locationHint: locationHint || undefined,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const getLocationLabel = async (
+    latitude: number,
+    longitude: number,
+    fallback: string,
+  ): Promise<string> => {
+    try {
+      const reverseGeocodeUrl =
+        `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}` +
+        `&longitude=${longitude}&count=1&language=en&format=json`;
+      const data = await fetchJsonWithTimeout(reverseGeocodeUrl, REQUEST_TIMEOUT_MS);
+      const result = data?.results?.[0];
+
+      if (!result) {
+        return fallback;
+      }
+
+      const parts = [result.name, result.admin1, result.country]
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean);
+
+      return parts.length ? parts.join(", ") : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const getWeatherCondition = (code: string): string => {
+    const weatherCode = Number(code);
+
+    if (weatherCode === 0) return "Clear sky";
+    if (weatherCode === 1) return "Mainly clear";
+    if (weatherCode === 2) return "Partly cloudy";
+    if (weatherCode === 3) return "Overcast";
+    if (weatherCode === 45 || weatherCode === 48) return "Fog";
+    if ([51, 53, 55, 56, 57].includes(weatherCode)) return "Drizzle";
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return "Rain";
+    if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "Snow";
+    if ([95, 96, 99].includes(weatherCode)) return "Thunderstorm";
     return "Weather";
   };
 
+  const shouldUseFahrenheit = (): boolean => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+
+    return /-US\b/i.test(navigator.language || "");
+  };
+
+  const getWeatherIcon = (code: string): string => {
+    const weatherCode = Number(code);
+
+    if (weatherCode === 0) return "â˜€ï¸";
+    if (weatherCode === 1 || weatherCode === 2) return "ðŸŒ¤ï¸";
+    if (weatherCode === 3) return "â˜ï¸";
+    if (weatherCode === 45 || weatherCode === 48) return "ðŸŒ«ï¸";
+    if ([51, 53, 55, 56, 57].includes(weatherCode)) return "ðŸŒ¦ï¸";
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return "ðŸŒ§ï¸";
+    if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "ðŸŒ¨ï¸";
+    if ([95, 96, 99].includes(weatherCode)) return "â›ˆï¸";
+    return "ðŸŒ¡ï¸";
+  };
+
+  const fetchWeather = async () => {
+    setWeatherRefreshing(true);
+    try {
+      const browserCoordinates = await getBrowserCoordinates();
+      const ipCoordinates = browserCoordinates ? null : await getIpCoordinates();
+      const coordinates = browserCoordinates || ipCoordinates;
+
+      if (!coordinates) {
+        throw new Error("Unable to determine location");
+      }
+
+      const weatherUrl =
+        `https://api.open-meteo.com/v1/forecast?latitude=${coordinates.latitude}` +
+        `&longitude=${coordinates.longitude}&current=temperature_2m,weather_code` +
+        `&temperature_unit=celsius&timezone=auto`;
+      const data = await fetchJsonWithTimeout(weatherUrl, REQUEST_TIMEOUT_MS);
+      const current = data?.current;
+
+      if (!current || typeof current.temperature_2m !== "number") {
+        throw new Error("Invalid weather response");
+      }
+
+      const fallbackLocation = ipCoordinates?.locationHint || "Current location";
+      const location = await getLocationLabel(coordinates.latitude, coordinates.longitude, fallbackLocation);
+      const weatherCode = String(current.weather_code ?? "");
+      const temperatureC = Number(current.temperature_2m);
+      const useFahrenheit = shouldUseFahrenheit();
+      const rawTemperature = useFahrenheit ? (temperatureC * 9) / 5 + 32 : temperatureC;
+      const displayTemperature = Math.round(rawTemperature * 10) / 10;
+
+      setWeather({
+        temp: displayTemperature,
+        unit: useFahrenheit ? "\u00B0F" : "\u00B0C",
+        condition: getWeatherCondition(weatherCode),
+        icon: getWeatherIcon(weatherCode),
+        location,
+      });
+      setWeatherLastUpdated(new Date());
+    } catch (error) {
+      console.error("Failed to fetch weather:", error);
+      trackClientError(error, "dashboard.weather");
+      setWeather({
+        temp: 22,
+        unit: "\u00B0C",
+        condition: "Weather unavailable",
+        icon: "ðŸŒ¡ï¸",
+        location: "Location unavailable",
+      });
+      setWeatherLastUpdated(new Date());
+    } finally {
+      setWeatherRefreshing(false);
+    }
+  };
+
   const getActivityIcon = (action: string): string => {
-    if (action.includes('LOGIN') || action.includes('LOGOUT')) return '🔐';
-    if (action.includes('UPDATE') || action.includes('EDIT')) return '✏️';
-    if (action.includes('CREATE') || action.includes('ADD')) return '➕';
-    if (action.includes('DELETE') || action.includes('REMOVE')) return '🗑️';
-    if (action.includes('ROLE')) return '👤';
-    if (action.includes('STATUS')) return '🔄';
-    if (action.includes('FLAG')) return '🚩';
-    return '📝';
+    if (action.includes('LOGIN') || action.includes('LOGOUT')) return 'ðŸ”';
+    if (action.includes('UPDATE') || action.includes('EDIT')) return 'âœï¸';
+    if (action.includes('CREATE') || action.includes('ADD')) return 'âž•';
+    if (action.includes('DELETE') || action.includes('REMOVE')) return 'ðŸ—‘ï¸';
+    if (action.includes('ROLE')) return 'ðŸ‘¤';
+    if (action.includes('STATUS')) return 'ðŸ”„';
+    if (action.includes('FLAG')) return 'ðŸš©';
+    return 'ðŸ“';
   };
 
   const formatActivityTitle = (action: string): string => {
@@ -250,11 +472,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   const getNotificationIcon = (type: string): string => {
-    if (type === 'MESSAGE') return '💬';
-    if (type === 'APPROVAL') return '✅';
-    if (type === 'WARNING') return '⚠️';
-    if (type === 'CRITICAL') return '🚨';
-    return 'ℹ️';
+    if (type === 'MESSAGE') return 'ðŸ’¬';
+    if (type === 'APPROVAL') return 'âœ…';
+    if (type === 'WARNING') return 'âš ï¸';
+    if (type === 'CRITICAL') return 'ðŸš¨';
+    return 'â„¹ï¸';
   };
 
   const getNotificationColor = (type: string): string => {
@@ -275,9 +497,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     try {
       if (isEmployee) {
         const [employeesData, leaveData, notificationsData] = await Promise.all([
-          graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
-          graphqlRequest(MY_LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ myLeaveRequests: [] })),
-          graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] })),
+          graphqlRequest<EmployeesResponse>(EMPLOYEES_QUERY, {}, accessToken, {
+            validate: isEmployeesResponse,
+          }),
+          graphqlRequest<MyLeaveRequestsResponse>(MY_LEAVE_REQUESTS_QUERY, {}, accessToken, {
+            validate: isMyLeaveRequestsResponse,
+          }).catch(() => ({ myLeaveRequests: [] })),
+          graphqlRequest<NotificationsResponse>(MY_NOTIFICATIONS_QUERY, {}, accessToken, {
+            validate: isNotificationsResponse,
+          }).catch(() => ({ notifications: [] })),
         ]);
 
         setEmployees(sanitizeAndDedupeEmployees(employeesData.employees.items || []));
@@ -298,12 +526,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         return;
       }
 
-      const logsPromise = graphqlRequest(RECENT_ACTIVITIES_QUERY, {}, accessToken).catch(() => ({ accessLogs: [] as AccessLog[] }));
-      const notificationsPromise = graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] as Notification[] }));
+      const logsPromise = graphqlRequest<LogsResponse>(RECENT_ACTIVITIES_QUERY, {}, accessToken, {
+        validate: isLogsResponse,
+      }).catch(() => ({ accessLogs: [] as AccessLog[] }));
+      const notificationsPromise = graphqlRequest<NotificationsResponse>(MY_NOTIFICATIONS_QUERY, {}, accessToken, {
+        validate: isNotificationsResponse,
+      }).catch(() => ({ notifications: [] as Notification[] }));
 
       const [employeesData, leaveData] = await Promise.all([
-        graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
-        graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] })),
+        graphqlRequest<EmployeesResponse>(EMPLOYEES_QUERY, {}, accessToken, {
+          validate: isEmployeesResponse,
+        }),
+        graphqlRequest<LeaveRequestsResponse>(LEAVE_REQUESTS_QUERY, {}, accessToken, {
+          validate: isLeaveRequestsResponse,
+        }).catch(() => ({ leaveRequests: [] })),
       ]);
       
       setEmployees(sanitizeAndDedupeEmployees(employeesData.employees.items || []));
@@ -344,8 +580,34 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      trackClientError(error, "dashboard.fetchData");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLeaveDecision = async (requestId: number, status: "approved" | "rejected") => {
+    if (!accessToken) {
+      return;
+    }
+
+    setUpdatingLeaveId(requestId);
+    try {
+      await graphqlRequest(
+        UPDATE_LEAVE_STATUS_MUTATION,
+        {
+          id: requestId,
+          status,
+          adminNote: status === "approved" ? "Approved from dashboard" : "Rejected from dashboard",
+        },
+        accessToken,
+      );
+      await fetchData();
+    } catch (error) {
+      trackClientError(error, "dashboard.leaveDecision", { requestId, status });
+      console.error("Failed to update leave status:", error);
+    } finally {
+      setUpdatingLeaveId(null);
     }
   };
 
@@ -428,6 +690,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     .filter(lr => lr.status === 'approved' && lr.startDate > todayStr)
     .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 
+  const weatherWidget = weather ? (
+    <WeatherTimeWidget
+      currentTime={currentTime}
+      weather={weather}
+      lastUpdated={weatherLastUpdated}
+      isRefreshing={weatherRefreshing}
+      onRefresh={() => {
+        void fetchWeather();
+      }}
+    />
+  ) : null;
+
   // Render Modal Component
   const renderModal = () => {
     if (!showModal) return null;
@@ -489,13 +763,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
               e.currentTarget.style.background = '#e74c3c';
             }}>
-            ✕
+            âœ•
           </button>
 
           {modalType === 'total-employees' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>👥</span>
+                <span style={{ fontSize: '36px' }}>ðŸ‘¥</span>
                 All Employees ({modalData?.length || 0})
               </h2>
               <div style={{ display: 'grid', gap: '15px' }}>
@@ -517,7 +791,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         {emp.name}
                       </div>
                       <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
-                        {emp.email} • {emp.role} • {emp.className}
+                        {emp.email} â€¢ {emp.role} â€¢ {emp.className}
                       </div>
                     </div>
                     <div style={{
@@ -528,7 +802,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       fontSize: '12px',
                       fontWeight: 'bold'
                     }}>
-                      {emp.status === 'active' ? '✅ Active' : '❌ Inactive'}
+                      {emp.status === 'active' ? 'âœ… Active' : 'âŒ Inactive'}
                     </div>
                   </div>
                 ))}
@@ -544,7 +818,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
                 <div>
                   <h3 style={{ color: '#27ae60', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>✅</span>
+                    <span style={{ fontSize: '24px' }}>âœ…</span>
                     Active ({modalData?.active?.length || 0})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -557,7 +831,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       }}>
                         <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
                         <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
-                          {emp.role} • {emp.attendance}% attendance
+                          {emp.role} â€¢ {emp.attendance}% attendance
                         </div>
                       </div>
                     ))}
@@ -565,7 +839,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 </div>
                 <div>
                   <h3 style={{ color: '#e74c3c', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>❌</span>
+                    <span style={{ fontSize: '24px' }}>âŒ</span>
                     Inactive ({modalData?.inactive?.length || 0})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -578,7 +852,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       }}>
                         <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
                         <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
-                          {emp.role} • Last seen: {formatRelativeTime(emp.updatedAt)}
+                          {emp.role} â€¢ Last seen: {formatRelativeTime(emp.updatedAt)}
                         </div>
                       </div>
                     ))}
@@ -591,7 +865,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'new-hires' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>🆕</span>
+                <span style={{ fontSize: '36px' }}>ðŸ†•</span>
                 New Hires - Last 30 Days ({modalData?.length || 0})
               </h2>
               <div style={{ display: 'grid', gap: '15px' }}>
@@ -610,10 +884,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         {emp.name}
                       </div>
                       <div style={{ fontSize: '14px', color: '#546e7a', marginBottom: '8px' }}>
-                        {emp.email} • {emp.role}
+                        {emp.email} â€¢ {emp.role}
                       </div>
                       <div style={{ fontSize: '12px', color: '#78909c', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>📅</span>
+                        <span>ðŸ“…</span>
                         Joined {formatRelativeTime(emp.createdAt)}
                       </div>
                     </div>
@@ -626,7 +900,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       fontWeight: 'bold',
                       boxShadow: '0 4px 12px rgba(0,172,193,0.3)'
                     }}>
-                      🌟 NEW
+                      ðŸŒŸ NEW
                     </div>
                   </div>
                 ))}
@@ -637,7 +911,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'attendance' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>📊</span>
+                <span style={{ fontSize: '36px' }}>ðŸ“Š</span>
                 Attendance Rankings
               </h2>
               <div style={{ display: 'grid', gap: '12px' }}>
@@ -682,14 +956,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         fontSize: '18px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                       }}>
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                        {index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : `#${index + 1}`}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '4px' }}>
                           {emp.name}
                         </div>
                         <div style={{ fontSize: '13px', color: '#546e7a' }}>
-                          {emp.role} • {emp.className}
+                          {emp.role} â€¢ {emp.className}
                         </div>
                       </div>
                       <div style={{
@@ -713,7 +987,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'on-leave' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>🏖️</span>
+                <span style={{ fontSize: '36px' }}>ðŸ–ï¸</span>
                 Employees on Leave Today ({modalData?.employees?.length || 0})
               </h2>
               {modalData?.employees?.length > 0 ? (
@@ -737,7 +1011,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                               {emp.email}
                             </div>
                             <div style={{ fontSize: '13px', color: '#a8a29e' }}>
-                              {emp.role} • {emp.className}
+                              {emp.role} â€¢ {emp.className}
                             </div>
                           </div>
                           <div style={{
@@ -749,7 +1023,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                             fontWeight: 'bold',
                             boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
                           }}>
-                            🏖️ ON LEAVE
+                            ðŸ–ï¸ ON LEAVE
                           </div>
                         </div>
                         {leave && (
@@ -763,13 +1037,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                               <div>
                                 <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>START DATE</div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
-                                  📅 {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  ðŸ“… {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
                               </div>
                               <div>
                                 <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>END DATE</div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
-                                  📅 {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  ðŸ“… {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
                               </div>
                             </div>
@@ -789,7 +1063,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   textAlign: 'center',
                   color: '#95a5a6'
                 }}>
-                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎉</div>
+                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>ðŸŽ‰</div>
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#2c3e50', marginBottom: '10px' }}>
                     Everyone is at work today!
                   </div>
@@ -812,7 +1086,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           fontSize: '48px',
           animation: 'spin 1s linear infinite',
           display: 'inline-block'
-        }}>⚙️</div>
+        }}>âš™ï¸</div>
         <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading dashboard...</p>
         <style>{`
           @keyframes spin {
@@ -860,12 +1134,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-              }}>{isDirector ? '🏢' : isManager ? '👨‍💼' : '👤'}</span>
+              }}>{isDirector ? 'ðŸ¢' : isManager ? 'ðŸ‘¨â€ðŸ’¼' : 'ðŸ‘¤'}</span>
               {(() => {
                 const hour = currentTime.getHours();
                 const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
                 const userName = user?.email?.split('@')[0] || 'there';
-                const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+                const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
                 return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
               })()}
             </h1>
@@ -878,118 +1152,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          {/* Weather & Time Widget */}
-          {weather && (
-            <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '25px 30px',
-              borderRadius: '20px',
-              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
-              color: 'white',
-              minWidth: '320px',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              {/* Decorative background circles */}
-              <div style={{
-                position: 'absolute',
-                top: '-30px',
-                right: '-30px',
-                width: '120px',
-                height: '120px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)'
-              }} />
-              <div style={{
-                position: 'absolute',
-                bottom: '-40px',
-                left: '-40px',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.08)',
-                backdropFilter: 'blur(10px)'
-              }} />
-
-              {/* Content */}
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                {/* Time */}
-                <div style={{ 
-                  fontSize: '36px', 
-                  fontWeight: 'bold', 
-                  marginBottom: '5px',
-                  letterSpacing: '1px',
-                  textShadow: '0 2px 10px rgba(0,0,0,0.2)'
-                }}>
-                  {currentTime.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: true 
-                  })}
-                </div>
-
-                {/* Date */}
-                <div style={{ 
-                  fontSize: '14px', 
-                  opacity: 0.9, 
-                  marginBottom: '15px',
-                  fontWeight: '500'
-                }}>
-                  {currentTime.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </div>
-
-                {/* Weather Info */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '15px',
-                  paddingTop: '15px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.3)'
-                }}>
-                  <div style={{ 
-                    fontSize: '48px',
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
-                  }}>
-                    {weather.icon}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontSize: '32px', 
-                      fontWeight: 'bold',
-                      lineHeight: '1',
-                      marginBottom: '5px'
-                    }}>
-                      {weather.temp}°C
-                    </div>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      opacity: 0.9,
-                      fontWeight: '500'
-                    }}>
-                      {weather.condition}
-                    </div>
-                    <div style={{ 
-                      fontSize: '12px', 
-                      opacity: 0.8,
-                      marginTop: '3px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <span>📍</span>
-                      {weather.location}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {weatherWidget}
         </div>
 
         {/* Hero Metrics Row */}
@@ -1000,7 +1163,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           marginBottom: '30px'
         }}>
           <MetricCard
-            icon="👥"
+            icon="ðŸ‘¥"
             title="Total Employees"
             value={totalEmployees}
             subtitle="All employees"
@@ -1014,7 +1177,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="✅"
+            icon="âœ…"
             title="Active vs Inactive"
             value={`${activeEmployees}/${inactiveEmployees}`}
             subtitle="Active / Inactive"
@@ -1027,7 +1190,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="🆕"
+            icon="ðŸ†•"
             title="New Hires"
             value={newHiresThisMonth}
             subtitle="This month"
@@ -1043,7 +1206,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="📊"
+            icon="ðŸ“Š"
             title="Avg Attendance"
             value={`${avgAttendance}%`}
             subtitle="Company average"
@@ -1056,7 +1219,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="🏖️"
+            icon="ðŸ–ï¸"
             title="On Leave Today"
             value={onLeaveToday}
             subtitle="Currently out"
@@ -1089,7 +1252,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              📊 Employees by Department
+              ðŸ“Š Employees by Department
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {Object.entries(departmentCounts).slice(0, 5).map(([dept, count]) => (
@@ -1122,7 +1285,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              🕒 Recently Changed Records
+              ðŸ•’ Recently Changed Records
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {recentlyChangedEmployees.map((emp) => (
@@ -1136,7 +1299,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       {emp.name}
                     </div>
                     <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
-                      Updated {formatRelativeTime(emp.updatedAt)} • {emp.role}
+                      Updated {formatRelativeTime(emp.updatedAt)} â€¢ {emp.role}
                     </div>
                   </div>
                 ))}
@@ -1155,7 +1318,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             border: flaggedEmployees > 0 ? '2px solid #e74c3c' : '2px solid #e3e8ef'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              🚩 Flagged & Terminated Employees <span style={{
+              ðŸš© Flagged & Terminated Employees <span style={{
                 background: '#e74c3c',
                 color: 'white',
                 padding: '4px 12px',
@@ -1166,7 +1329,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </h3>
             {(flaggedEmployees === 0 && inactiveEmployees === 0) ? (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <div style={{ fontSize: '48px', marginBottom: '10px' }}>✅</div>
+                <div style={{ fontSize: '48px', marginBottom: '10px' }}>âœ…</div>
                 <p style={{ color: '#27ae60', fontWeight: '600', marginBottom: '5px' }}>
                   All Clear!
                 </p>
@@ -1187,10 +1350,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '20px' }}>🚩</span>
+                          <span style={{ fontSize: '20px' }}>ðŸš©</span>
                           <div style={{ fontWeight: '700', color: '#e74c3c', fontSize: '16px' }}>{emp.name}</div>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginLeft: '28px' }}>{emp.role} • {emp.className}</div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginLeft: '28px' }}>{emp.role} â€¢ {emp.className}</div>
                       </div>
                       <span style={{
                         background: '#e74c3c',
@@ -1226,10 +1389,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '20px' }}>❌</span>
+                          <span style={{ fontSize: '20px' }}>âŒ</span>
                           <div style={{ fontWeight: '700', color: '#6c757d', fontSize: '16px', textDecoration: 'line-through' }}>{emp.name}</div>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} • {emp.className}</div>
+                        <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} â€¢ {emp.className}</div>
                       </div>
                       <span style={{
                         background: '#6c757d',
@@ -1266,35 +1429,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              ⚡ Quick Actions
+              âš¡ Quick Actions
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <QuickActionButton 
-                icon="➕" 
+                icon="âž•" 
                 text="Add Employee" 
                 color="#27ae60" 
                 onClick={() => onNavigate?.('employees')}
               />
               <QuickActionButton 
-                icon="🔐" 
+                icon="ðŸ”" 
                 text="Manage Users" 
                 color="#9b59b6" 
                 onClick={() => onNavigate?.('admins')}
               />
               <QuickActionButton 
-                icon="👥" 
+                icon="ðŸ‘¥" 
                 text="View All Employees" 
                 color="#667eea" 
                 onClick={() => onNavigate?.('employees')}
               />
               <QuickActionButton 
-                icon="📊" 
+                icon="ðŸ“Š" 
                 text="Generate Reports" 
                 color="#f39c12" 
                 onClick={() => onNavigate?.('reports')}
               />
               <QuickActionButton 
-                icon="✅" 
+                icon="âœ…" 
                 text="Review Requests" 
                 color="#e74c3c" 
                 onClick={() => onNavigate?.('review-requests')}
@@ -1348,12 +1511,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-              }}>👨‍💼</span>
+              }}>ðŸ‘¨â€ðŸ’¼</span>
               {(() => {
                 const hour = currentTime.getHours();
                 const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
                 const userName = user?.email?.split('@')[0] || 'there';
-                const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+                const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
                 return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
               })()}
             </h1>
@@ -1362,112 +1525,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          {/* Weather & Time Widget */}
-          {weather && (
-            <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '25px 30px',
-              borderRadius: '20px',
-              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
-              color: 'white',
-              minWidth: '320px',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: '-30px',
-                right: '-30px',
-                width: '120px',
-                height: '120px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)'
-              }} />
-              <div style={{
-                position: 'absolute',
-                bottom: '-40px',
-                left: '-40px',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.08)',
-                backdropFilter: 'blur(10px)'
-              }} />
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ 
-                  fontSize: '36px', 
-                  fontWeight: 'bold', 
-                  marginBottom: '5px',
-                  letterSpacing: '1px',
-                  textShadow: '0 2px 10px rgba(0,0,0,0.2)'
-                }}>
-                  {currentTime.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: true 
-                  })}
-                </div>
-
-                <div style={{ 
-                  fontSize: '14px', 
-                  opacity: 0.9, 
-                  marginBottom: '15px',
-                  fontWeight: '500'
-                }}>
-                  {currentTime.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </div>
-
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '15px',
-                  paddingTop: '15px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.3)'
-                }}>
-                  <div style={{ 
-                    fontSize: '48px',
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
-                  }}>
-                    {weather.icon}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontSize: '32px', 
-                      fontWeight: 'bold',
-                      lineHeight: '1',
-                      marginBottom: '5px'
-                    }}>
-                      {weather.temp}°C
-                    </div>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      opacity: 0.9,
-                      fontWeight: '500'
-                    }}>
-                      {weather.condition}
-                    </div>
-                    <div style={{ 
-                      fontSize: '12px', 
-                      opacity: 0.8,
-                      marginTop: '3px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <span>📍</span>
-                      {weather.location}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {weatherWidget}
         </div>
 
         {/* Hero Metrics Row */}
@@ -1481,34 +1539,34 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <MetricCard
               icon={weather.icon}
               title="Weather"
-              value={`${weather.temp}°C`}
+              value={`${weather.temp}${weather.unit}`}
               subtitle={`${weather.condition} in ${weather.location}`}
               color="#3498db"
             />
           )}
           <MetricCard
-            icon="👥"
+            icon="ðŸ‘¥"
             title="My Team Size"
             value={myTeamSize}
             subtitle="Direct reports"
             color="#f093fb"
           />
           <MetricCard
-            icon="📊"
+            icon="ðŸ“Š"
             title="Team Attendance"
             value={`${myTeamAvgAttendance}%`}
             subtitle="Team average"
             color="#27ae60"
           />
           <MetricCard
-            icon="📅"
+            icon="ðŸ“…"
             title="Upcoming Leaves"
             value={upcomingLeaves}
             subtitle="Next 7 days"
             color="#3498db"
           />
           <MetricCard
-            icon="⏰"
+            icon="â°"
             title="Pending Approvals"
             value={pendingLeaves}
             subtitle="Awaiting action"
@@ -1526,11 +1584,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              ⚠️ At-Risk Attendance
+              âš ï¸ At-Risk Attendance
             </h3>
             {myTeamLowAttendance.length === 0 ? (
               <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
-                All team members have good attendance! 🎉
+                All team members have good attendance! ðŸŽ‰
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1573,7 +1631,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             border: pendingLeaves > 0 ? '2px solid #f39c12' : '2px solid #e3e8ef'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              📋 My Approvals <span style={{
+              ðŸ“‹ My Approvals <span style={{
                 background: '#f39c12',
                 color: 'white',
                 padding: '4px 12px',
@@ -1602,31 +1660,43 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       {req.startDate} to {req.endDate}
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button style={{
+                      <button
+                        onClick={() => {
+                          void handleLeaveDecision(req.id, 'approved');
+                        }}
+                        disabled={updatingLeaveId === req.id}
+                        style={{
                         flex: 1,
                         padding: '8px',
                         background: '#27ae60',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
-                        cursor: 'pointer',
+                        cursor: updatingLeaveId === req.id ? 'wait' : 'pointer',
                         fontSize: '13px',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        opacity: updatingLeaveId === req.id ? 0.75 : 1
                       }}>
-                        ✓ Approve
+                        {updatingLeaveId === req.id ? 'Updating...' : 'Approve'}
                       </button>
-                      <button style={{
+                      <button
+                        onClick={() => {
+                          void handleLeaveDecision(req.id, 'rejected');
+                        }}
+                        disabled={updatingLeaveId === req.id}
+                        style={{
                         flex: 1,
                         padding: '8px',
                         background: '#e74c3c',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
-                        cursor: 'pointer',
+                        cursor: updatingLeaveId === req.id ? 'wait' : 'pointer',
                         fontSize: '13px',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        opacity: updatingLeaveId === req.id ? 0.75 : 1
                       }}>
-                        ✗ Reject
+                        {updatingLeaveId === req.id ? 'Updating...' : 'Reject'}
                       </button>
                     </div>
                   </div>
@@ -1644,29 +1714,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            ⚡ Quick Actions
+            âš¡ Quick Actions
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
             <QuickActionButton 
-              icon="✓" 
+              icon="âœ“" 
               text="Approve Leaves" 
               color="#27ae60" 
               onClick={() => onNavigate?.('leaveRequests')}
             />
             <QuickActionButton 
-              icon="📊" 
+              icon="ðŸ“Š" 
               text="View Team Grid" 
               color="#3498db" 
               onClick={() => onNavigate?.('employees')}
             />
             <QuickActionButton 
-              icon="🚩" 
+              icon="ðŸš©" 
               text="Flag Team Member" 
               color="#e74c3c" 
               onClick={() => onNavigate?.('employees')}
             />
             <QuickActionButton 
-              icon="📈" 
+              icon="ðŸ“ˆ" 
               text="Team Performance Report" 
               color="#f39c12" 
               onClick={() => onNavigate?.('reports')}
@@ -1734,12 +1804,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               justifyContent: 'center',
               fontSize: '24px',
               boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-            }}>👤</span>
+            }}>ðŸ‘¤</span>
             {(() => {
               const hour = currentTime.getHours();
               const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
               const userName = user?.email?.split('@')[0] || 'there';
-              const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+              const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
               return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
             })()}
           </h1>
@@ -1748,113 +1818,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Weather & Time Widget */}
-        {weather && (
-          <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            padding: '25px 30px',
-            borderRadius: '20px',
-            boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
-            color: 'white',
-            minWidth: '320px',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-30px',
-              right: '-30px',
-              width: '120px',
-              height: '120px',
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)'
-            }} />
-            <div style={{
-              position: 'absolute',
-              bottom: '-40px',
-              left: '-40px',
-              width: '150px',
-              height: '150px',
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.08)',
-              backdropFilter: 'blur(10px)'
-            }} />
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ 
-                fontSize: '36px', 
-                fontWeight: 'bold', 
-                marginBottom: '5px',
-                letterSpacing: '1px',
-                textShadow: '0 2px 10px rgba(0,0,0,0.2)'
-              }}>
-                {currentTime.toLocaleTimeString('en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  hour12: true 
-                })}
-              </div>
-
-              <div style={{ 
-                fontSize: '14px', 
-                opacity: 0.9, 
-                marginBottom: '15px',
-                fontWeight: '500'
-              }}>
-                {currentTime.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </div>
-
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '15px',
-                paddingTop: '15px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.3)'
-              }}>
-                <div style={{ 
-                  fontSize: '48px',
-                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
-                }}>
-                  {weather.icon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    fontSize: '32px', 
-                    fontWeight: 'bold',
-                    lineHeight: '1',
-                    marginBottom: '5px'
-                  }}>
-                    {weather.temp}°C
-
-                  </div>
-                  <div style={{ 
-                    fontSize: '14px', 
-                    opacity: 0.9,
-                    fontWeight: '500'
-                  }}>
-                    {weather.condition}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    opacity: 0.8,
-                    marginTop: '3px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}>
-                    <span>📍</span>
-                    {weather.location}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {weatherWidget}
       </div>
 
       {/* My Stats Card */}
@@ -1878,14 +1842,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             fontSize: '48px',
             border: '4px solid rgba(255,255,255,0.5)'
           }}>
-            👤
+            ðŸ‘¤
           </div>
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: '36px', fontWeight: 'bold' }}>
-              Hi, {myRecord?.name || user?.email}! 👋
+              Hi, {myRecord?.name || user?.email}! ðŸ‘‹
             </h1>
             <div style={{ fontSize: '18px', marginTop: '10px', opacity: 0.95 }}>
-              {myRecord?.role || 'Employee'} • {myRecord?.className || 'Department'} • Manager: {myRecord?.managerId ? `ID ${myRecord.managerId}` : 'Not assigned'}
+              {myRecord?.role || 'Employee'} â€¢ {myRecord?.className || 'Department'} â€¢ Manager: {myRecord?.managerId ? `ID ${myRecord.managerId}` : 'Not assigned'}
             </div>
             <div style={{ 
               marginTop: '15px',
@@ -1896,7 +1860,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               fontSize: '16px',
               fontWeight: '600'
             }}>
-              Today's Status: <span style={{ marginLeft: '10px' }}>✅ Working</span>
+              Today's Status: <span style={{ marginLeft: '10px' }}>âœ… Working</span>
             </div>
           </div>
         </div>
@@ -1913,27 +1877,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <MetricCard
             icon={weather.icon}
             title="Weather"
-            value={`${weather.temp}°C`}
+            value={`${weather.temp}${weather.unit}`}
             subtitle={`${weather.condition} in ${weather.location}`}
             color="#3498db"
           />
         )}
         <MetricCard
-          icon="🏖️"
+          icon="ðŸ–ï¸"
           title="Leave Balance"
           value={myLeaveBalance}
           subtitle="Days remaining"
           color="#3498db"
         />
         <MetricCard
-          icon="📊"
+          icon="ðŸ“Š"
           title="My Attendance"
           value={`${myRecord?.attendance || 0}%`}
           subtitle="Current streak"
           color={myRecord && myRecord.attendance >= 90 ? '#27ae60' : myRecord && myRecord.attendance >= 75 ? '#f39c12' : '#e74c3c'}
         />
         <MetricCard
-          icon="📅"
+          icon="ðŸ“…"
           title="Next Leave"
           value={myNextLeave ? new Date(myNextLeave.startDate).toLocaleDateString() : 'None'}
           subtitle={myNextLeave ? 'Approved' : 'No upcoming leave'}
@@ -1951,7 +1915,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            📜 Recent Activity
+            ðŸ“œ Recent Activity
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {activities.length > 0 ? (
@@ -1979,35 +1943,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            ⚡ Quick Actions
+            âš¡ Quick Actions
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <QuickActionButton 
-              icon="🏖️" 
+              icon="ðŸ–ï¸" 
               text="Request Leave" 
               color="#3498db" 
               onClick={() => onNavigate?.('leaveRequests')}
             />
             <QuickActionButton 
-              icon="✏️" 
+              icon="âœï¸" 
               text="Update Profile" 
               color="#27ae60" 
               onClick={() => onNavigate?.('profileEdit')}
             />
             <QuickActionButton 
-              icon="👤" 
+              icon="ðŸ‘¤" 
               text="View My Record" 
               color="#667eea" 
               onClick={() => onNavigate?.('profile')}
             />
             <QuickActionButton 
-              icon="💬" 
+              icon="ðŸ’¬" 
               text="My Messages" 
               color="#f39c12" 
               onClick={() => onNavigate?.('messages')}
             />
             <QuickActionButton 
-              icon="⚙️" 
+              icon="âš™ï¸" 
               text="Preferences" 
               color="#9b59b6" 
               onClick={() => onNavigate?.('preferences')}
@@ -2104,7 +2068,7 @@ const MetricCard: React.FC<{
           boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
           animation: 'pulse 2s infinite'
         }}>
-          👁️
+          ðŸ‘ï¸
         </div>
         <div style={{ 
           fontSize: '11px', 
@@ -2114,7 +2078,7 @@ const MetricCard: React.FC<{
           textTransform: 'uppercase',
           letterSpacing: '0.5px'
         }}>
-          Click for details →
+          Click for details â†’
         </div>
       </>
     )}

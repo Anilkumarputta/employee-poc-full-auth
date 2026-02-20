@@ -1,35 +1,11 @@
-﻿import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "./apolloClient";
-import { EmployeesPage } from "./pages/EmployeesPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { ReportsPage } from "./pages/ReportsPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { PreferencesPage } from "./pages/PreferencesPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { AdminsPage } from "./pages/AdminsPage";
-import { AccessLogsPage } from "./pages/AccessLogsPage";
-import { SendNotePage } from "./pages/SendNotePage";
-import { UserManagementDashboard } from "./pages/UserManagementDashboard";
-import { LeaveRequestsPage } from "./pages/LeaveRequestsPage";
-import ProfileEditPage from "./pages/ProfileEditPage";
-import EmployeeLoginsPage from "./pages/EmployeeLoginsPage";
-import { MessagesPage } from "./pages/MessagesPage";
-import { ReviewRequestsPage } from "./pages/ReviewRequestsPage";
 import { HorizontalNav } from "./components/layout/HorizontalNav";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
 import { AuthContext, type AuthUser } from "./auth/authContext";
-import { AuditLogsPage } from "./pages/AuditLogsPage";
-import { BulkActionsPage } from "./pages/BulkActionsPage";
-import { AdvancedEmployeeSearch } from "./pages/AdvancedEmployeeSearch";
-import { NotificationInbox } from "./pages/NotificationInbox";
-import MessagingInbox from "./pages/MessagingInbox";
-import SlackIntegrationPage from "./pages/SlackIntegrationPage";
-import EmployeeSelfServicePortal from "./pages/EmployeeSelfServicePortal";
-import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import type { AppPage } from "./types/navigation";
 import { getStorageItem, removeStorageItem, setStorageItem } from "./lib/safeStorage";
 
@@ -59,6 +35,61 @@ function clearPersistedAuth() {
   removeStorageItem("refreshToken");
   removeStorageItem("user");
 }
+
+const EmployeesPage = React.lazy(() =>
+  import("./pages/EmployeesPage").then((module) => ({ default: module.EmployeesPage })),
+);
+const DashboardPage = React.lazy(() =>
+  import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage })),
+);
+const NotificationsPage = React.lazy(() =>
+  import("./pages/NotificationsPage").then((module) => ({ default: module.NotificationsPage })),
+);
+const ReportsPage = React.lazy(() => import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage })));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
+const PreferencesPage = React.lazy(() =>
+  import("./pages/PreferencesPage").then((module) => ({ default: module.PreferencesPage })),
+);
+const SettingsPage = React.lazy(() =>
+  import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })),
+);
+const AdminsPage = React.lazy(() => import("./pages/AdminsPage").then((module) => ({ default: module.AdminsPage })));
+const AccessLogsPage = React.lazy(() =>
+  import("./pages/AccessLogsPage").then((module) => ({ default: module.AccessLogsPage })),
+);
+const SendNotePage = React.lazy(() =>
+  import("./pages/SendNotePage").then((module) => ({ default: module.SendNotePage })),
+);
+const UserManagementDashboard = React.lazy(() =>
+  import("./pages/UserManagementDashboard").then((module) => ({ default: module.UserManagementDashboard })),
+);
+const LeaveRequestsPage = React.lazy(() =>
+  import("./pages/LeaveRequestsPage").then((module) => ({ default: module.LeaveRequestsPage })),
+);
+const ProfileEditPage = React.lazy(() => import("./pages/ProfileEditPage"));
+const EmployeeLoginsPage = React.lazy(() => import("./pages/EmployeeLoginsPage"));
+const MessagesPage = React.lazy(() => import("./pages/MessagesPage").then((module) => ({ default: module.MessagesPage })));
+const ReviewRequestsPage = React.lazy(() =>
+  import("./pages/ReviewRequestsPage").then((module) => ({ default: module.ReviewRequestsPage })),
+);
+const AuditLogsPage = React.lazy(() => import("./pages/AuditLogsPage").then((module) => ({ default: module.AuditLogsPage })));
+const BulkActionsPage = React.lazy(() =>
+  import("./pages/BulkActionsPage").then((module) => ({ default: module.BulkActionsPage })),
+);
+const AdvancedEmployeeSearch = React.lazy(() =>
+  import("./pages/AdvancedEmployeeSearch").then((module) => ({ default: module.AdvancedEmployeeSearch })),
+);
+const NotificationInbox = React.lazy(() =>
+  import("./pages/NotificationInbox").then((module) => ({ default: module.NotificationInbox })),
+);
+const MessagingInbox = React.lazy(() => import("./pages/MessagingInbox"));
+const SlackIntegrationPage = React.lazy(() => import("./pages/SlackIntegrationPage"));
+const EmployeeSelfServicePortal = React.lazy(() => import("./pages/EmployeeSelfServicePortal"));
+const AnalyticsDashboard = React.lazy(() => import("./pages/AnalyticsDashboard"));
+
+const AppPageFallback = () => (
+  <div style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>Loading page...</div>
+);
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -144,30 +175,32 @@ const App: React.FC = () => {
           <div style={{ minHeight: "100vh", background: "#f5f7fa" }}>
             <HorizontalNav currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} />
             <main style={{ padding: "0" }}>
-              {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
-              {currentPage === "dashboard" && <DashboardPage onNavigate={setCurrentPage} />}
-              {currentPage === "notifications" && <NotificationsPage />}
-              {currentPage === "reports" && <ReportsPage />}
-              {currentPage === "profile" && <ProfilePage />}
-              {currentPage === "profileEdit" && <ProfileEditPage />}
-              {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
-              {currentPage === "settings" && <SettingsPage />}
-              {currentPage === "admins" && <AdminsPage />}
-              {currentPage === "userDashboard" && <UserManagementDashboard />}
-              {currentPage === "accessLogs" && <AccessLogsPage />}
-              {currentPage === "sendNote" && <SendNotePage />}
-              {currentPage === "leaveRequests" && <LeaveRequestsPage onNavigate={setCurrentPage} />}
-              {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
-              {currentPage === "messages" && <MessagesPage />}
-              {currentPage === "review-requests" && <ReviewRequestsPage />}
-              {currentPage === "auditLogs" && <AuditLogsPage />}
-              {currentPage === "bulkActions" && <BulkActionsPage />}
-              {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
-              {currentPage === "notificationInbox" && <NotificationInbox onNavigate={setCurrentPage} />}
-              {currentPage === "messagingInbox" && <MessagingInbox onNavigate={setCurrentPage} />}
-              {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
-              {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
-              {currentPage === "slackIntegration" && <SlackIntegrationPage />}
+              <Suspense fallback={<AppPageFallback />}>
+                {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
+                {currentPage === "dashboard" && <DashboardPage onNavigate={setCurrentPage} />}
+                {currentPage === "notifications" && <NotificationsPage />}
+                {currentPage === "reports" && <ReportsPage />}
+                {currentPage === "profile" && <ProfilePage />}
+                {currentPage === "profileEdit" && <ProfileEditPage />}
+                {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
+                {currentPage === "settings" && <SettingsPage />}
+                {currentPage === "admins" && <AdminsPage />}
+                {currentPage === "userDashboard" && <UserManagementDashboard />}
+                {currentPage === "accessLogs" && <AccessLogsPage />}
+                {currentPage === "sendNote" && <SendNotePage />}
+                {currentPage === "leaveRequests" && <LeaveRequestsPage onNavigate={setCurrentPage} />}
+                {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
+                {currentPage === "messages" && <MessagesPage />}
+                {currentPage === "review-requests" && <ReviewRequestsPage />}
+                {currentPage === "auditLogs" && <AuditLogsPage />}
+                {currentPage === "bulkActions" && <BulkActionsPage />}
+                {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
+                {currentPage === "notificationInbox" && <NotificationInbox onNavigate={setCurrentPage} />}
+                {currentPage === "messagingInbox" && <MessagingInbox onNavigate={setCurrentPage} />}
+                {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
+                {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
+                {currentPage === "slackIntegration" && <SlackIntegrationPage />}
+              </Suspense>
             </main>
           </div>
         )}

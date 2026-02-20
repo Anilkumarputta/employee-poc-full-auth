@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { trackClientError } from "./lib/errorTracking";
 import "./index.css";
 
 const ENABLE_SERVICE_WORKER = import.meta.env.VITE_ENABLE_SW === "true";
@@ -32,6 +33,18 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+window.addEventListener("error", (event) => {
+  trackClientError(event.error || event.message, "window.error", {
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  trackClientError(event.reason, "window.unhandledrejection");
+});
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

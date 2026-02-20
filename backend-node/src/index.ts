@@ -57,6 +57,13 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Frontend error telemetry endpoint (Sentry-like lightweight capture)
+app.post('/client-errors', (req, res) => {
+  const payload = req.body || {};
+  console.error('[client-error]', JSON.stringify(payload));
+  res.status(202).json({ accepted: true });
+});
+
 // Mount REST authentication routes at /auth
 // These handle: /auth/login, /auth/register, /auth/refresh, /auth/google
 app.use('/auth', authRouter);

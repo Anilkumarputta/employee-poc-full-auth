@@ -1,5 +1,6 @@
 import React from "react";
 import { clearGraphqlCache } from "../lib/graphqlClient";
+import { trackClientError } from "../lib/errorTracking";
 import { removeStorageItem } from "../lib/safeStorage";
 
 type State = {
@@ -17,6 +18,7 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
   componentDidCatch(error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     this.setState({ errorMessage });
+    trackClientError(error, "react.error-boundary");
     console.error("[AppErrorBoundary] Unhandled render error:", error);
   }
 
