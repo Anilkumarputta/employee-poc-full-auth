@@ -130,15 +130,15 @@ const App: React.FC = () => {
               {currentPage === "userDashboard" && <UserManagementDashboard />}
               {currentPage === "accessLogs" && <AccessLogsPage />}
               {currentPage === "sendNote" && <SendNotePage />}
-              {currentPage === "leaveRequests" && <LeaveRequestsPage />}
+              {currentPage === "leaveRequests" && <LeaveRequestsPage onNavigate={setCurrentPage} />}
               {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
               {currentPage === "messages" && <MessagesPage />}
               {currentPage === "review-requests" && <ReviewRequestsPage />}
               {currentPage === "auditLogs" && <AuditLogsPage />}
               {currentPage === "bulkActions" && <BulkActionsPage />}
               {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
-              {currentPage === "notificationInbox" && <NotificationInbox />}
-              {currentPage === "messagingInbox" && <MessagingInbox />}
+              {currentPage === "notificationInbox" && <NotificationInbox onNavigate={setCurrentPage} />}
+              {currentPage === "messagingInbox" && <MessagingInbox onNavigate={setCurrentPage} />}
               {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
               {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
               {currentPage === "slackIntegration" && <SlackIntegrationPage />}

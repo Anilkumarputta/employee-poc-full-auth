@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import type { AppPage } from "../types/navigation";
 
 const NOTIFICATIONS_QUERY = `
   query Notifications($type: String, $isRead: Boolean) {
@@ -41,7 +42,39 @@ type NotificationsQueryResult = {
   notifications: Notification[];
 };
 
-export const NotificationInbox: React.FC = () => {
+type NotificationInboxProps = {
+  onNavigate?: (page: AppPage) => void;
+};
+
+const INTERNAL_PAGES = new Set<AppPage>([
+  "employees",
+  "dashboard",
+  "notifications",
+  "reports",
+  "profile",
+  "preferences",
+  "settings",
+  "admins",
+  "accessLogs",
+  "sendNote",
+  "leaveRequests",
+  "profileEdit",
+  "employeeLogins",
+  "messages",
+  "review-requests",
+  "threads",
+  "userDashboard",
+  "bulkActions",
+  "auditLogs",
+  "advancedEmployeeSearch",
+  "notificationInbox",
+  "messagingInbox",
+  "analyticsDashboard",
+  "employeeSelfServicePortal",
+  "slackIntegration",
+]);
+
+export const NotificationInbox: React.FC<NotificationInboxProps> = ({ onNavigate }) => {
   const { accessToken } = useContext(AuthContext);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +173,27 @@ export const NotificationInbox: React.FC = () => {
                     {note.message}
                   </p>
                   {note.linkTo && (
-                    <a href={note.linkTo} style={{ color: "#2563eb", textDecoration: "underline" }}>Go to page</a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const normalizedPath = note.linkTo?.replace(/^\//, "") as AppPage;
+                        if (onNavigate && INTERNAL_PAGES.has(normalizedPath)) {
+                          onNavigate(normalizedPath);
+                          return;
+                        }
+                        window.open(note.linkTo, "_blank", "noopener,noreferrer");
+                      }}
+                      style={{
+                        color: "#2563eb",
+                        textDecoration: "underline",
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Go to page
+                    </button>
                   )}
                 </div>
                 {!note.isRead && (

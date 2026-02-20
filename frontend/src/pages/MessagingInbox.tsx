@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
-import { AuthContext } from "../auth/authContext";
+﻿import React, { useEffect, useState, useRef } from "react";
 import { fetchMessages, sendMessage, markAsRead } from "../auth/api";
 import { formatDistanceToNow } from "date-fns";
 import "./messages.css";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import type { AppPage } from "../types/navigation";
 
 interface Message {
   id: number;
@@ -22,54 +22,97 @@ interface Message {
   attachments?: string[];
 }
 
-const MessagingInbox: React.FC = () => {
-  const { user } = useContext(AuthContext);
+type MessagingInboxProps = {
+  onNavigate?: (page: AppPage) => void;
+};
+
+const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [thread, setThread] = useState<Message[]>([]);
   const [reply, setReply] = useState<string>("");
   const [richMode, setRichMode] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
+
   const pollingRef = useRef<number | null>(null);
+  const selectedConversationRef = useRef<string | null>(null);
+  const threadCacheRef = useRef<Map<string, Message[]>>(new Map());
+
+  const refreshInboxMessages = async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    try {
+      const msgs = await fetchMessages();
+      setMessages(msgs);
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
+  };
+
+  const refreshThread = async (conversationId: string, showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    try {
+      const msgs = await fetchMessages(conversationId);
+      setThread(msgs);
+      threadCacheRef.current.set(conversationId, msgs);
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setLoading(true);
-    fetchMessages()
-      .then((msgs) => setMessages(msgs))
-      .finally(() => setLoading(false));
-    // Poll for new messages every 10 seconds
-    pollingRef.current = window.setInterval(() => {
-      fetchMessages().then((msgs) => setMessages(msgs));
-      if (selectedConversation) {
-        fetchMessages(selectedConversation).then((msgs) => setThread(msgs));
-      }
-    }, 10000);
-    return () => {
-      if (pollingRef.current) window.clearInterval(pollingRef.current);
-    };
+    selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-  const openConversation = (conversationId: string) => {
+  useEffect(() => {
+    void refreshInboxMessages(true);
+
+    // Poll for updates in background without blocking UI.
+    pollingRef.current = window.setInterval(() => {
+      void refreshInboxMessages(false);
+      if (selectedConversationRef.current) {
+        void refreshThread(selectedConversationRef.current, false);
+      }
+    }, 15000);
+
+    return () => {
+      if (pollingRef.current) {
+        window.clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  const openConversation = async (conversationId: string) => {
     setSelectedConversation(conversationId);
-    setLoading(true);
-    fetchMessages(conversationId)
-      .then((msgs) => setThread(msgs))
-      .finally(() => setLoading(false));
-    markAsRead(conversationId);
+
+    const cached = threadCacheRef.current.get(conversationId);
+    if (cached) {
+      setThread(cached);
+    }
+
+    void markAsRead(conversationId);
+    await refreshThread(conversationId, !cached);
   };
 
   const handleReply = async () => {
     if (!reply.trim() || !selectedConversation) return;
+
     setLoading(true);
-    await sendMessage({
-      conversationId: selectedConversation,
-      message: reply,
-      replyToId: thread[thread.length - 1]?.id,
-    });
-    fetchMessages(selectedConversation)
-      .then((msgs) => setThread(msgs))
-      .finally(() => setLoading(false));
-    setReply("");
+    try {
+      await sendMessage({
+        conversationId: selectedConversation,
+        message: reply,
+        replyToId: thread[thread.length - 1]?.id,
+      });
+
+      await Promise.all([
+        refreshThread(selectedConversation, false),
+        refreshInboxMessages(false),
+      ]);
+
+      setReply("");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -96,28 +139,38 @@ const MessagingInbox: React.FC = () => {
         {selectedConversation ? (
           <>
             <h3>Conversation</h3>
-            {/* Show notification link in thread view */}
-            {selectedConversation && (
-              <div style={{ marginBottom: 16 }}>
-                <a
-                  href={`/notificationInbox?conversation=${selectedConversation}`}
-                  style={{ color: "#667eea", textDecoration: "underline", fontWeight: 500 }}
-                >
-                  View related notifications
-                </a>
-              </div>
-            )}
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("notificationInbox")}
+                style={{
+                  color: "#667eea",
+                  textDecoration: "underline",
+                  fontWeight: 500,
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                View related notifications
+              </button>
+            </div>
             <div className="thread-messages">
               {thread.map((msg) => (
                 <div key={msg.id} className="message">
                   <div className="meta">
-                    <span>{msg.senderEmail}</span> <span>({msg.senderRole})</span> <span>{formatDistanceToNow(new Date(msg.createdAt))} ago</span>
+                    <span>{msg.senderEmail}</span> <span>({msg.senderRole})</span>{" "}
+                    <span>{formatDistanceToNow(new Date(msg.createdAt))} ago</span>
                   </div>
                   <div className="body">{msg.message}</div>
                   {msg.attachments && msg.attachments.length > 0 && (
                     <div className="attachments">
-                      Attachments: {msg.attachments.map((a, i) => (
-                        <a key={i} href={a} target="_blank" rel="noopener noreferrer">File {i + 1}</a>
+                      Attachments:{" "}
+                      {msg.attachments.map((a, i) => (
+                        <a key={i} href={a} target="_blank" rel="noopener noreferrer">
+                          File {i + 1}
+                        </a>
                       ))}
                     </div>
                   )}
@@ -134,11 +187,7 @@ const MessagingInbox: React.FC = () => {
               {richMode ? (
                 <ReactQuill value={reply} onChange={setReply} placeholder="Type your reply..." />
               ) : (
-                <textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Type your reply..."
-                />
+                <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type your reply..." />
               )}
               <button onClick={handleReply} disabled={loading || !reply.trim()}>
                 Send Reply

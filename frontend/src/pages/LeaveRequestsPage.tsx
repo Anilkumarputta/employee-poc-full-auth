@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { formatRelativeTime } from "../lib/dateUtils";
+import type { AppPage } from "../types/navigation";
 
 type LeaveRequest = {
   id: number;
@@ -73,7 +74,11 @@ function canManageLeave(role: string) {
   return role === "director" || role === "manager";
 }
 
-export const LeaveRequestsPage: React.FC = () => {
+type LeaveRequestsPageProps = {
+  onNavigate?: (page: AppPage) => void;
+};
+
+export const LeaveRequestsPage: React.FC<LeaveRequestsPageProps> = ({ onNavigate }) => {
   const { accessToken, user } = useContext(AuthContext);
   const role = user?.role || "employee";
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -208,9 +213,21 @@ export const LeaveRequestsPage: React.FC = () => {
 
       {/* Notification link for leave requests */}
       <div style={{ marginBottom: "1.5rem" }}>
-        <a href="/notificationInbox" style={{ color: "#667eea", textDecoration: "underline", fontWeight: 500 }}>
+        <button
+          type="button"
+          onClick={() => onNavigate?.("notificationInbox")}
+          style={{
+            color: "#667eea",
+            textDecoration: "underline",
+            fontWeight: 500,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
           View related notifications
-        </a>
+        </button>
       </div>
 
       {/* Employee: New Leave Request Form */}

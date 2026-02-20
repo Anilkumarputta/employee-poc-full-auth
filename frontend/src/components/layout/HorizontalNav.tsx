@@ -43,7 +43,8 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
         const data = await graphqlRequest<{ messageStats: { unread: number } }>(
           UNREAD_MESSAGE_COUNT_QUERY,
           {},
-          accessToken
+          accessToken,
+          { bypassCache: true }
         );
         setUnreadMessageCount(data.messageStats.unread);
       } catch (error) {

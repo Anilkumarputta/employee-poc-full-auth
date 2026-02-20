@@ -52,7 +52,7 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
         const data = await graphqlRequest<{
           unreadNotifications: Notification[];
           notificationCount: number;
-        }>(NOTIFICATIONS_QUERY, {}, accessToken);
+        }>(NOTIFICATIONS_QUERY, {}, accessToken, { bypassCache: true });
 
         setNotifications(data.unreadNotifications);
         setUnreadCount(data.notificationCount);

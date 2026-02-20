@@ -1,7 +1,8 @@
-﻿import React, { useContext, useState } from "react";
+﻿import React, { useContext, useEffect, useState } from "react";
 import "./login-animated.css";
 import { AuthContext } from "./authContext";
 import { apiLogin, apiGoogleLogin, toFrontendRole } from "./api";
+import { API_URL } from "../config/api";
 import {
   getCurrentFestivalTheme,
   FESTIVAL_THEMES,
@@ -21,6 +22,11 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   const [loading, setLoading] = useState(false);
   const [demoFestival, setDemoFestival] = useState<string>("");
   const festival = getCurrentFestivalTheme();
+
+  useEffect(() => {
+    // Warm up backend while user is on login screen to reduce first-login delay.
+    fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {});
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,3 +208,5 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
     </div>
   );
 };
+
+
