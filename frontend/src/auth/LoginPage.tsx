@@ -16,8 +16,8 @@ type Props = {
 
 export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
   const { setAuth } = useContext(AuthContext);
-  const [email, setEmail] = useState("director@example.com");
-  const [password, setPassword] = useState("director123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [demoFestival, setDemoFestival] = useState<string>("");
@@ -166,12 +166,14 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="auth-form">
+        <form onSubmit={onSubmit} className="auth-form" autoComplete="off">
           <label>
             Email
             <input
+              name="loginEmail"
               type="email"
-              autoComplete="email"
+              autoComplete="off"
+              data-lpignore="true"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -181,8 +183,10 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
           <label>
             Password
             <input
+              name="loginPassword"
               type="password"
-              autoComplete="current-password"
+              autoComplete="off"
+              data-lpignore="true"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
