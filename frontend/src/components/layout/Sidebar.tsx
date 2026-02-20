@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 import { AuthContext } from "../../auth/authContext";
-
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins";
+import type { AppPage } from "../../types/navigation";
 
 type SidebarProps = {
   open: boolean;

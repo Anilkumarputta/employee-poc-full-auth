@@ -454,22 +454,28 @@ body {
 
 @media (max-width: 768px) {
   .horizontal-nav-inner {
-    flex-direction: column;
-    padding: 0 10px;
-    height: auto;
+    padding: 0 12px;
+    height: 64px;
   }
-  .horizontal-nav-left, .horizontal-nav-center, .horizontal-nav-right {
-    flex-direction: row;
+  .horizontal-nav-left {
     gap: 8px;
-    width: 100%;
-    justify-content: flex-start;
-    align-items: center;
+    min-width: 0;
   }
-  .horizontal-nav-logo {
-    font-size: 16px;
+  .horizontal-nav-center {
+    display: none !important;
+  }
+  .horizontal-nav-right {
+    margin-left: auto;
+    gap: 8px;
+  }
+  .horizontal-nav-logo .logo-text {
+    display: none;
+  }
+  .user-email-badge .email-text {
+    display: none;
   }
   .drawer-mobile {
-    width: 100vw !important;
+    width: min(90vw, 360px) !important;
     left: 0;
   }
 }

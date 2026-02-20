@@ -3,10 +3,11 @@ import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { formatRelativeTime } from "../lib/dateUtils";
 import { getCurrentFestivalTheme } from "../festivalThemes";
+import type { AppPage } from "../types/navigation";
 
 // Add Props type for navigation
 type DashboardPageProps = {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: AppPage) => void;
 };
 
 type Employee = {
@@ -35,7 +36,7 @@ type LeaveRequest = {
 
 const EMPLOYEES_QUERY = `
   query Employees {
-    employees(page: 1, pageSize: 1000) {
+    employees(page: 1, pageSize: 300) {
       items {
         id
         name
@@ -144,6 +145,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const isDirector = user?.role === 'director';
   const isManager = user?.role === 'manager';
   const isEmployee = user?.role === 'employee';
+  const festival = getCurrentFestivalTheme();
 
   useEffect(() => {
     fetchData();
@@ -240,15 +242,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     
     setLoading(true);
     try {
-      const [employeesData, leaveData, logsData, notificationsData] = await Promise.all([
+      const logsPromise = graphqlRequest(RECENT_ACTIVITIES_QUERY, {}, accessToken).catch(() => ({ accessLogs: [] as AccessLog[] }));
+      const notificationsPromise = graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] as Notification[] }));
+
+      const [employeesData, leaveData] = await Promise.all([
         graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
         graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] })),
-        graphqlRequest(RECENT_ACTIVITIES_QUERY, {}, accessToken).catch(() => ({ accessLogs: [] })),
-        graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] }))
       ]);
       
       setEmployees(employeesData.employees.items);
       setLeaveRequests(leaveData.leaveRequests || []);
+      setLoading(false);
+
+      const [logsData, notificationsData] = await Promise.all([logsPromise, notificationsPromise]);
       
       // Combine activities from access logs and notifications
       const recentActivities: Activity[] = [];
@@ -283,7 +289,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-    } finally {
       setLoading(false);
     }
   };

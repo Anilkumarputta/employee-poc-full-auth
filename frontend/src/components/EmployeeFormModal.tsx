@@ -14,7 +14,7 @@ export const EmployeeFormModal: React.FC<Props> = ({ employee, onSave, onCancel 
     className: employee?.className || "",
     subjects: employee?.subjects?.join(", ") || "",
     attendance: employee?.attendance || 0,
-    role: employee?.role || "employee" as "admin" | "employee",
+    role: employee?.role || ("employee" as "director" | "manager" | "employee"),
     status: employee?.status || "active" as "active" | "terminated" | "flagged",
     location: employee?.location || "",
   });
@@ -111,7 +111,7 @@ export const EmployeeFormModal: React.FC<Props> = ({ employee, onSave, onCancel 
                 Role:
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as "admin" | "employee" })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as "director" | "manager" | "employee" })}
                   style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
                 >
                   <option value="employee">Employee</option>

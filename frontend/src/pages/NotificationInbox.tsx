@@ -27,9 +27,23 @@ const MARK_READ_MUTATION = `
 
 const types = ["ALL", "INFO", "WARNING", "CRITICAL", "MESSAGE", "APPROVAL"];
 
+type Notification = {
+  id: number;
+  title: string;
+  message: string;
+  type?: string;
+  isRead: boolean;
+  createdAt: string;
+  linkTo?: string;
+};
+
+type NotificationsQueryResult = {
+  notifications: Notification[];
+};
+
 export const NotificationInbox: React.FC = () => {
   const { accessToken } = useContext(AuthContext);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [filterRead, setFilterRead] = useState("");
@@ -40,11 +54,21 @@ export const NotificationInbox: React.FC = () => {
   }, [filterType, filterRead]);
 
   const fetchNotifications = async () => {
+    if (!accessToken) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const type = filterType === "ALL" ? undefined : filterType;
     const isRead = filterRead === "" ? undefined : filterRead === "read";
-    const result = await graphqlRequest(NOTIFICATIONS_QUERY, { type, isRead }, accessToken);
-    setNotifications(result.data.notifications || []);
+    const result = await graphqlRequest<NotificationsQueryResult>(
+      NOTIFICATIONS_QUERY,
+      { type, isRead },
+      accessToken,
+    );
+    setNotifications(result.notifications || []);
     setLoading(false);
   };
 

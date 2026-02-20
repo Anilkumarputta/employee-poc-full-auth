@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+﻿import React, { useContext, useEffect, useState } from "react";
 import type { UserRole } from "../App";
 import "./employees.css";
 import { AuthContext } from "../auth/authContext";
@@ -13,7 +13,7 @@ export type Employee = {
   className: string;
   subjects: string[];
   attendance: number;
-  role: "admin" | "employee";
+  role: "director" | "manager" | "employee";
   status: "active" | "terminated" | "flagged";
   location: string;
   lastLogin: string;
@@ -132,13 +132,8 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   // Fallback: if token is not in context, try to get it from localStorage
   if (!accessToken) {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    console.log('[EmployeesPage] accessToken from context:', accessToken ? 'present' : 'null');
-    console.log('[EmployeesPage] localStorage token:', storedToken ? 'present' : 'null');
     if (storedToken) {
       accessToken = storedToken;
-      console.log('[EmployeesPage] ✅ Using token from localStorage as fallback');
-    } else {
-      console.log('[EmployeesPage] ❌ No token in context or localStorage!');
     }
   }
 
@@ -209,7 +204,6 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   };
 
   useEffect(() => {
-    console.log('[EmployeesPage] useEffect triggered, accessToken:', accessToken ? 'present' : 'null');
     fetchEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sortBy, sortOrder, search, statusFilter, accessToken]);
@@ -520,7 +514,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                           setOpenMenuId(openMenuId === e.id ? null : e.id);
                         }}
                       >
-                        ⋯
+                        â‹¯
                       </button>
                       {openMenuId === e.id && (
                         <div className="employee-menu">
@@ -582,7 +576,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                 <div>
                   <div className="employee-name">{e.name}</div>
                   <div className="employee-meta">
-                    {e.className} • Age {e.age}
+                    {e.className} â€¢ Age {e.age}
                   </div>
                 </div>
 
@@ -596,7 +590,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                       setOpenMenuId((id) => (id === e.id ? null : e.id))
                     }
                   >
-                    ⋯
+                    â‹¯
                   </button>
                   {openMenuId === e.id && (
                     <div className="employee-menu">
@@ -648,7 +642,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
       {/* Pagination footer */}
       <div className="employees-pagination">
         <span>
-          Page {page} of {totalPages} · Total {total}
+          Page {page} of {totalPages} Â· Total {total}
         </span>
         <div className="employees-pagination-buttons">
           <button
@@ -725,3 +719,4 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
     </div>
   );
 };
+

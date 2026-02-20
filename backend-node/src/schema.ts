@@ -282,6 +282,10 @@ export const typeDefs = gql`
     message: String!
   }
 
+  type SlackNotificationResult {
+    success: Boolean!
+  }
+
   input NoteInput {
     message: String!
     toEmployeeId: Int
@@ -393,7 +397,7 @@ export const typeDefs = gql`
     terminateEmployee(id: Int!): Employee!
     flagEmployee(id: Int!, flagged: Boolean!): Employee!
     generateEmployeeLogins: GenerateLoginsResult!
-    sendSlackNotification(message: String!, channel: String!): Boolean
+    sendSlackNotification(webhookUrl: String!, text: String!): SlackNotificationResult!
     sendNote(input: NoteInput!): Note!
     markNoteAsRead(id: Int!): Note!
 

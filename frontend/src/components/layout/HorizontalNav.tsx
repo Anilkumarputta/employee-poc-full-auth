@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/authContext';
 import { graphqlRequest } from '../../lib/graphqlClient';
 import { NotificationBell } from '../NotificationBell';
-
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard" | "messagingInbox" | "bulkActions" | "auditLogs" | "advancedEmployeeSearch" | "notificationInbox" | "analyticsDashboard" | "employeeSelfServicePortal" | "slackIntegration";
+import type { AppPage } from '../../types/navigation';
 
 type Props = {
   currentPage: AppPage;

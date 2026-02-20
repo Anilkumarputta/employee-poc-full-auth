@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "./apolloClient";
 import { EmployeesPage } from "./pages/EmployeesPage";
@@ -21,20 +21,20 @@ import { HorizontalNav } from "./components/layout/HorizontalNav";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
-import { AuthContext, AuthUser } from "./auth/authContext";
+import { AuthContext, type AuthUser } from "./auth/authContext";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { BulkActionsPage } from "./pages/BulkActionsPage";
 import { AdvancedEmployeeSearch } from "./pages/AdvancedEmployeeSearch";
 import { NotificationInbox } from "./pages/NotificationInbox";
 import MessagingInbox from "./pages/MessagingInbox";
+import SlackIntegrationPage from "./pages/SlackIntegrationPage";
+import EmployeeSelfServicePortal from "./pages/EmployeeSelfServicePortal";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import type { AppPage } from "./types/navigation";
 
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
-type AppPage = "employees" | "dashboard" | "notifications" | "reports" | "profile" | "preferences" | "settings" | "admins" | "accessLogs" | "sendNote" | "leaveRequests" | "profileEdit" | "employeeLogins" | "messages" | "review-requests" | "threads" | "userDashboard" | "bulkActions" | "auditLogs" | "advancedEmployeeSearch" | "notificationInbox" | "messagingInbox" | "analyticsDashboard" | "employeeSelfServicePortal" | "slackIntegration";
-import SlackIntegrationPage from "./pages/SlackIntegrationPage";
-import EmployeeSelfServicePortal from "./pages/EmployeeSelfServicePortal";
-import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -47,31 +47,22 @@ const App: React.FC = () => {
     accessToken: null,
     refreshToken: null,
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
 
-  // Restore authentication on page refresh
   React.useEffect(() => {
-    const accessToken = localStorage.getItem('accessToken');
-    const refreshToken = localStorage.getItem('refreshToken');
-    const userStr = localStorage.getItem('user');
-    
-    console.log('[App.tsx] Restoring auth from localStorage:', {
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      hasUser: !!userStr,
-    });
-    
+    const accessToken = localStorage.getItem("accessToken");
+    const refreshToken = localStorage.getItem("refreshToken");
+    const userStr = localStorage.getItem("user");
+
     if (accessToken && userStr) {
       try {
         const user = JSON.parse(userStr);
         setAuth({ user, accessToken, refreshToken });
         setView("app");
-      } catch (error) {
-        console.error('Failed to restore auth:', error);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
+      } catch {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
       }
     }
   }, []);
@@ -81,33 +72,25 @@ const App: React.FC = () => {
     accessToken: string | null;
     refreshToken: string | null;
   }) => {
-    console.log('[App.tsx] handleAuthChange called with:', {
-      user: data.user?.email,
-      hasAccessToken: !!data.accessToken,
-      hasRefreshToken: !!data.refreshToken,
-    });
-    
     setAuth(data);
     if (data.user && data.accessToken) {
-      console.log('[App.tsx] Storing tokens to localStorage');
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken || '');
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setCurrentPage("dashboard"); // Always start at dashboard after login
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken || "");
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setCurrentPage("dashboard");
       setView("app");
     } else {
-      console.log('[App.tsx] Clearing tokens from localStorage');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
       setView("login");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
     setAuth({ user: null, accessToken: null, refreshToken: null });
     setView("login");
   };
@@ -115,83 +98,53 @@ const App: React.FC = () => {
   return (
     <ApolloProvider client={apolloClient}>
       <AuthContext.Provider
-      value={{
-        user: auth.user,
-        accessToken: auth.accessToken,
-        refreshToken: auth.refreshToken,
-        setAuth: handleAuthChange,
-        logout: handleLogout,
-      }}
-    >
-      {view !== "app" || !auth.user ? (
-        <div className="auth-shell">
-          {view === "login" && (
-            <LoginPage
-              goRegister={() => setView("register")}
-              goForgot={() => setView("forgot")}
-            />
-          )}
-          {view === "register" && (
-            <RegisterPage goLogin={() => setView("login")} />
-          )}
-          {view === "forgot" && (
-            <ForgotPasswordPage goLogin={() => setView("login")} />
-          )}
-        </div>
-      ) : (
-        <div style={{ minHeight: '100vh', background: '#f5f7fa' }}>
-          <HorizontalNav
-            currentPage={currentPage}
-            onNavigate={(page) => {
-              setCurrentPage(page);
-              setSidebarOpen(false); // Close sidebar on navigation (mobile)
-            }}
-            onLogout={handleLogout}
-          />
-          {/* Mobile overlay to close sidebar */}
-          {sidebarOpen && (
-            <div
-              onClick={() => setSidebarOpen(false)}
-              style={{
-                position: 'fixed',
-                top: '56px',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 25,
-                display: window.innerWidth > 768 ? 'none' : 'block'
-              }}
-            />
-          )}
-          <main style={{ padding: '0' }}>
-            {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
-            {currentPage === "dashboard" && <DashboardPage onNavigate={(page) => setCurrentPage(page as AppPage)} />}
-            {currentPage === "notifications" && <NotificationsPage />}
-            {currentPage === "reports" && <ReportsPage />}
-            {currentPage === "profile" && <ProfilePage />}
-            {currentPage === "profileEdit" && <ProfileEditPage />}
-            {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
-            {currentPage === "settings" && <SettingsPage />}
-            {currentPage === "admins" && <AdminsPage />}
-            {currentPage === "userDashboard" && <UserManagementDashboard />}
-            {currentPage === "accessLogs" && <AccessLogsPage />}
-            {currentPage === "sendNote" && <SendNotePage />}
-            {currentPage === "leaveRequests" && <LeaveRequestsPage />}
-            {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
-            {currentPage === "messages" && <MessagesPage />}
-            {currentPage === "review-requests" && <ReviewRequestsPage />}
-            {currentPage === "auditLogs" && <AuditLogsPage />}
-            {currentPage === "bulkActions" && <BulkActionsPage />}
-            {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
-            {currentPage === "notificationInbox" && <NotificationInbox />}
-            {currentPage === "messagingInbox" && <MessagingInbox />}
-            {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
-            {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
-            {currentPage === "slackIntegration" && <SlackIntegrationPage />}
-          </main>
-        </div>
-      )}
+        value={{
+          user: auth.user,
+          accessToken: auth.accessToken,
+          refreshToken: auth.refreshToken,
+          setAuth: handleAuthChange,
+          logout: handleLogout,
+        }}
+      >
+        {view !== "app" || !auth.user ? (
+          <div className="auth-shell">
+            {view === "login" && (
+              <LoginPage goRegister={() => setView("register")} goForgot={() => setView("forgot")} />
+            )}
+            {view === "register" && <RegisterPage goLogin={() => setView("login")} />}
+            {view === "forgot" && <ForgotPasswordPage goLogin={() => setView("login")} />}
+          </div>
+        ) : (
+          <div style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+            <HorizontalNav currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} />
+            <main style={{ padding: "0" }}>
+              {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
+              {currentPage === "dashboard" && <DashboardPage onNavigate={setCurrentPage} />}
+              {currentPage === "notifications" && <NotificationsPage />}
+              {currentPage === "reports" && <ReportsPage />}
+              {currentPage === "profile" && <ProfilePage />}
+              {currentPage === "profileEdit" && <ProfileEditPage />}
+              {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
+              {currentPage === "settings" && <SettingsPage />}
+              {currentPage === "admins" && <AdminsPage />}
+              {currentPage === "userDashboard" && <UserManagementDashboard />}
+              {currentPage === "accessLogs" && <AccessLogsPage />}
+              {currentPage === "sendNote" && <SendNotePage />}
+              {currentPage === "leaveRequests" && <LeaveRequestsPage />}
+              {currentPage === "employeeLogins" && <EmployeeLoginsPage />}
+              {currentPage === "messages" && <MessagesPage />}
+              {currentPage === "review-requests" && <ReviewRequestsPage />}
+              {currentPage === "auditLogs" && <AuditLogsPage />}
+              {currentPage === "bulkActions" && <BulkActionsPage />}
+              {currentPage === "advancedEmployeeSearch" && <AdvancedEmployeeSearch />}
+              {currentPage === "notificationInbox" && <NotificationInbox />}
+              {currentPage === "messagingInbox" && <MessagingInbox />}
+              {currentPage === "analyticsDashboard" && <AnalyticsDashboard />}
+              {currentPage === "employeeSelfServicePortal" && <EmployeeSelfServicePortal />}
+              {currentPage === "slackIntegration" && <SlackIntegrationPage />}
+            </main>
+          </div>
+        )}
       </AuthContext.Provider>
     </ApolloProvider>
   );

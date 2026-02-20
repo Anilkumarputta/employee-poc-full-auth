@@ -24,6 +24,13 @@ const EMPLOYEES_QUERY = `
 const roles = ["director", "manager", "employee"];
 const statuses = ["ACTIVE", "UNDER_REVIEW", "FLAGGED", "TERMINATION_REQUESTED", "TERMINATED"];
 
+type EmployeeSearchResult = {
+  employees: {
+    items: any[];
+    total: number;
+  };
+};
+
 export const AdvancedEmployeeSearch: React.FC = () => {
   const [filters, setFilters] = useState({
     nameContains: "",
@@ -55,15 +62,15 @@ export const AdvancedEmployeeSearch: React.FC = () => {
         filterObj[key] = key.includes("attendance") ? Number(value) : value;
       }
     });
-    const result = await graphqlRequest(EMPLOYEES_QUERY, {
+    const result = await graphqlRequest<EmployeeSearchResult>(EMPLOYEES_QUERY, {
       filter: filterObj,
       page,
       pageSize,
       sortBy,
       sortOrder,
     });
-    setResults(result.data.employees.items);
-    setTotal(result.data.employees.total);
+    setResults(result.employees.items);
+    setTotal(result.employees.total);
     setLoading(false);
   };
 

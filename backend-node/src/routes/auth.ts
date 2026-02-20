@@ -28,6 +28,7 @@ export const authRouter = Router();
 // In production, these come from environment variables (.env file)
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
+const RESET_SECRET = process.env.JWT_RESET_SECRET || 'dev-reset-secret';
 
 /**
  * CREATE ACCESS TOKEN
@@ -366,8 +367,18 @@ authRouter.post('/refresh', async (req, res) => {
  */
 authRouter.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  // In real app, generate token, store, send email
-  console.log('Forgot password requested for', email);
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      const resetToken = jwt.sign(
+        { userId: user.id, purpose: 'password-reset' },
+        RESET_SECRET,
+        { expiresIn: '30m' },
+      );
+      // Replace with email provider integration in production.
+      console.log('Password reset token generated for', email, resetToken);
+    }
+  }
   // Always return success message (don't reveal if email exists)
   return res.json({ ok: true, message: 'If this email exists, reset link sent.' });
 });
@@ -386,18 +397,22 @@ authRouter.post('/forgot-password', async (req, res) => {
  * 4. User can now login with new password
  */
 authRouter.post('/reset-password', async (req, res) => {
-  const { email, newPassword } = req.body;
+  const { token, newPassword } = req.body;
 
   // Validate inputs
-  if (!email || !newPassword) {
-    return res.status(400).json({ error: 'Email and new password required' });
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Reset token and new password required' });
   }
 
-  // Find user
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    // Return success anyway (don't reveal if user exists)
-    return res.json({ ok: true });
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, RESET_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired reset token' });
+  }
+
+  if (decoded?.purpose !== 'password-reset' || !decoded?.userId) {
+    return res.status(401).json({ error: 'Invalid or expired reset token' });
   }
 
   // Hash new password
@@ -405,8 +420,14 @@ authRouter.post('/reset-password', async (req, res) => {
 
   // Update password in database
   await prisma.user.update({
-    where: { id: user.id },
+    where: { id: decoded.userId },
     data: { passwordHash },
+  });
+
+  // Revoke all existing refresh tokens so existing sessions cannot continue.
+  await prisma.refreshToken.updateMany({
+    where: { userId: decoded.userId, revoked: false },
+    data: { revoked: true },
   });
 
   return res.json({ ok: true, message: 'Password updated.' });

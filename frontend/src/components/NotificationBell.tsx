@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import type { AppPage } from "../types/navigation";
 
 const NOTIFICATIONS_QUERY = `
   query GetNotifications {
@@ -34,7 +35,7 @@ type Notification = {
 };
 
 type Props = {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: AppPage) => void;
 };
 
 export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
@@ -76,9 +77,9 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
       setUnreadCount(prev => Math.max(0, prev - 1));
 
       // Navigate if there's a link
-      if (notification.linkTo) {
-        // Parse linkTo and navigate
-        const path = notification.linkTo.replace("/", "");
+        if (notification.linkTo) {
+          // Parse linkTo and navigate
+        const path = notification.linkTo.replace("/", "") as AppPage;
         onNavigate(path);
       }
 

@@ -1,38 +1,36 @@
-// Use deployed API as safe default so production works even if env var missing
-const API_URL = import.meta.env.VITE_API_URL || "https://employee-poc-full-auth.onrender.com";
+﻿import { API_URL } from "../config/api";
+
+export type BackendAuthRole = "admin" | "director" | "manager" | "employee";
+export type FrontendAuthRole = "director" | "manager" | "employee";
 
 type AuthResponse = {
-  user: { id: number; email: string; role: "admin" | "employee" };
+  user: { id: number; email: string; role: BackendAuthRole };
   accessToken: string;
   refreshToken: string;
 };
 
+export function toFrontendRole(role: BackendAuthRole): FrontendAuthRole {
+  // Keep backwards compatibility with older "admin" accounts.
+  if (role === "admin") return "director";
+  return role;
+}
+
 export async function apiLogin(email: string, password: string) {
-  console.log('[apiLogin] Logging in as:', email);
   const res = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
+
   if (!res.ok) {
-    const errorText = await res.text();
-    console.log('[apiLogin] ❌ Login failed:', res.status, errorText);
-    throw new Error("Login failed");
+    const error = await res.json().catch(() => null);
+    throw new Error(error?.error || "Login failed");
   }
-  const data = await res.json() as AuthResponse;
-  console.log('[apiLogin] ✅ Received response:', {
-    user: data.user.email,
-    hasAccessToken: !!data.accessToken,
-    hasRefreshToken: !!data.refreshToken,
-  });
-  return data;
+
+  return (await res.json()) as AuthResponse;
 }
 
-export async function apiRegister(
-  email: string,
-  password: string,
-  role: "admin" | "employee"
-) {
+export async function apiRegister(email: string, password: string, role: BackendAuthRole) {
   const res = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -75,7 +73,15 @@ export async function fetchMessages(conversationId?: string) {
   return await res.json();
 }
 
-export async function sendMessage({ conversationId, message, replyToId }: { conversationId: string; message: string; replyToId?: number }) {
+export async function sendMessage({
+  conversationId,
+  message,
+  replyToId,
+}: {
+  conversationId: string;
+  message: string;
+  replyToId?: number;
+}) {
   const res = await fetch(`${API_URL}/messages/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -26,6 +26,7 @@ import bulkActionsRouter from './routes/bulkActions'; // Bulk actions router
 
 // Initialize database connection - this connects us to PostgreSQL
 const prisma = new PrismaClient();
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 
 // Create Express app - this is our web server
 const app = express();
@@ -88,7 +89,7 @@ async function start() {
         const token = authHeader.replace('Bearer ', '');
         try {
           // Verify token signature and decode payload
-          const decoded: any = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'dev-secret');
+          const decoded: any = jwt.verify(token, ACCESS_SECRET);
           // Token is valid! Fetch full user from database
           user = await prisma.user.findUnique({ where: { id: decoded.userId } });
         } catch (err) {

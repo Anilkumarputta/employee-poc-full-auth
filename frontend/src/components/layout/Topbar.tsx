@@ -44,7 +44,7 @@ export const Topbar: React.FC<Props> = ({
 
       <div className="topbar-right">
         <span className="user-role-badge">
-          {currentRole === "admin" ? "Admin" : "Employee"}
+          {currentRole === "director" ? "Director" : currentRole === "manager" ? "Manager" : "Employee"}
         </span>
         <button className="secondary-btn" onClick={onLogout}>
           Logout

@@ -46,12 +46,13 @@ export function setFestivalDemoOverride(override: { name?: string; date?: Date }
 // Utility to get the current festival theme (if any)
 export function getCurrentFestivalTheme(date: Date = new Date()): FestivalTheme | null {
   // DEMO: If override is set, use it
-  if (demoOverride) {
-    if (demoOverride.name) {
-      return FESTIVAL_THEMES.find(f => f.name === demoOverride.name) || null;
+  const override = demoOverride;
+  if (override) {
+    if (override.name) {
+      return FESTIVAL_THEMES.find(f => f.name === override.name) || null;
     }
-    if (demoOverride.date) {
-      date = demoOverride.date;
+    if (override.date) {
+      date = override.date;
     }
   }
   const mmdd = (d: Date) => `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

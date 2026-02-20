@@ -1305,13 +1305,7 @@ export const resolvers = {
       // Validate hierarchical permissions
       const senderRole = user!.role;
       const recipientRole = input.recipientRole;
-
-      // Employees cannot message Directors directly
-      if (senderRole === 'employee' && recipientRole === 'director') {
-        throw new Error(
-          'Employees cannot message Directors directly. Please contact your Manager or email the Director.',
-        );
-      }
+      let recipient: any = null;
 
       // Generate conversation ID
       let conversationId = '';
@@ -1320,12 +1314,36 @@ export const resolvers = {
         const parentMsg = await prisma.message.findUnique({
           where: { id: input.replyToId },
         });
-        conversationId = parentMsg?.conversationId || '';
+        if (!parentMsg) {
+          throw new Error('Reply target message not found');
+        }
+        conversationId = parentMsg.conversationId;
       } else if (input.recipientId) {
+        recipient = await prisma.user.findUnique({
+          where: { id: input.recipientId },
+        });
+        if (!recipient) {
+          throw new Error('Recipient not found');
+        }
+
+        // Employees cannot message Directors directly.
+        if (senderRole === 'employee' && recipient.role === 'director') {
+          throw new Error(
+            'Employees cannot message Directors directly. Please contact your Manager or email the Director.',
+          );
+        }
+
         // Direct message: sort IDs for consistent conversation ID
         const ids = [user!.id, input.recipientId].sort();
         conversationId = `dm_${ids[0]}_${ids[1]}`;
       } else {
+        // Employees cannot broadcast directly to Directors.
+        if (senderRole === 'employee' && recipientRole === 'director') {
+          throw new Error(
+            'Employees cannot message Directors directly. Please contact your Manager or email the Director.',
+          );
+        }
+
         // Broadcast message
         conversationId = `broadcast_${user!.id}_${Date.now()}`;
       }
@@ -1334,14 +1352,9 @@ export const resolvers = {
       let recipientEmail: string | null = null;
       let resolvedRecipientRole: string | null = input.recipientRole || null;
 
-      if (input.recipientId) {
-        const recipient = await prisma.user.findUnique({
-          where: { id: input.recipientId },
-        });
-        if (recipient) {
-          recipientEmail = recipient.email;
-          resolvedRecipientRole = recipient.role;
-        }
+      if (recipient) {
+        recipientEmail = recipient.email;
+        resolvedRecipientRole = recipient.role;
       }
 
       // Create message
@@ -1413,8 +1426,17 @@ export const resolvers = {
 
     markMessageAsRead: async (_: any, { id }: any, ctx: Context) => {
       requireAuth(ctx);
+      const message = await ctx.prisma.message.findFirst({
+        where: {
+          id,
+          recipientId: ctx.user!.id,
+        },
+      });
+      if (!message) {
+        throw new Error('Not authorized to mark this message as read');
+      }
       return ctx.prisma.message.update({
-        where: { id },
+        where: { id: message.id },
         data: {
           isRead: true,
           readAt: new Date(),
@@ -1455,8 +1477,17 @@ export const resolvers = {
     // Notification mutations
     markNotificationAsRead: async (_: any, { id }: any, ctx: Context) => {
       requireAuth(ctx);
+      const notification = await ctx.prisma.notification.findFirst({
+        where: {
+          id,
+          userId: ctx.user!.id,
+        },
+      });
+      if (!notification) {
+        throw new Error('Not authorized to update this notification');
+      }
       return ctx.prisma.notification.update({
-        where: { id },
+        where: { id: notification.id },
         data: {
           isRead: true,
           readAt: new Date(),
@@ -1481,9 +1512,15 @@ export const resolvers = {
 
     deleteNotification: async (_: any, { id }: any, ctx: Context) => {
       requireAuth(ctx);
-      await ctx.prisma.notification.delete({
-        where: { id },
+      const result = await ctx.prisma.notification.deleteMany({
+        where: {
+          id,
+          userId: ctx.user!.id,
+        },
       });
+      if (result.count === 0) {
+        throw new Error('Not authorized to delete this notification');
+      }
       return true;
     },
 
@@ -1501,24 +1538,29 @@ export const resolvers = {
           where: { id: input.recipientUserId },
         });
 
-        if (recipient) {
-          const notification = await prisma.notification.create({
-            data: {
-              userId: recipient.id,
-              userEmail: recipient.email,
-              title: input.title,
-              message: input.message,
-              type: input.type,
-              linkTo: input.linkTo || null,
-            },
-          });
-          notifications.push(notification);
+        if (!recipient) {
+          throw new Error('Recipient user not found');
         }
+
+        const notification = await prisma.notification.create({
+          data: {
+            userId: recipient.id,
+            userEmail: recipient.email,
+            title: input.title,
+            message: input.message,
+            type: input.type,
+            linkTo: input.linkTo || null,
+          },
+        });
+        notifications.push(notification);
       } else if (input.recipientRole) {
         // Broadcast to role
         const recipients = await prisma.user.findMany({
           where: { role: input.recipientRole },
         });
+        if (recipients.length === 0) {
+          throw new Error('No recipients found for this role');
+        }
 
         for (const recipient of recipients) {
           const notification = await prisma.notification.create({
@@ -1533,6 +1575,8 @@ export const resolvers = {
           });
           notifications.push(notification);
         }
+      } else {
+        throw new Error('Either recipientUserId or recipientRole is required');
       }
 
       return notifications[0]; // Return first notification created

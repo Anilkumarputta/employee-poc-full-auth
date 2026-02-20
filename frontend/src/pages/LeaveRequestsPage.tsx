@@ -93,18 +93,13 @@ export const LeaveRequestsPage: React.FC = () => {
   const isAdmin = user?.role === "director" || user?.role === "manager";
   const canApprove = user?.role === "manager"; // Only managers can approve, directors just view
 
-  // Debug: Log auth state on mount
-  useEffect(() => {
-    console.log("LeaveRequestsPage - Auth State:", { 
-      hasToken: !!accessToken, 
-      tokenLength: accessToken?.length || 0,
-      user: user?.email,
-      role: user?.role 
-    });
-  }, []);
-
-
   const fetchRequests = () => {
+    if (!accessToken) {
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     if (canManageLeave(role)) {
       graphqlRequest(ALL_LEAVE_REQUESTS_QUERY, { status: statusFilter }, accessToken)
