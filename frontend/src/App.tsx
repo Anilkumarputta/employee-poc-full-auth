@@ -36,6 +36,29 @@ import { getStorageItem, removeStorageItem, setStorageItem } from "./lib/safeSto
 export type UserRole = "director" | "manager" | "employee";
 
 type View = "login" | "register" | "forgot" | "app";
+const VALID_USER_ROLES: readonly UserRole[] = ["director", "manager", "employee"];
+
+function isValidStoredUser(value: unknown): value is AuthUser {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<AuthUser>;
+  return (
+    typeof candidate.id === "number" &&
+    Number.isFinite(candidate.id) &&
+    typeof candidate.email === "string" &&
+    candidate.email.length > 3 &&
+    typeof candidate.role === "string" &&
+    VALID_USER_ROLES.includes(candidate.role as UserRole)
+  );
+}
+
+function clearPersistedAuth() {
+  removeStorageItem("accessToken");
+  removeStorageItem("refreshToken");
+  removeStorageItem("user");
+}
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>("login");
@@ -57,13 +80,15 @@ const App: React.FC = () => {
 
     if (accessToken && userStr) {
       try {
-        const user = JSON.parse(userStr);
-        setAuth({ user, accessToken, refreshToken });
+        const parsedUser: unknown = JSON.parse(userStr);
+        if (!isValidStoredUser(parsedUser)) {
+          throw new Error("Invalid persisted user");
+        }
+
+        setAuth({ user: parsedUser, accessToken, refreshToken: refreshToken || null });
         setView("app");
       } catch {
-        removeStorageItem("accessToken");
-        removeStorageItem("refreshToken");
-        removeStorageItem("user");
+        clearPersistedAuth();
       }
     }
   }, []);
@@ -76,22 +101,22 @@ const App: React.FC = () => {
     setAuth(data);
     if (data.user && data.accessToken) {
       setStorageItem("accessToken", data.accessToken);
-      setStorageItem("refreshToken", data.refreshToken || "");
+      if (data.refreshToken) {
+        setStorageItem("refreshToken", data.refreshToken);
+      } else {
+        removeStorageItem("refreshToken");
+      }
       setStorageItem("user", JSON.stringify(data.user));
       setCurrentPage("dashboard");
       setView("app");
     } else {
-      removeStorageItem("accessToken");
-      removeStorageItem("refreshToken");
-      removeStorageItem("user");
+      clearPersistedAuth();
       setView("login");
     }
   };
 
   const handleLogout = () => {
-    removeStorageItem("accessToken");
-    removeStorageItem("refreshToken");
-    removeStorageItem("user");
+    clearPersistedAuth();
     setAuth({ user: null, accessToken: null, refreshToken: null });
     setView("login");
   };
