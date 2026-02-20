@@ -217,9 +217,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     if (weatherCode === 113) return "Sunny";
     if (weatherCode === 116) return "Partly Cloudy";
     if (weatherCode === 119 || weatherCode === 122) return "Cloudy";
-    if (weatherCode >= 176 && weatherCode <= 299) return "Rain";
-    if (weatherCode >= 323 && weatherCode <= 395) return "Snow";
     if (weatherCode >= 200 && weatherCode <= 299) return "Storm";
+    if (weatherCode >= 176 && weatherCode < 200) return "Rain";
+    if (weatherCode >= 323 && weatherCode <= 395) return "Snow";
     return "Weather";
   };
 
@@ -348,25 +348,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ 
-          fontSize: '48px',
-          animation: 'spin 1s linear infinite',
-          display: 'inline-block'
-        }}>⚙️</div>
-        <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading dashboard...</p>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   // Filter employees based on role
   const filteredEmployees = useMemo(() => {
@@ -823,6 +804,25 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ 
+          fontSize: '48px',
+          animation: 'spin 1s linear infinite',
+          display: 'inline-block'
+        }}>⚙️</div>
+        <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading dashboard...</p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   // DIRECTOR DASHBOARD
   if (isDirector) {
