@@ -1,8 +1,24 @@
-/* Mobile Responsive Styles */
+﻿/* Cross-device responsive rules for mobile, tablet, laptop, and desktop */
 
-/* Base mobile improvements (all sizes) */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 * {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
 }
 
 body {
@@ -10,607 +26,227 @@ body {
   -ms-text-size-adjust: 100%;
 }
 
-/* Improve button touch targets */
-button {
-  min-height: 44px;
-  min-width: 44px;
+main {
+  width: 100%;
+  overflow-x: hidden;
 }
 
-/* Prevent zoom on input focus (iOS) */
-input,
-select,
-textarea {
-  font-size: 16px !important;
+/* Better touch targets without forcing desktop buttons to look oversized */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+  }
 }
 
-/* Mobile First - Base styles for mobile */
-@media (max-width: 768px) {
-  
-  /* Horizontal Nav - Mobile Responsive */
+/* Tablet + down */
+@media (max-width: 1024px) {
   .horizontal-nav-inner {
-    padding: 0 15px !important;
-    height: 60px !important;
-  }
-
-  .horizontal-nav-left {
-    gap: 10px !important;
-  }
-
-  .horizontal-nav-logo .logo-icon {
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 18px !important;
-  }
-
-  .horizontal-nav-logo .logo-text {
-    display: none !important; /* Hide logo text on mobile */
+    padding: 0 14px !important;
+    gap: 10px;
   }
 
   .horizontal-nav-center {
-    display: none !important; /* Hide center navigation on mobile */
-  }
-
-  .horizontal-nav-right {
-    gap: 8px !important;
-  }
-
-  .hamburger-btn {
-    width: 40px !important;
-    height: 40px !important;
-    font-size: 20px !important;
-  }
-
-  /* User email badge - hide email text on mobile */
-  .user-email-badge {
-    padding: 8px 12px !important;
-    font-size: 12px !important;
-  }
-
-  .email-text {
     display: none !important;
   }
 
-  /* Notification bell and badge on mobile */
-  .user-email-badge span[style*="background: #e74c3c"] {
-    position: static !important;
-    margin-left: 0 !important;
+  .horizontal-nav-logo .logo-text {
+    display: none !important;
   }
 
-  /* Logout button - more compact on mobile */
-  .horizontal-nav-right button {
-    padding: 8px 16px !important;
-    font-size: 13px !important;
+  .horizontal-nav-right {
+    margin-left: auto;
+    gap: 8px !important;
   }
 
-  /* Drawer - Full width on small mobile */
+  .user-email-badge {
+    padding: 8px 10px !important;
+  }
+
+  .user-email-badge .email-text {
+    display: none !important;
+  }
+
   .drawer-mobile {
-    width: 85% !important;
-    max-width: 320px !important;
+    width: min(88vw, 360px) !important;
+    max-width: 360px !important;
   }
 
-  /* Weather Widget - Stack on mobile */
-  div[style*="gridTemplateColumns: '1fr auto'"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Weather widget itself - adjust on mobile */
-  div[style*="minWidth: '320px'"] {
-    min-width: 100% !important;
-  }
-
-  /* Auth pages - better mobile spacing */
   .auth-shell {
     padding: 1rem;
   }
 
   .auth-card {
-    padding: 1.5rem;
-    border-radius: 1rem;
-  }
-
-  .auth-card h1 {
-    font-size: 1.5rem;
-  }
-
-  /* Topbar adjustments */
-  .topbar {
-    height: 56px;
-    padding: 0 0.75rem;
-  }
-
-  .topbar-logo {
-    font-size: 0.95rem;
-  }
-
-  .topbar-nav {
-    display: none; /* Hide desktop navigation on mobile */
-  }
-
-  .topbar-right {
-    gap: 0.5rem;
-  }
-
-  .user-role-badge {
-    font-size: 0.7rem;
-    padding: 3px 8px;
-  }
-
-  .secondary-btn {
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
-  }
-
-  /* Sidebar - full width overlay on mobile */
-  .sidebar {
-    top: 56px;
     width: 100%;
-    max-width: 280px;
-    z-index: 30;
+    max-width: 520px;
+    padding: 1.5rem;
   }
 
-  .sidebar-open {
-    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5);
-  }
-
-  /* Add overlay when sidebar is open */
-  .sidebar-open::after {
-    content: '';
-    position: fixed;
-    top: 56px;
-    left: 280px;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: -1;
-  }
-
-  /* Main content */
-  .app-main {
-    margin-top: 56px;
+  .employees-page {
+    margin: 1rem;
     padding: 1rem;
-    margin-left: 0 !important; /* Override sidebar offset */
   }
 
-  /* Main content area adjustments */
-  main {
-    padding: 0 !important;
+  .employees-header-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  /* All page containers */
-  [class*="-container"],
-  [class*="Container"] {
-    padding: 1rem !important;
+  .employees-actions-row {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
   }
 
-  /* Dashboard cards - stack on mobile */
-  .quick-actions {
-    grid-template-columns: 1fr !important;
+  .employees-filters-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .employees-filters-row input,
+  .employees-filters-row select {
+    width: 100%;
+  }
+
+  .employees-pagination {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 0.75rem;
   }
 
-  .quick-action-card {
-    padding: 1rem;
-  }
-
-  .quick-action-card h3 {
-    font-size: 0.9rem;
-  }
-
-  .quick-action-card p {
-    font-size: 0.75rem;
-  }
-
-  /* Activity feed */
-  .activity-feed {
-    padding: 1rem;
-  }
-
-  .activity-item {
-    padding: 0.75rem;
-  }
-
-  /* Generic card styles */
-  [style*="borderRadius"][style*="background"] {
-    border-radius: 12px !important;
-  }
-
-  /* Generic grid layouts */
-  [style*="display: grid"],
-  [style*="display:grid"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Employees page - responsive table */
-  .employees-container {
-    padding: 1rem;
-  }
-
-  .employees-header h2 {
-    font-size: 1.25rem;
-  }
-
-  .employees-actions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .employees-actions input,
-  .employees-actions select {
-    width: 100%;
-  }
-
-  /* Make tables scrollable horizontally on mobile */
   .employees-table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: 0.75rem;
-    margin: 1rem 0;
   }
 
   .employees-table {
-    min-width: 600px; /* Prevent table from being too cramped */
+    min-width: 760px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 
-  .employees-table th,
-  .employees-table td {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.8rem;
+  .horizontal-nav-inner {
+    padding: 0 12px !important;
+    height: 60px !important;
   }
 
-  /* Users Management Page */
-  .search-filters-container {
+  .horizontal-nav-left {
+    gap: 8px !important;
+  }
+
+  .horizontal-nav-right button {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .drawer-mobile {
+    width: min(92vw, 360px) !important;
+  }
+
+  .employees-filters-row {
+    grid-template-columns: 1fr;
+  }
+
+  .employees-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-modal {
+    max-width: calc(100vw - 20px);
+  }
+
+  /* Inline-style fallback for dashboard/analytics sections built with JS styles */
+  [style*="grid-template-columns:1fr auto"],
+  [style*="grid-template-columns: 1fr auto"],
+  [style*="grid-template-columns:2fr 1fr"],
+  [style*="grid-template-columns: 2fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
-    gap: 0.75rem;
   }
 
-  .search-filters-container input,
-  .search-filters-container select {
-    width: 100%;
-  }
-
-  /* Bulk action toolbar */
-  .bulk-action-toolbar {
-    flex-direction: column;
-    align-items: stretch !important;
-    gap: 0.5rem;
-    padding: 0.75rem;
-  }
-
-  .bulk-action-toolbar button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* User Management Dashboard */
-  .dashboard-container {
-    padding: 1rem;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr !important;
-    gap: 0.75rem;
-  }
-
-  .stat-card {
-    padding: 1rem;
-  }
-
-  .stat-icon {
-    font-size: 1.5rem;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-  }
-
-  .stat-label {
-    font-size: 0.8rem;
-  }
-
-  /* Role distribution cards */
-  .role-grid {
-    grid-template-columns: 1fr !important;
-    gap: 0.75rem;
-  }
-
-  /* Recent actions timeline */
-  .actions-list {
-    padding: 0.75rem;
-  }
-
-  .action-item {
-    padding: 0.75rem;
-    font-size: 0.85rem;
-  }
-
-  /* Modal dialogs - better mobile fit */
-  .modal-overlay {
-    padding: 1rem;
-  }
-
-  .modal-content {
+  [style*="min-width:320px"],
+  [style*="min-width: 320px"] {
+    min-width: 0 !important;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0;
-    padding: 1.25rem;
-    max-height: 90vh;
-    overflow-y: auto;
   }
 
-  .modal-header h2 {
-    font-size: 1.25rem;
+  [style*="padding:40px"],
+  [style*="padding: 40px"],
+  [style*="padding:30px"],
+  [style*="padding: 30px"] {
+    padding: 16px !important;
   }
 
-  .modal-body textarea {
-    font-size: 0.9rem;
-    min-height: 100px;
-  }
-
-  .modal-footer {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .modal-footer button {
-    width: 100%;
-  }
-
-  /* Notifications page */
-  .notifications-container {
-    padding: 1rem;
-  }
-
-  .notification-card {
-    padding: 0.75rem;
-  }
-
-  /* Reports page */
-  .reports-container {
-    padding: 1rem;
-  }
-
-  .report-card {
-    padding: 1rem;
-  }
-
-  /* Profile page */
-  .profile-container {
-    padding: 1rem;
-  }
-
-  .profile-card {
-    padding: 1rem;
-  }
-
-  .profile-header {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .profile-avatar {
-    margin: 0 auto 1rem;
-  }
-
-  /* Settings page */
-  .settings-container {
-    padding: 1rem;
-  }
-
-  .settings-section {
-    padding: 1rem;
-  }
-
-  /* Forms - better mobile input spacing */
-  form input,
-  form select,
-  form textarea {
-    font-size: 16px; /* Prevent iOS zoom on focus */
-  }
-
-  /* Buttons - easier to tap on mobile */
-  button {
-    min-height: 44px; /* iOS recommended tap target */
-    padding: 0.65rem 1rem;
-  }
-
-  /* Leave requests page */
-  .leave-requests-container {
-    padding: 1rem;
-  }
-
-  .leave-request-card {
-    padding: 0.75rem;
-  }
-
-  .leave-request-actions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .leave-request-actions button {
-    width: 100%;
-  }
-
-  /* Messages page */
-  .messages-container {
-    padding: 1rem;
-  }
-
-  .message-list {
-    max-height: 60vh;
-  }
-
-  .message-card {
-    padding: 0.75rem;
-  }
-
-  /* Access logs page */
-  .access-logs-container {
-    padding: 1rem;
-  }
-
-  .log-card {
-    padding: 0.75rem;
+  table {
     font-size: 0.85rem;
   }
 
-  /* Review requests page */
-  .review-container {
-    padding: 1rem;
-  }
-
-  .review-card {
-    padding: 0.75rem;
-  }
-
-  /* Horizontal nav - hide on mobile, use hamburger instead */
-  .horizontal-nav {
-    display: none;
-  }
-
-  /* Badge adjustments */
-  .badge {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.5rem;
-  }
-
-  /* Card spacing */
-  .card {
-    margin-bottom: 0.75rem;
-    padding: 1rem;
-  }
-
-  /* Grid layouts - single column on mobile */
-  .grid-2-col,
-  .grid-3-col,
-  .grid-4-col {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Flex layouts - wrap on mobile */
-  .flex-row {
-    flex-direction: column;
-  }
-
-  /* Hide non-essential columns in tables */
-  .hide-mobile {
-    display: none !important;
-  }
-
-  /* Toast notifications - better mobile positioning */
-  .toast {
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
-    width: auto;
+  .messaging-inbox {
+    border-radius: 8px;
   }
 }
 
-/* Tablet styles (768px - 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .app-main {
-    margin-left: 0;
-    padding: 1.25rem;
-  }
-
-  .sidebar {
-    width: 200px;
-  }
-
-  .quick-actions {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  .role-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  .grid-3-col,
-  .grid-4-col {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-/* Desktop styles (keep sidebar open) */
-@media (min-width: 1025px) {
-  .sidebar {
-    transform: translateX(0);
-  }
-
-  .topbar-hamburger {
-    display: none;
-  }
-
-  .app-main {
-    margin-left: 230px;
-  }
-}
-
-/* Landscape mobile specific */
-@media (max-width: 768px) and (orientation: landscape) {
-  .modal-content {
-    max-height: 85vh;
-  }
-
-  .sidebar {
-    max-width: 240px;
-  }
-}
-
-/* Small mobile phones (< 375px) */
-@media (max-width: 374px) {
-  .topbar-logo {
-    font-size: 0.85rem;
-  }
-
+/* Small phones */
+@media (max-width: 480px) {
   .auth-card {
-    padding: 1.25rem;
+    padding: 1.2rem;
   }
 
-  .stat-card {
+  .primary-btn,
+  .secondary-btn {
+    width: 100%;
+  }
+
+  .auth-footer {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .horizontal-nav-right {
+    gap: 6px !important;
+  }
+
+  .user-email-badge {
+    padding: 6px 8px !important;
+  }
+
+  .employees-page {
+    margin: 0.5rem;
     padding: 0.75rem;
-  }
-
-  .quick-action-card {
-    padding: 0.75rem;
-  }
-
-  button {
-    font-size: 0.8rem;
   }
 }
 
-/* Dark mode adjustments for mobile */
-@media (max-width: 768px) and (prefers-color-scheme: dark) {
-  .sidebar-open::after {
-    background: rgba(0, 0, 0, 0.7);
-  }
-}
-
-/* Accessibility - reduce motion for mobile */
-@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* Print styles for mobile */
 @media print {
   .topbar,
   .sidebar,
-  .topbar-hamburger,
+  .horizontal-nav-container,
+  .drawer-mobile,
   button {
     display: none !important;
   }
 
-  .app-main {
-    margin: 0 !important;
+  main {
     padding: 0 !important;
+    margin: 0 !important;
   }
 }

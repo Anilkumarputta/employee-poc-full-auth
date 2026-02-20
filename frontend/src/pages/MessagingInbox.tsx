@@ -117,7 +117,7 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
 
   return (
     <div className="messaging-inbox">
-      <div className="sidebar">
+      <div className="messaging-sidebar">
         <h2>Inbox</h2>
         {loading && <div>Loading...</div>}
         <ul>
@@ -127,15 +127,15 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
               className={msg.isRead ? "read" : "unread"}
               onClick={() => openConversation(msg.conversationId)}
             >
-              <div className="subject">{msg.subject || msg.message.substring(0, 40)}</div>
-              <div className="meta">
+              <div className="messaging-subject">{msg.subject || msg.message.substring(0, 40)}</div>
+              <div className="messaging-meta">
                 From: {msg.senderEmail} | {formatDistanceToNow(new Date(msg.createdAt))} ago
               </div>
             </li>
           ))}
         </ul>
       </div>
-      <div className="thread-view">
+      <div className="messaging-thread-view">
         {selectedConversation ? (
           <>
             <h3>Conversation</h3>
@@ -156,16 +156,16 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
                 View related notifications
               </button>
             </div>
-            <div className="thread-messages">
+            <div className="messaging-thread-messages">
               {thread.map((msg) => (
-                <div key={msg.id} className="message">
-                  <div className="meta">
+                <div key={msg.id} className="messaging-message">
+                  <div className="messaging-meta">
                     <span>{msg.senderEmail}</span> <span>({msg.senderRole})</span>{" "}
                     <span>{formatDistanceToNow(new Date(msg.createdAt))} ago</span>
                   </div>
-                  <div className="body">{msg.message}</div>
+                  <div className="messaging-message-body">{msg.message}</div>
                   {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="attachments">
+                    <div className="messaging-attachments">
                       Attachments:{" "}
                       {msg.attachments.map((a, i) => (
                         <a key={i} href={a} target="_blank" rel="noopener noreferrer">
@@ -177,7 +177,7 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
                 </div>
               ))}
             </div>
-            <div className="reply-box">
+            <div className="messaging-reply-box">
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <label>
                   <input type="checkbox" checked={richMode} onChange={() => setRichMode(!richMode)} />
@@ -195,7 +195,7 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
             </div>
           </>
         ) : (
-          <div className="empty-thread">Select a conversation to view messages.</div>
+          <div className="messaging-empty-thread">Select a conversation to view messages.</div>
         )}
       </div>
     </div>
@@ -203,3 +203,4 @@ const MessagingInbox: React.FC<MessagingInboxProps> = ({ onNavigate }) => {
 };
 
 export default MessagingInbox;
+

@@ -1,12 +1,13 @@
-.messaging-inbox {
+﻿.messaging-inbox {
   display: flex;
   height: 80vh;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
-.sidebar {
+
+.messaging-sidebar {
   width: 320px;
   background: #f7f9fc;
   border-right: 1px solid #e3e8ef;
@@ -14,80 +15,96 @@
   display: flex;
   flex-direction: column;
 }
-.sidebar h2 {
+
+.messaging-sidebar h2 {
   margin: 0 0 16px 32px;
   font-size: 1.3rem;
   color: #667eea;
 }
-.sidebar ul {
+
+.messaging-sidebar ul {
   list-style: none;
-  padding: 0 0 0 0;
+  padding: 0;
   margin: 0;
   flex: 1;
   overflow-y: auto;
 }
-.sidebar li {
+
+.messaging-sidebar li {
   padding: 16px 32px;
   border-bottom: 1px solid #e3e8ef;
   cursor: pointer;
   transition: background 0.2s;
 }
-.sidebar li.unread {
+
+.messaging-sidebar li.unread {
   background: #eaf0fb;
   font-weight: bold;
 }
-.sidebar li.read {
+
+.messaging-sidebar li.read {
   background: #fff;
   color: #888;
 }
-.sidebar li:hover {
+
+.messaging-sidebar li:hover {
   background: #dbeafe;
 }
-.subject {
+
+.messaging-subject {
   font-size: 1rem;
   margin-bottom: 4px;
 }
-.meta {
+
+.messaging-meta {
   font-size: 0.85rem;
   color: #888;
 }
-.thread-view {
+
+.messaging-thread-view {
   flex: 1;
   padding: 32px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
-.thread-messages {
+
+.messaging-thread-messages {
   flex: 1;
   margin-bottom: 24px;
 }
-.message {
+
+.messaging-message {
   background: #f7f9fc;
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-.message .meta {
+
+.messaging-message .messaging-meta {
   font-size: 0.85rem;
   color: #667eea;
   margin-bottom: 6px;
 }
-.message .body {
+
+.messaging-message-body {
   font-size: 1rem;
   color: #222;
 }
-.attachments {
+
+.messaging-attachments {
   margin-top: 8px;
   font-size: 0.9rem;
 }
-.reply-box {
+
+.messaging-reply-box {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.reply-box textarea {
+
+.messaging-reply-box textarea {
   min-height: 60px;
   border-radius: 8px;
   border: 1px solid #e3e8ef;
@@ -95,7 +112,8 @@
   font-size: 1rem;
   resize: vertical;
 }
-.reply-box button {
+
+.messaging-reply-box button {
   align-self: flex-end;
   background: linear-gradient(90deg, #667eea, #764ba2);
   color: #fff;
@@ -107,14 +125,43 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-.reply-box button:disabled {
+
+.messaging-reply-box button:disabled {
   background: #e3e8ef;
   color: #aaa;
   cursor: not-allowed;
 }
-.empty-thread {
+
+.messaging-empty-thread {
   color: #888;
   font-size: 1.1rem;
   text-align: center;
   margin-top: 80px;
+}
+
+@media (max-width: 1024px) {
+  .messaging-inbox {
+    height: auto;
+    min-height: 70vh;
+    flex-direction: column;
+  }
+
+  .messaging-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e3e8ef;
+    padding-top: 12px;
+  }
+
+  .messaging-sidebar h2 {
+    margin-left: 16px;
+  }
+
+  .messaging-sidebar li {
+    padding: 12px 16px;
+  }
+
+  .messaging-thread-view {
+    padding: 16px;
+  }
 }
