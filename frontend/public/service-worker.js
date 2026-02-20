@@ -1,5 +1,5 @@
-const CACHE_NAME = 'employee-poc-cache-v2';
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'employee-hub-cache-v3';
+const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/logo.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

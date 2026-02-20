@@ -25,7 +25,7 @@ export const Topbar: React.FC<Props> = ({
       </button>
 
       <div className="topbar-left">
-        <span className="topbar-logo">Employee POC</span>
+        <span className="topbar-logo">Employee Hub</span>
         <nav className="topbar-nav">
           <a href="#" className="nav-link active">
             Home

@@ -29,9 +29,9 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
   const isEmployee = user?.role === 'employee';
 
   const getPortalTitle = () => {
-    if (isDirector) return '🏢 Director Portal';
-    if (isManager) return '👔 Manager Portal';
-    return '👤 Employee Portal';
+    if (isDirector) return 'Director Portal';
+    if (isManager) return 'Manager Portal';
+    return 'Employee Portal';
   };
 
   // Poll for unread message count
@@ -97,7 +97,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             >
-              ☰
+              Menu
             </button>
             
             <div className="horizontal-nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -111,10 +111,14 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 justifyContent: 'center',
                 fontSize: '24px'
               }}>
-                👥
+                <img
+                  src="/logo.svg"
+                  alt="Employee Hub logo"
+                  style={{ width: '26px', height: '26px', borderRadius: '6px' }}
+                />
               </div>
               <div className="logo-text">
-                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Employee POC</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Employee Hub</div>
                 <div className="portal-subtitle" style={{ fontSize: '12px', opacity: 0.9 }}>{getPortalTitle()}</div>
               </div>
             </div>
@@ -142,7 +146,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 if (currentPage !== 'dashboard') e.currentTarget.style.background = 'transparent';
               }}
             >
-              📊 Dashboard
+              Dashboard
             </button>
 
             <button
@@ -165,7 +169,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 if (currentPage !== 'employees') e.currentTarget.style.background = 'transparent';
               }}
             >
-              {isManagerOrAbove ? '👥 Employees' : '👥 Team'}
+              {isManagerOrAbove ? 'Employees' : 'Team'}
             </button>
 
             {isManagerOrAbove && (
@@ -189,7 +193,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                   if (currentPage !== 'reports') e.currentTarget.style.background = 'transparent';
                 }}
               >
-                📄 Reports
+                Reports
               </button>
             )}
 
@@ -213,7 +217,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 if (currentPage !== 'settings') e.currentTarget.style.background = 'transparent';
               }}
             >
-              ⚙️ Settings
+              Settings
             </button>
           </div>
 
@@ -269,7 +273,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             >
-              🚪 Logout
+              Logout
             </button>
           </div>
         </div>
@@ -329,7 +333,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 color: '#7f8c8d'
               }}
             >
-              ✕
+              X
             </button>
           </div>
 
@@ -363,7 +367,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              📊 Dashboard
+               Dashboard
             </button>
 
             <button
@@ -383,7 +387,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              👥 {isManagerOrAbove ? 'Manage Employees' : 'Team'}
+               {isManagerOrAbove ? 'Manage Employees' : 'Team'}
             </button>
 
             <button
@@ -403,7 +407,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              🔔 Notifications
+               Notifications
             </button>
 
             {isManagerOrAbove && (
@@ -424,7 +428,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                   transition: 'all 0.3s'
                 }}
               >
-                📄 Reports
+                 Reports
               </button>
             )}
           </div>
@@ -462,7 +466,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 justifyContent: 'space-between'
               }}
             >
-              <span>💬 Messages</span>
+              <span>Messages</span>
               {unreadMessageCount > 0 && (
                 <span style={{
                   background: 'linear-gradient(135deg, #e74c3c, #c0392b)',
@@ -496,7 +500,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                   transition: 'all 0.3s'
                 }}
               >
-                📝 Send Note
+                 Send Note
               </button>
             )}
 
@@ -517,7 +521,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              📝 {isManagerOrAbove ? 'Leave Requests' : 'My Leave'}
+               {isManagerOrAbove ? 'Leave Requests' : 'My Leave'}
             </button>
           </div>
 
@@ -554,7 +558,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                       transition: 'all 0.3s'
                     }}
                   >
-                    ✅ Review Requests
+                     Review Requests
                   </button>
 
                   <button
@@ -574,7 +578,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                       transition: 'all 0.3s'
                     }}
                   >
-                    👤 Users Management
+                     Users Management
                   </button>
 
                   <button
@@ -594,7 +598,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                       transition: 'all 0.3s'
                     }}
                   >
-                    📝 Access Logs
+                     Access Logs
                   </button>
 
                   <button
@@ -614,7 +618,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                       transition: 'all 0.3s'
                     }}
                   >
-                    🔑 Employee Logins
+                     Employee Logins
                   </button>
                 </>
               )}
@@ -651,7 +655,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              👤 Profile
+               Profile
             </button>
 
             <button
@@ -671,7 +675,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              ✏️ Edit My Profile
+               Edit My Profile
             </button>
 
             <button
@@ -691,7 +695,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              ⚙️ Account Settings
+               Account Settings
             </button>
 
             <button
@@ -711,7 +715,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 transition: 'all 0.3s'
               }}
             >
-              🎨 Preferences
+               Preferences
             </button>
           </div>
 
@@ -777,7 +781,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 e.currentTarget.style.boxShadow = '0 4px 15px rgba(231, 76, 60, 0.3)';
               }}
             >
-              🚨 EMERGENCY ALERT
+               EMERGENCY ALERT
             </button>
           </div>
         </div>

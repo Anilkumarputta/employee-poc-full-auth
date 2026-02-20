@@ -380,15 +380,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const getWeatherIcon = (code: string): string => {
     const weatherCode = Number(code);
 
-    if (weatherCode === 0) return "â˜€ï¸";
-    if (weatherCode === 1 || weatherCode === 2) return "ðŸŒ¤ï¸";
-    if (weatherCode === 3) return "â˜ï¸";
-    if (weatherCode === 45 || weatherCode === 48) return "ðŸŒ«ï¸";
-    if ([51, 53, 55, 56, 57].includes(weatherCode)) return "ðŸŒ¦ï¸";
-    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return "ðŸŒ§ï¸";
-    if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "ðŸŒ¨ï¸";
-    if ([95, 96, 99].includes(weatherCode)) return "â›ˆï¸";
-    return "ðŸŒ¡ï¸";
+    if (weatherCode === 0) return "SUN";
+    if (weatherCode === 1 || weatherCode === 2) return "PART";
+    if (weatherCode === 3) return "CLD";
+    if (weatherCode === 45 || weatherCode === 48) return "FOG";
+    if ([51, 53, 55, 56, 57].includes(weatherCode)) return "DRZ";
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return "RAN";
+    if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "SNOW";
+    if ([95, 96, 99].includes(weatherCode)) return "STM";
+    return "WTH";
   };
 
   const fetchWeather = async () => {
@@ -436,7 +436,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         temp: 22,
         unit: "\u00B0C",
         condition: "Weather unavailable",
-        icon: "ðŸŒ¡ï¸",
+        icon: "WTH",
         location: "Location unavailable",
       });
       setWeatherLastUpdated(new Date());
@@ -446,14 +446,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   const getActivityIcon = (action: string): string => {
-    if (action.includes('LOGIN') || action.includes('LOGOUT')) return 'ðŸ”';
-    if (action.includes('UPDATE') || action.includes('EDIT')) return 'âœï¸';
-    if (action.includes('CREATE') || action.includes('ADD')) return 'âž•';
-    if (action.includes('DELETE') || action.includes('REMOVE')) return 'ðŸ—‘ï¸';
-    if (action.includes('ROLE')) return 'ðŸ‘¤';
-    if (action.includes('STATUS')) return 'ðŸ”„';
-    if (action.includes('FLAG')) return 'ðŸš©';
-    return 'ðŸ“';
+    if (action.includes('LOGIN') || action.includes('LOGOUT')) return 'AUTH';
+    if (action.includes('UPDATE') || action.includes('EDIT')) return 'EDIT';
+    if (action.includes('CREATE') || action.includes('ADD')) return 'ADD';
+    if (action.includes('DELETE') || action.includes('REMOVE')) return 'DEL';
+    if (action.includes('ROLE')) return 'ROLE';
+    if (action.includes('STATUS')) return 'STATUS';
+    if (action.includes('FLAG')) return 'FLAG';
+    return 'LOG';
   };
 
   const formatActivityTitle = (action: string): string => {
@@ -472,11 +472,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   const getNotificationIcon = (type: string): string => {
-    if (type === 'MESSAGE') return 'ðŸ’¬';
-    if (type === 'APPROVAL') return 'âœ…';
-    if (type === 'WARNING') return 'âš ï¸';
-    if (type === 'CRITICAL') return 'ðŸš¨';
-    return 'â„¹ï¸';
+    if (type === 'MESSAGE') return 'MSG';
+    if (type === 'APPROVAL') return 'OK';
+    if (type === 'WARNING') return 'WARN';
+    if (type === 'CRITICAL') return 'ALERT';
+    return 'INFO';
   };
 
   const getNotificationColor = (type: string): string => {
@@ -763,13 +763,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
               e.currentTarget.style.background = '#e74c3c';
             }}>
-            âœ•
+            X
           </button>
 
           {modalType === 'total-employees' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>ðŸ‘¥</span>
+                <span style={{ fontSize: '36px' }}>EMP</span>
                 All Employees ({modalData?.length || 0})
               </h2>
               <div style={{ display: 'grid', gap: '15px' }}>
@@ -791,7 +791,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         {emp.name}
                       </div>
                       <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
-                        {emp.email} â€¢ {emp.role} â€¢ {emp.className}
+                        {emp.email} | {emp.role} | {emp.className}
                       </div>
                     </div>
                     <div style={{
@@ -802,7 +802,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       fontSize: '12px',
                       fontWeight: 'bold'
                     }}>
-                      {emp.status === 'active' ? 'âœ… Active' : 'âŒ Inactive'}
+                      {emp.status === 'active' ? 'Active' : 'Inactive'}
                     </div>
                   </div>
                 ))}
@@ -818,7 +818,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
                 <div>
                   <h3 style={{ color: '#27ae60', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>âœ…</span>
+                    <span style={{ fontSize: '24px' }}>ACT</span>
                     Active ({modalData?.active?.length || 0})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -831,7 +831,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       }}>
                         <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
                         <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
-                          {emp.role} â€¢ {emp.attendance}% attendance
+                          {emp.role} | {emp.attendance}% attendance
                         </div>
                       </div>
                     ))}
@@ -839,7 +839,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 </div>
                 <div>
                   <h3 style={{ color: '#e74c3c', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>âŒ</span>
+                    <span style={{ fontSize: '24px' }}>INA</span>
                     Inactive ({modalData?.inactive?.length || 0})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -852,7 +852,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       }}>
                         <div style={{ fontWeight: '600', color: '#2c3e50' }}>{emp.name}</div>
                         <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '5px' }}>
-                          {emp.role} â€¢ Last seen: {formatRelativeTime(emp.updatedAt)}
+                          {emp.role} | Last seen: {formatRelativeTime(emp.updatedAt)}
                         </div>
                       </div>
                     ))}
@@ -865,7 +865,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'new-hires' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>ðŸ†•</span>
+                <span style={{ fontSize: '36px' }}>NEW</span>
                 New Hires - Last 30 Days ({modalData?.length || 0})
               </h2>
               <div style={{ display: 'grid', gap: '15px' }}>
@@ -884,10 +884,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         {emp.name}
                       </div>
                       <div style={{ fontSize: '14px', color: '#546e7a', marginBottom: '8px' }}>
-                        {emp.email} â€¢ {emp.role}
+                        {emp.email} | {emp.role}
                       </div>
                       <div style={{ fontSize: '12px', color: '#78909c', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>ðŸ“…</span>
+                        <span>Joined:</span>
                         Joined {formatRelativeTime(emp.createdAt)}
                       </div>
                     </div>
@@ -900,7 +900,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       fontWeight: 'bold',
                       boxShadow: '0 4px 12px rgba(0,172,193,0.3)'
                     }}>
-                      ðŸŒŸ NEW
+                       NEW
                     </div>
                   </div>
                 ))}
@@ -911,7 +911,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'attendance' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>ðŸ“Š</span>
+                <span style={{ fontSize: '36px' }}>RANK</span>
                 Attendance Rankings
               </h2>
               <div style={{ display: 'grid', gap: '12px' }}>
@@ -956,14 +956,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         fontSize: '18px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                       }}>
-                        {index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : `#${index + 1}`}
+                        {index === 0 ? '1' : index === 1 ? '2' : index === 2 ? '3' : `#${index + 1}`}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2c3e50', marginBottom: '4px' }}>
                           {emp.name}
                         </div>
                         <div style={{ fontSize: '13px', color: '#546e7a' }}>
-                          {emp.role} â€¢ {emp.className}
+                          {emp.role} | {emp.className}
                         </div>
                       </div>
                       <div style={{
@@ -987,7 +987,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           {modalType === 'on-leave' && (
             <div>
               <h2 style={{ margin: '0 0 30px 0', fontSize: '28px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '36px' }}>ðŸ–ï¸</span>
+                <span style={{ fontSize: '36px' }}>LEAVE</span>
                 Employees on Leave Today ({modalData?.employees?.length || 0})
               </h2>
               {modalData?.employees?.length > 0 ? (
@@ -1011,7 +1011,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                               {emp.email}
                             </div>
                             <div style={{ fontSize: '13px', color: '#a8a29e' }}>
-                              {emp.role} â€¢ {emp.className}
+                              {emp.role} | {emp.className}
                             </div>
                           </div>
                           <div style={{
@@ -1023,7 +1023,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                             fontWeight: 'bold',
                             boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
                           }}>
-                            ðŸ–ï¸ ON LEAVE
+                             ON LEAVE
                           </div>
                         </div>
                         {leave && (
@@ -1037,13 +1037,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                               <div>
                                 <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>START DATE</div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
-                                  ðŸ“… {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                   {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
                               </div>
                               <div>
                                 <div style={{ fontSize: '11px', color: '#78716c', marginBottom: '4px' }}>END DATE</div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>
-                                  ðŸ“… {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                   {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
                               </div>
                             </div>
@@ -1063,7 +1063,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   textAlign: 'center',
                   color: '#95a5a6'
                 }}>
-                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>ðŸŽ‰</div>
+                  <div style={{ fontSize: '40px', marginBottom: '20px' }}>ALL CLEAR</div>
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#2c3e50', marginBottom: '10px' }}>
                     Everyone is at work today!
                   </div>
@@ -1086,7 +1086,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           fontSize: '48px',
           animation: 'spin 1s linear infinite',
           display: 'inline-block'
-        }}>âš™ï¸</div>
+        }}>Loading...</div>
         <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading dashboard...</p>
         <style>{`
           @keyframes spin {
@@ -1134,13 +1134,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-              }}>{isDirector ? 'ðŸ¢' : isManager ? 'ðŸ‘¨â€ðŸ’¼' : 'ðŸ‘¤'}</span>
+              }}>{isDirector ? 'DIR' : isManager ? 'MGR' : 'EMP'}</span>
               {(() => {
                 const hour = currentTime.getHours();
                 const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
                 const userName = user?.email?.split('@')[0] || 'there';
-                const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
-                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}!`;
               })()}
             </h1>
             <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
@@ -1163,7 +1162,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           marginBottom: '30px'
         }}>
           <MetricCard
-            icon="ðŸ‘¥"
+            icon="EMP"
             title="Total Employees"
             value={totalEmployees}
             subtitle="All employees"
@@ -1177,7 +1176,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="âœ…"
+            icon="STATUS"
             title="Active vs Inactive"
             value={`${activeEmployees}/${inactiveEmployees}`}
             subtitle="Active / Inactive"
@@ -1190,7 +1189,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="ðŸ†•"
+            icon="NEW"
             title="New Hires"
             value={newHiresThisMonth}
             subtitle="This month"
@@ -1206,7 +1205,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="ðŸ“Š"
+            icon="ATT"
             title="Avg Attendance"
             value={`${avgAttendance}%`}
             subtitle="Company average"
@@ -1219,7 +1218,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             }}
           />
           <MetricCard
-            icon="ðŸ–ï¸"
+            icon="LEAVE"
             title="On Leave Today"
             value={onLeaveToday}
             subtitle="Currently out"
@@ -1252,7 +1251,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              ðŸ“Š Employees by Department
+               Employees by Department
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {Object.entries(departmentCounts).slice(0, 5).map(([dept, count]) => (
@@ -1285,7 +1284,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              ðŸ•’ Recently Changed Records
+               Recently Changed Records
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {recentlyChangedEmployees.map((emp) => (
@@ -1299,7 +1298,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       {emp.name}
                     </div>
                     <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
-                      Updated {formatRelativeTime(emp.updatedAt)} â€¢ {emp.role}
+                      Updated {formatRelativeTime(emp.updatedAt)}  {emp.role}
                     </div>
                   </div>
                 ))}
@@ -1318,7 +1317,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             border: flaggedEmployees > 0 ? '2px solid #e74c3c' : '2px solid #e3e8ef'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              ðŸš© Flagged & Terminated Employees <span style={{
+               Flagged & Terminated Employees <span style={{
                 background: '#e74c3c',
                 color: 'white',
                 padding: '4px 12px',
@@ -1329,7 +1328,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </h3>
             {(flaggedEmployees === 0 && inactiveEmployees === 0) ? (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <div style={{ fontSize: '48px', marginBottom: '10px' }}>âœ…</div>
+                <div style={{ fontSize: '36px', marginBottom: '10px' }}>OK</div>
                 <p style={{ color: '#27ae60', fontWeight: '600', marginBottom: '5px' }}>
                   All Clear!
                 </p>
@@ -1350,10 +1349,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '20px' }}>ðŸš©</span>
+                          <span style={{ fontSize: '20px' }}>FLAG</span>
                           <div style={{ fontWeight: '700', color: '#e74c3c', fontSize: '16px' }}>{emp.name}</div>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginLeft: '28px' }}>{emp.role} â€¢ {emp.className}</div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginLeft: '28px' }}>{emp.role} | {emp.className}</div>
                       </div>
                       <span style={{
                         background: '#e74c3c',
@@ -1389,10 +1388,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '20px' }}>âŒ</span>
+                          <span style={{ fontSize: '20px' }}>INACTIVE</span>
                           <div style={{ fontWeight: '700', color: '#6c757d', fontSize: '16px', textDecoration: 'line-through' }}>{emp.name}</div>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} â€¢ {emp.className}</div>
+                        <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} | {emp.className}</div>
                       </div>
                       <span style={{
                         background: '#6c757d',
@@ -1429,35 +1428,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              âš¡ Quick Actions
+               Quick Actions
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <QuickActionButton 
-                icon="âž•" 
+                icon="ADD" 
                 text="Add Employee" 
                 color="#27ae60" 
                 onClick={() => onNavigate?.('employees')}
               />
               <QuickActionButton 
-                icon="ðŸ”" 
+                icon="USER" 
                 text="Manage Users" 
                 color="#9b59b6" 
                 onClick={() => onNavigate?.('admins')}
               />
               <QuickActionButton 
-                icon="ðŸ‘¥" 
+                icon="TEAM" 
                 text="View All Employees" 
                 color="#667eea" 
                 onClick={() => onNavigate?.('employees')}
               />
               <QuickActionButton 
-                icon="ðŸ“Š" 
+                icon="REPORT" 
                 text="Generate Reports" 
                 color="#f39c12" 
                 onClick={() => onNavigate?.('reports')}
               />
               <QuickActionButton 
-                icon="âœ…" 
+                icon="REVIEW" 
                 text="Review Requests" 
                 color="#e74c3c" 
                 onClick={() => onNavigate?.('review-requests')}
@@ -1511,13 +1510,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-              }}>ðŸ‘¨â€ðŸ’¼</span>
+              }}>MGR</span>
               {(() => {
                 const hour = currentTime.getHours();
                 const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
                 const userName = user?.email?.split('@')[0] || 'there';
-                const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
-                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+                return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}!`;
               })()}
             </h1>
             <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
@@ -1545,28 +1543,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             />
           )}
           <MetricCard
-            icon="ðŸ‘¥"
+            icon="TEAM"
             title="My Team Size"
             value={myTeamSize}
             subtitle="Direct reports"
             color="#f093fb"
           />
           <MetricCard
-            icon="ðŸ“Š"
+            icon="ATT"
             title="Team Attendance"
             value={`${myTeamAvgAttendance}%`}
             subtitle="Team average"
             color="#27ae60"
           />
           <MetricCard
-            icon="ðŸ“…"
+            icon="LEAVE"
             title="Upcoming Leaves"
             value={upcomingLeaves}
             subtitle="Next 7 days"
             color="#3498db"
           />
           <MetricCard
-            icon="â°"
+            icon="PENDING"
             title="Pending Approvals"
             value={pendingLeaves}
             subtitle="Awaiting action"
@@ -1584,11 +1582,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-              âš ï¸ At-Risk Attendance
+               At-Risk Attendance
             </h3>
             {myTeamLowAttendance.length === 0 ? (
               <p style={{ color: '#95a5a6', textAlign: 'center', padding: '20px 0' }}>
-                All team members have good attendance! ðŸŽ‰
+                All team members have good attendance! 
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1631,7 +1629,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             border: pendingLeaves > 0 ? '2px solid #f39c12' : '2px solid #e3e8ef'
           }}>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              ðŸ“‹ My Approvals <span style={{
+               My Approvals <span style={{
                 background: '#f39c12',
                 color: 'white',
                 padding: '4px 12px',
@@ -1714,29 +1712,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            âš¡ Quick Actions
+             Quick Actions
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
             <QuickActionButton 
-              icon="âœ“" 
+              icon="APPROVE" 
               text="Approve Leaves" 
               color="#27ae60" 
               onClick={() => onNavigate?.('leaveRequests')}
             />
             <QuickActionButton 
-              icon="ðŸ“Š" 
+              icon="GRID" 
               text="View Team Grid" 
               color="#3498db" 
               onClick={() => onNavigate?.('employees')}
             />
             <QuickActionButton 
-              icon="ðŸš©" 
+              icon="FLAG" 
               text="Flag Team Member" 
               color="#e74c3c" 
               onClick={() => onNavigate?.('employees')}
             />
             <QuickActionButton 
-              icon="ðŸ“ˆ" 
+              icon="REPORT" 
               text="Team Performance Report" 
               color="#f39c12" 
               onClick={() => onNavigate?.('reports')}
@@ -1804,13 +1802,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               justifyContent: 'center',
               fontSize: '24px',
               boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-            }}>ðŸ‘¤</span>
+            }}>EMP</span>
             {(() => {
               const hour = currentTime.getHours();
               const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
               const userName = user?.email?.split('@')[0] || 'there';
-              const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
-              return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}! ${emoji}`;
+              return `${greeting}, ${userName.charAt(0).toUpperCase() + userName.slice(1)}!`;
             })()}
           </h1>
           <p style={{ margin: '10px 0 0 65px', color: '#7f8c8d', fontSize: '16px' }}>
@@ -1842,14 +1839,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             fontSize: '48px',
             border: '4px solid rgba(255,255,255,0.5)'
           }}>
-            ðŸ‘¤
+            EMP
           </div>
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: '36px', fontWeight: 'bold' }}>
-              Hi, {myRecord?.name || user?.email}! ðŸ‘‹
+              Hi, {myRecord?.name || user?.email}!
             </h1>
             <div style={{ fontSize: '18px', marginTop: '10px', opacity: 0.95 }}>
-              {myRecord?.role || 'Employee'} â€¢ {myRecord?.className || 'Department'} â€¢ Manager: {myRecord?.managerId ? `ID ${myRecord.managerId}` : 'Not assigned'}
+              {myRecord?.role || 'Employee'} | {myRecord?.className || 'Department'} | Manager: {myRecord?.managerId ? `ID ${myRecord.managerId}` : 'Not assigned'}
             </div>
             <div style={{ 
               marginTop: '15px',
@@ -1860,7 +1857,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               fontSize: '16px',
               fontWeight: '600'
             }}>
-              Today's Status: <span style={{ marginLeft: '10px' }}>âœ… Working</span>
+              Today's Status: <span style={{ marginLeft: '10px' }}>Working</span>
             </div>
           </div>
         </div>
@@ -1883,21 +1880,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           />
         )}
         <MetricCard
-          icon="ðŸ–ï¸"
+          icon="BALANCE"
           title="Leave Balance"
           value={myLeaveBalance}
           subtitle="Days remaining"
           color="#3498db"
         />
         <MetricCard
-          icon="ðŸ“Š"
+          icon="ATT"
           title="My Attendance"
           value={`${myRecord?.attendance || 0}%`}
           subtitle="Current streak"
           color={myRecord && myRecord.attendance >= 90 ? '#27ae60' : myRecord && myRecord.attendance >= 75 ? '#f39c12' : '#e74c3c'}
         />
         <MetricCard
-          icon="ðŸ“…"
+          icon="LEAVE"
           title="Next Leave"
           value={myNextLeave ? new Date(myNextLeave.startDate).toLocaleDateString() : 'None'}
           subtitle={myNextLeave ? 'Approved' : 'No upcoming leave'}
@@ -1915,7 +1912,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            ðŸ“œ Recent Activity
+             Recent Activity
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {activities.length > 0 ? (
@@ -1943,35 +1940,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-            âš¡ Quick Actions
+             Quick Actions
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <QuickActionButton 
-              icon="ðŸ–ï¸" 
+              icon="REQUEST" 
               text="Request Leave" 
               color="#3498db" 
               onClick={() => onNavigate?.('leaveRequests')}
             />
             <QuickActionButton 
-              icon="âœï¸" 
+              icon="EDIT" 
               text="Update Profile" 
               color="#27ae60" 
               onClick={() => onNavigate?.('profileEdit')}
             />
             <QuickActionButton 
-              icon="ðŸ‘¤" 
+              icon="PROFILE" 
               text="View My Record" 
               color="#667eea" 
               onClick={() => onNavigate?.('profile')}
             />
             <QuickActionButton 
-              icon="ðŸ’¬" 
+              icon="MSG" 
               text="My Messages" 
               color="#f39c12" 
               onClick={() => onNavigate?.('messages')}
             />
             <QuickActionButton 
-              icon="âš™ï¸" 
+              icon="PREF" 
               text="Preferences" 
               color="#9b59b6" 
               onClick={() => onNavigate?.('preferences')}
@@ -2027,7 +2024,7 @@ const MetricCard: React.FC<{
       marginBottom: '12px',
       filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
       transition: 'transform 0.3s'
-    }}>{icon}</div>
+    }}>{icon || title.slice(0, 3).toUpperCase()}</div>
     <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
       {title}
     </div>
@@ -2068,7 +2065,7 @@ const MetricCard: React.FC<{
           boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
           animation: 'pulse 2s infinite'
         }}>
-          ðŸ‘ï¸
+          Go
         </div>
         <div style={{ 
           fontSize: '11px', 
@@ -2078,8 +2075,7 @@ const MetricCard: React.FC<{
           textTransform: 'uppercase',
           letterSpacing: '0.5px'
         }}>
-          Click for details â†’
-        </div>
+          Click for details</div>
       </>
     )}
   </div>
@@ -2119,7 +2115,7 @@ const QuickActionButton: React.FC<{
       e.currentTarget.style.color = color;
       e.currentTarget.style.transform = 'translateX(0)';
     }}>
-    <span style={{ fontSize: '20px' }}>{icon}</span>
+    <span style={{ fontSize: '20px' }}>{icon || text.slice(0, 3).toUpperCase()}</span>
     {text}
   </button>
 );
@@ -2150,7 +2146,7 @@ const ActivityItem: React.FC<{
       fontSize: '20px',
       flexShrink: 0
     }}>
-      {icon}
+      {icon || title.slice(0, 3).toUpperCase()}
     </div>
     <div style={{ flex: 1 }}>
       <div style={{ fontWeight: '600', color: '#2c3e50', marginBottom: '5px' }}>

@@ -148,7 +148,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
             EP
           </div>
           <h1 className="animated-employee-poc" style={{ margin: 0 }}>
-            Employee POC
+            Employee Hub
           </h1>
           <p
             style={{
@@ -199,7 +199,7 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
           <button type="button" className="link-btn" onClick={goForgot}>
             Forgot password?
           </button>
-          <span> · </span>
+          <span> | </span>
           <button type="button" className="link-btn" onClick={goRegister}>
             Create account
           </button>

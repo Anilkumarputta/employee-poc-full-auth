@@ -2,7 +2,7 @@ import React from "react";
 
 export type WeatherWidgetData = {
   temp: number;
-  unit: "°C" | "°F";
+  unit: "\u00B0C" | "\u00B0F";
   condition: string;
   icon: string;
   location: string;
@@ -142,7 +142,7 @@ export const WeatherTimeWidget: React.FC<WeatherTimeWidgetProps> = ({
                 gap: "5px",
               }}
             >
-              <span>📍</span>
+              <span>Location:</span>
               {weather.location}
             </div>
           </div>
@@ -151,4 +151,3 @@ export const WeatherTimeWidget: React.FC<WeatherTimeWidgetProps> = ({
     </div>
   );
 };
-
