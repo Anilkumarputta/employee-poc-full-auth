@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getStorageItem, setStorageItem } from "../lib/safeStorage";
 
 type Props = {
   onBack?: () => void;
@@ -19,9 +20,9 @@ export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
     setDetectedTimezone(systemTimezone);
 
     // Load saved preferences
-    const savedTheme = localStorage.getItem("theme") || "light";
-    const savedLanguage = localStorage.getItem("language") || "en";
-    const savedTimezone = localStorage.getItem("timezone") || "auto";
+    const savedTheme = getStorageItem("theme") || "light";
+    const savedLanguage = getStorageItem("language") || "en";
+    const savedTimezone = getStorageItem("timezone") || "auto";
     
     setTheme(savedTheme);
     setLanguage(savedLanguage);
@@ -49,9 +50,9 @@ export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
   }, [timezone, detectedTimezone]);
 
   const handleSavePreferences = () => {
-    localStorage.setItem("theme", theme);
-    localStorage.setItem("language", language);
-    localStorage.setItem("timezone", timezone);
+    setStorageItem("theme", theme);
+    setStorageItem("language", language);
+    setStorageItem("timezone", timezone);
     
     // Show success message with better styling
     const successMsg = document.createElement('div');

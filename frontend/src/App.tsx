@@ -31,6 +31,7 @@ import SlackIntegrationPage from "./pages/SlackIntegrationPage";
 import EmployeeSelfServicePortal from "./pages/EmployeeSelfServicePortal";
 import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import type { AppPage } from "./types/navigation";
+import { getStorageItem, removeStorageItem, setStorageItem } from "./lib/safeStorage";
 
 export type UserRole = "director" | "manager" | "employee";
 
@@ -50,9 +51,9 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
 
   React.useEffect(() => {
-    const accessToken = localStorage.getItem("accessToken");
-    const refreshToken = localStorage.getItem("refreshToken");
-    const userStr = localStorage.getItem("user");
+    const accessToken = getStorageItem("accessToken");
+    const refreshToken = getStorageItem("refreshToken");
+    const userStr = getStorageItem("user");
 
     if (accessToken && userStr) {
       try {
@@ -60,9 +61,9 @@ const App: React.FC = () => {
         setAuth({ user, accessToken, refreshToken });
         setView("app");
       } catch {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
+        removeStorageItem("accessToken");
+        removeStorageItem("refreshToken");
+        removeStorageItem("user");
       }
     }
   }, []);
@@ -74,23 +75,23 @@ const App: React.FC = () => {
   }) => {
     setAuth(data);
     if (data.user && data.accessToken) {
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken || "");
-      localStorage.setItem("user", JSON.stringify(data.user));
+      setStorageItem("accessToken", data.accessToken);
+      setStorageItem("refreshToken", data.refreshToken || "");
+      setStorageItem("user", JSON.stringify(data.user));
       setCurrentPage("dashboard");
       setView("app");
     } else {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
+      removeStorageItem("accessToken");
+      removeStorageItem("refreshToken");
+      removeStorageItem("user");
       setView("login");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
+    removeStorageItem("accessToken");
+    removeStorageItem("refreshToken");
+    removeStorageItem("user");
     setAuth({ user: null, accessToken: null, refreshToken: null });
     setView("login");
   };

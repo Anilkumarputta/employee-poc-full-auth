@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import "./index.css";
 
 const ENABLE_SERVICE_WORKER = import.meta.env.VITE_ENABLE_SW === "true";
@@ -15,6 +16,14 @@ if ('serviceWorker' in navigator) {
           void registration.unregister();
         });
       });
+
+      if ("caches" in window) {
+        void caches.keys().then((keys) => {
+          keys.forEach((key) => {
+            void caches.delete(key);
+          });
+        });
+      }
       return;
     }
 
@@ -26,6 +35,8 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>
 );

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
+import { getStorageItem } from "../lib/safeStorage";
 import { formatRelativeTime } from "../lib/dateUtils";
 import { getCurrentFestivalTheme } from "../festivalThemes";
 import type { AppPage } from "../types/navigation";
@@ -135,7 +136,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   
   // Fallback: if token is not in context, try to get it from localStorage
   if (!accessToken) {
-    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const storedToken = getStorageItem("accessToken");
     if (storedToken) {
       accessToken = storedToken;
       console.log('[DashboardPage] Using token from localStorage as fallback');

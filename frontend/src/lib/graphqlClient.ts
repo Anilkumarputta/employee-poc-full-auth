@@ -1,4 +1,5 @@
 import { GRAPHQL_URL } from "../config/api";
+import { getStorageItem, removeStorageItem } from "./safeStorage";
 
 type GraphqlRequestOptions = {
   bypassCache?: boolean;
@@ -40,8 +41,8 @@ export async function graphqlRequest<T = any>(
 ): Promise<T> {
   // Ensure a token is sent even if the caller forgot to pass it.
   let token = accessToken;
-  if (!token && typeof window !== "undefined") {
-    token = localStorage.getItem("accessToken") || undefined;
+  if (!token) {
+    token = getStorageItem("accessToken") || undefined;
   }
 
   const isMutation = isMutationOperation(query);
@@ -103,9 +104,9 @@ export async function graphqlRequest<T = any>(
       if (message.toLowerCase().includes("not authenticated") || message.toLowerCase().includes("unauthorized")) {
         if (typeof window !== "undefined") {
           console.warn("[graphqlClient] Auth failed, clearing tokens and reloading to login");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
+          removeStorageItem("accessToken");
+          removeStorageItem("refreshToken");
+          removeStorageItem("user");
           // Do a soft reload to force login view
           window.location.href = "/";
         }

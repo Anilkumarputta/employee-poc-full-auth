@@ -4,6 +4,7 @@ import "./employees.css";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
+import { getStorageItem } from "../lib/safeStorage";
 import { EmployeeFormModal } from "../components/EmployeeFormModal";
 import { formatFullDateTime, formatRelativeTime } from "../lib/dateUtils";
 
@@ -132,7 +133,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
   
   // Fallback: if token is not in context, try to get it from localStorage
   if (!accessToken) {
-    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const storedToken = getStorageItem("accessToken");
     if (storedToken) {
       accessToken = storedToken;
     }
