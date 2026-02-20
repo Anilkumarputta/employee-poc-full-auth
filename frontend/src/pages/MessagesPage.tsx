@@ -1,7 +1,7 @@
-import React, { useContext, useEffect, useState, useRef } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
-import { formatMessageTime, formatConversationTime } from "../lib/dateUtils";
+import { formatConversationTime, formatMessageTime } from "../lib/dateUtils";
 
 type Message = {
   id: number;
@@ -11,12 +11,11 @@ type Message = {
   senderRole: string;
   recipientId: number | null;
   recipientEmail: string | null;
+  recipientRole: string | null;
   subject: string | null;
   message: string;
   messageType: string;
   isRead: boolean;
-  readAt: string | null;
-  priority: string;
   createdAt: string;
 };
 
@@ -58,12 +57,11 @@ const MESSAGES_QUERY = `
       senderRole
       recipientId
       recipientEmail
+      recipientRole
       subject
       message
       messageType
       isRead
-      readAt
-      priority
       createdAt
     }
   }
@@ -101,527 +99,608 @@ export const MessagesPage: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [messageSubject, setMessageSubject] = useState("");
+  const [selectedRecipient, setSelectedRecipient] = useState<number | null>(null);
+  const [broadcastRole, setBroadcastRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [selectedRecipient, setSelectedRecipient] = useState<number | null>(null);
-  const [broadcastRole, setBroadcastRole] = useState<string | null>(null);
-  const [messageSubject, setMessageSubject] = useState("");
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [infoText, setInfoText] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isDirector = user?.role === 'director';
-  const isManager = user?.role === 'manager';
-  const isEmployee = user?.role === 'employee';
+  const isDirector = user?.role === "director";
+  const isManager = user?.role === "manager";
+  const canBroadcast = isDirector || isManager;
 
   useEffect(() => {
-    fetchConversations();
-    if (isDirector || isManager) {
-      fetchAllUsers();
+    if (!accessToken) {
+      setLoading(false);
+      return;
     }
-  }, []);
+
+    void fetchConversations();
+    void fetchAllUsers();
+  }, [accessToken, user?.id, user?.role]);
 
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation);
+    if (!accessToken || !selectedConversation || showNewMessage) {
+      return;
     }
-  }, [selectedConversation]);
+
+    void fetchMessages(selectedConversation);
+  }, [accessToken, selectedConversation, showNewMessage]);
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const clearStatus = () => {
+    setErrorText(null);
+    setInfoText(null);
   };
 
   const fetchConversations = async () => {
-    if (!accessToken) return;
-    
+    if (!accessToken) {
+      return;
+    }
+
     try {
       setLoading(true);
-      const data = await graphqlRequest(CONVERSATIONS_QUERY, {}, accessToken);
-      setConversations(data.myConversations);
+      const data = await graphqlRequest<{ myConversations: Conversation[] }>(
+        CONVERSATIONS_QUERY,
+        {},
+        accessToken,
+      );
+      setConversations(data.myConversations || []);
     } catch (error) {
-      console.error('Failed to fetch conversations:', error);
+      console.error("Failed to load conversations:", error);
+      setErrorText("Unable to load conversations.");
     } finally {
       setLoading(false);
     }
   };
 
   const fetchMessages = async (conversationId: string) => {
-    if (!accessToken) return;
-    
+    if (!accessToken) {
+      return;
+    }
+
     try {
-      const data = await graphqlRequest(MESSAGES_QUERY, { conversationId }, accessToken);
-      setMessages(data.messages);
-      
-      // Mark conversation as read
+      const data = await graphqlRequest<{ messages: Message[] }>(
+        MESSAGES_QUERY,
+        { conversationId },
+        accessToken,
+      );
+      setMessages(data.messages || []);
+
       await graphqlRequest(MARK_CONVERSATION_READ_MUTATION, { conversationId }, accessToken);
-      
-      // Update unread count in conversations list
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.conversationId === conversationId 
-            ? { ...conv, unreadCount: 0 }
-            : conv
-        )
+
+      setConversations((previous) =>
+        previous.map((conversation) =>
+          conversation.conversationId === conversationId
+            ? { ...conversation, unreadCount: 0 }
+            : conversation,
+        ),
       );
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
+      console.error("Failed to load messages:", error);
+      setErrorText("Unable to load messages for this conversation.");
     }
   };
 
   const fetchAllUsers = async () => {
-    if (!accessToken) return;
-    
+    if (!accessToken) {
+      return;
+    }
+
     try {
-      const data = await graphqlRequest(ALL_USERS_QUERY, {}, accessToken);
-      // Filter out current user and apply role restrictions
-      let filteredUsers = data.allUsers.filter((u: User) => u.id !== user?.id);
-      
-      if (isEmployee) {
-        // Employees can only message managers
-        filteredUsers = filteredUsers.filter((u: User) => u.role === 'manager');
-      }
-      
-      setAllUsers(filteredUsers);
+      const data = await graphqlRequest<{ allUsers: User[] }>(ALL_USERS_QUERY, {}, accessToken);
+      const filtered = (data.allUsers || []).filter((account) => account.id !== user?.id);
+      const recipients = user?.role === "employee" ? filtered.filter((account) => account.role === "manager") : filtered;
+      setAllUsers(recipients);
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to load user directory:", error);
+      setAllUsers([]);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!accessToken || !newMessage.trim()) return;
-    
-    try {
-      setSending(true);
-      
-      let input: any = {
-        message: newMessage,
-      };
+  const openConversation = async (conversationId: string) => {
+    clearStatus();
+    setShowNewMessage(false);
+    setSelectedConversation(conversationId);
+  };
 
-      if (showNewMessage) {
-        // New conversation
-        if (selectedRecipient) {
-          input.recipientId = selectedRecipient;
-        } else if (broadcastRole) {
-          input.recipientRole = broadcastRole;
-        }
-        if (messageSubject) {
-          input.subject = messageSubject;
-        }
-      } else if (selectedConversation) {
-        // Reply to existing conversation
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg) {
-          input.recipientId = lastMsg.senderId === user?.id ? lastMsg.recipientId : lastMsg.senderId;
-          input.replyToId = lastMsg.id;
-        }
+  const startNewMessage = () => {
+    clearStatus();
+    setShowNewMessage(true);
+    setSelectedConversation(null);
+    setMessages([]);
+    setNewMessage("");
+    setMessageSubject("");
+    setSelectedRecipient(null);
+    setBroadcastRole(null);
+  };
+
+  const getReplyRecipientId = (): number | null => {
+    if (!user) {
+      return null;
+    }
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const candidate = messages[index];
+      if (candidate.senderId !== user.id) {
+        return candidate.senderId;
+      }
+    }
+
+    return null;
+  };
+
+  const handleSendMessage = async () => {
+    clearStatus();
+
+    if (!accessToken) {
+      setErrorText("You are not authenticated.");
+      return;
+    }
+
+    const trimmedMessage = newMessage.trim();
+    if (!trimmedMessage) {
+      setErrorText("Message cannot be empty.");
+      return;
+    }
+
+    const input: Record<string, unknown> = {
+      message: trimmedMessage,
+    };
+
+    if (showNewMessage) {
+      if (selectedRecipient) {
+        input.recipientId = selectedRecipient;
+      } else if (broadcastRole) {
+        input.recipientRole = broadcastRole;
+      } else {
+        setErrorText("Select a recipient before sending.");
+        return;
       }
 
-      await graphqlRequest(SEND_MESSAGE_MUTATION, { input }, accessToken);
-      
+      if (messageSubject.trim()) {
+        input.subject = messageSubject.trim();
+      }
+    } else {
+      if (!selectedConversation) {
+        setErrorText("Select a conversation first.");
+        return;
+      }
+
+      const recipientId = getReplyRecipientId();
+      if (!recipientId) {
+        setErrorText("Cannot determine who should receive this reply.");
+        return;
+      }
+
+      input.recipientId = recipientId;
+      const latestMessage = messages[messages.length - 1];
+      if (latestMessage) {
+        input.replyToId = latestMessage.id;
+      }
+    }
+
+    try {
+      setSending(true);
+
+      const result = await graphqlRequest<{ sendMessage: { conversationId: string } }>(
+        SEND_MESSAGE_MUTATION,
+        { input },
+        accessToken,
+      );
+
       setNewMessage("");
       setMessageSubject("");
-      
+      setInfoText("Message sent successfully.");
+
       if (showNewMessage) {
         setShowNewMessage(false);
         await fetchConversations();
+        const newConversationId = result.sendMessage?.conversationId;
+        if (newConversationId) {
+          setSelectedConversation(newConversationId);
+          await fetchMessages(newConversationId);
+        }
       } else if (selectedConversation) {
         await fetchMessages(selectedConversation);
+        await fetchConversations();
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to send message');
+      setErrorText(error?.message || "Unable to send this message.");
     } finally {
       setSending(false);
     }
   };
 
-  const handleNewMessageClick = () => {
-    setShowNewMessage(true);
-    setSelectedConversation(null);
-    setMessages([]);
-    setSelectedRecipient(null);
-    setBroadcastRole(null);
-    setMessageSubject("");
-  };
+  const currentConversation = selectedConversation
+    ? conversations.find((conversation) => conversation.conversationId === selectedConversation)
+    : null;
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 70px)', background: '#f5f7fa' }}>
-      {/* Conversations List */}
-      <div style={{
-        width: '350px',
-        background: 'white',
-        borderRight: '1px solid #e3e8ef',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '20px',
-          borderBottom: '1px solid #e3e8ef',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-            💬 Messages
-          </h2>
+    <div style={{ display: "flex", minHeight: "calc(100vh - 70px)", background: "#eef2f7" }}>
+      <aside
+        style={{
+          width: "360px",
+          maxWidth: "100%",
+          background: "#ffffff",
+          borderRight: "1px solid #e4e8ef",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          style={{
+            padding: "18px",
+            borderBottom: "1px solid #e4e8ef",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: "22px", color: "#172b4d" }}>Messages</h2>
+            <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
+              {conversations.length} conversation{conversations.length === 1 ? "" : "s"}
+            </p>
+          </div>
           <button
-            onClick={handleNewMessageClick}
+            type="button"
+            onClick={startNewMessage}
             style={{
-              padding: '10px 16px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              border: "none",
+              borderRadius: "8px",
+              background: "#1d4ed8",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "13px",
+              padding: "10px 14px",
+              cursor: "pointer",
             }}
           >
-            ✏️ New
+            New Message
           </button>
         </div>
 
-        {/* Conversations */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ overflowY: "auto", flex: 1 }}>
           {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#95a5a6' }}>
-              Loading conversations...
-            </div>
+            <div style={{ padding: "24px", color: "#6b7280" }}>Loading conversations...</div>
           ) : conversations.length === 0 ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#95a5a6' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-              <p>No messages yet</p>
-              <p style={{ fontSize: '14px' }}>Start a new conversation!</p>
-            </div>
+            <div style={{ padding: "24px", color: "#6b7280" }}>No conversations yet.</div>
           ) : (
-            conversations.map((conv) => (
-              <div
-                key={conv.conversationId}
+            conversations.map((conversation) => (
+              <button
+                key={conversation.conversationId}
+                type="button"
                 onClick={() => {
-                  setSelectedConversation(conv.conversationId);
-                  setShowNewMessage(false);
+                  void openConversation(conversation.conversationId);
                 }}
                 style={{
-                  padding: '16px 20px',
-                  borderBottom: '1px solid #f0f4f8',
-                  cursor: 'pointer',
-                  background: selectedConversation === conv.conversationId ? '#f0f4ff' : 'white',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedConversation !== conv.conversationId) {
-                    e.currentTarget.style.background = '#f8f9fa';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedConversation !== conv.conversationId) {
-                    e.currentTarget.style.background = 'white';
-                  }
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background:
+                    selectedConversation === conversation.conversationId && !showNewMessage ? "#e8f0ff" : "#ffffff",
+                  borderBottom: "1px solid #f1f4f9",
+                  padding: "14px 18px",
+                  cursor: "pointer",
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontSize: '18px',
-                      fontWeight: 'bold'
-                    }}>
-                      {conv.participant.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '15px' }}>
-                        {conv.participant}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#7f8c8d', textTransform: 'capitalize' }}>
-                        {conv.participantRole}
-                      </div>
-                    </div>
-                  </div>
-                  {conv.unreadCount > 0 && (
-                    <div style={{
-                      background: '#e74c3c',
-                      color: 'white',
-                      borderRadius: '12px',
-                      padding: '2px 8px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      height: 'fit-content'
-                    }}>
-                      {conv.unreadCount}
-                    </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginBottom: "4px" }}>
+                  <strong style={{ color: "#172b4d", fontSize: "14px" }}>{conversation.participant}</strong>
+                  {conversation.unreadCount > 0 && (
+                    <span
+                      style={{
+                        minWidth: "20px",
+                        height: "20px",
+                        borderRadius: "10px",
+                        background: "#dc2626",
+                        color: "#ffffff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        padding: "0 6px",
+                      }}
+                    >
+                      {conversation.unreadCount}
+                    </span>
                   )}
                 </div>
-                <div style={{
-                  fontSize: '14px',
-                  color: '#7f8c8d',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {conv.lastMessage}
+                <div
+                  style={{
+                    color: "#5b6472",
+                    fontSize: "13px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {conversation.lastMessage}
                 </div>
-                <div style={{ fontSize: '12px', color: '#95a5a6', marginTop: '4px' }}>
-                  {formatConversationTime(conv.lastMessageTime)}
+                <div style={{ fontSize: "12px", color: "#8a94a6", marginTop: "5px" }}>
+                  {formatConversationTime(conversation.lastMessageTime)}
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* Messages Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#ffffff' }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid #e4e8ef",
+            background: "#ffffff",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: "18px", color: "#172b4d" }}>
+              {showNewMessage ? "Compose Message" : currentConversation?.participant || "Select a conversation"}
+            </h3>
+            {currentConversation && !showNewMessage && (
+              <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
+                Role: {currentConversation.participantRole}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {(errorText || infoText) && (
+          <div
+            style={{
+              margin: "12px 20px 0",
+              padding: "10px 12px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              border: `1px solid ${errorText ? "#fecaca" : "#bfdbfe"}`,
+              background: errorText ? "#fef2f2" : "#eff6ff",
+              color: errorText ? "#991b1b" : "#1e3a8a",
+            }}
+          >
+            {errorText || infoText}
+          </div>
+        )}
+
         {showNewMessage ? (
-          /* New Message Composer */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-              padding: '20px',
-              borderBottom: '1px solid #e3e8ef',
-              background: 'white'
-            }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#2c3e50' }}>
-                ✏️ New Message
-              </h3>
+          <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "14px", flex: 1 }}>
+            <div>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>
+                Recipient
+              </label>
 
-              {/* Recipient Selection */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#2c3e50' }}>
-                  To:
-                </label>
-                {(isDirector || isManager) && (
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                    <button
-                      onClick={() => {
-                        setSelectedRecipient(null);
-                        setBroadcastRole(null);
-                      }}
-                      style={{
-                        padding: '8px 16px',
-                        background: !selectedRecipient && !broadcastRole ? '#667eea' : '#f0f4f8',
-                        color: !selectedRecipient && !broadcastRole ? 'white' : '#2c3e50',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Direct Message
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedRecipient(null);
-                        setBroadcastRole('manager');
-                      }}
-                      style={{
-                        padding: '8px 16px',
-                        background: broadcastRole === 'manager' ? '#667eea' : '#f0f4f8',
-                        color: broadcastRole === 'manager' ? 'white' : '#2c3e50',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      📢 All Managers
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedRecipient(null);
-                        setBroadcastRole('employee');
-                      }}
-                      style={{
-                        padding: '8px 16px',
-                        background: broadcastRole === 'employee' ? '#667eea' : '#f0f4f8',
-                        color: broadcastRole === 'employee' ? 'white' : '#2c3e50',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      📢 All Employees
-                    </button>
-                  </div>
-                )}
-
-                {!broadcastRole && (
-                  <select
-                    value={selectedRecipient || ''}
-                    onChange={(e) => setSelectedRecipient(Number(e.target.value))}
+              {canBroadcast && (
+                <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastRole(null);
+                    }}
                     style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '2px solid #e3e8ef',
-                      borderRadius: '8px',
-                      fontSize: '14px'
+                      border: "1px solid #cbd5e1",
+                      background: broadcastRole ? "#ffffff" : "#1d4ed8",
+                      color: broadcastRole ? "#334155" : "#ffffff",
+                      borderRadius: "7px",
+                      padding: "8px 10px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
                     }}
                   >
-                    <option value="">Select a recipient...</option>
-                    {allUsers.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.email} ({u.role})
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    Direct
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRecipient(null);
+                      setBroadcastRole("manager");
+                    }}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      background: broadcastRole === "manager" ? "#1d4ed8" : "#ffffff",
+                      color: broadcastRole === "manager" ? "#ffffff" : "#334155",
+                      borderRadius: "7px",
+                      padding: "8px 10px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Broadcast to managers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRecipient(null);
+                      setBroadcastRole("employee");
+                    }}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      background: broadcastRole === "employee" ? "#1d4ed8" : "#ffffff",
+                      color: broadcastRole === "employee" ? "#ffffff" : "#334155",
+                      borderRadius: "7px",
+                      padding: "8px 10px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Broadcast to employees
+                  </button>
+                </div>
+              )}
 
-                {broadcastRole && (
-                  <div style={{
-                    padding: '12px',
-                    background: '#fff3cd',
-                    border: '2px solid #ffc107',
-                    borderRadius: '8px',
-                    color: '#856404',
-                    fontSize: '14px'
-                  }}>
-                    📢 Broadcasting to all {broadcastRole}s
-                  </div>
-                )}
-              </div>
-
-              {/* Subject */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#2c3e50' }}>
-                  Subject (Optional):
-                </label>
-                <input
-                  type="text"
-                  value={messageSubject}
-                  onChange={(e) => setMessageSubject(e.target.value)}
-                  placeholder="Enter subject..."
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '2px solid #e3e8ef',
-                    borderRadius: '8px',
-                    fontSize: '14px'
+              {!broadcastRole ? (
+                <select
+                  value={selectedRecipient ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedRecipient(value ? Number(value) : null);
                   }}
-                />
-              </div>
+                  style={{
+                    width: "100%",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                  }}
+                >
+                  <option value="">Select recipient</option>
+                  {allUsers.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.email} ({account.role})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    background: "#f8fafc",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "#334155",
+                  }}
+                >
+                  This message will be delivered to all {broadcastRole}s.
+                </div>
+              )}
             </div>
 
-            {/* Message Input */}
-            <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-              <textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type your message..."
+            <div>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>
+                Subject (optional)
+              </label>
+              <input
+                type="text"
+                value={messageSubject}
+                onChange={(event) => setMessageSubject(event.target.value)}
                 style={{
-                  flex: 1,
-                  padding: '16px',
-                  border: '2px solid #e3e8ef',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  resize: 'none',
-                  fontFamily: 'inherit'
+                  width: "100%",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  fontSize: "14px",
                 }}
               />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', gap: '12px' }}>
-                <button
-                  onClick={() => setShowNewMessage(false)}
-                  style={{
-                    padding: '12px 24px',
-                    background: '#e3e8ef',
-                    color: '#2c3e50',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    fontWeight: '600'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSendMessage}
-                  disabled={sending || !newMessage.trim() || (!selectedRecipient && !broadcastRole)}
-                  style={{
-                    padding: '12px 24px',
-                    background: (!newMessage.trim() || (!selectedRecipient && !broadcastRole)) 
-                      ? '#95a5a6' 
-                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: (!newMessage.trim() || (!selectedRecipient && !broadcastRole)) ? 'not-allowed' : 'pointer',
-                    fontSize: '15px',
-                    fontWeight: '600'
-                  }}
-                >
-                  {sending ? '✈️ Sending...' : '✈️ Send Message'}
-                </button>
-              </div>
+            </div>
+
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>
+                Message
+              </label>
+              <textarea
+                value={newMessage}
+                onChange={(event) => setNewMessage(event.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: "180px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  fontSize: "14px",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+                placeholder="Type your message"
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewMessage(false);
+                  clearStatus();
+                }}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#334155",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSendMessage();
+                }}
+                disabled={sending}
+                style={{
+                  border: "none",
+                  background: sending ? "#94a3b8" : "#1d4ed8",
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontWeight: 700,
+                  cursor: sending ? "not-allowed" : "pointer",
+                }}
+              >
+                {sending ? "Sending..." : "Send"}
+              </button>
             </div>
           </div>
         ) : selectedConversation ? (
-          /* Message Thread */
           <>
-            {/* Messages */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '20px',
-              background: '#f5f7fa'
-            }}>
-              {messages.map((msg) => {
-                const isMyMessage = msg.senderId === user?.id;
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px", background: "#f7f9fc" }}>
+              {messages.map((message) => {
+                const isMine = message.senderId === user?.id;
                 return (
                   <div
-                    key={msg.id}
+                    key={message.id}
                     style={{
-                      display: 'flex',
-                      justifyContent: isMyMessage ? 'flex-end' : 'flex-start',
-                      marginBottom: '16px'
+                      display: "flex",
+                      justifyContent: isMine ? "flex-end" : "flex-start",
+                      marginBottom: "12px",
                     }}
                   >
-                    <div style={{
-                      maxWidth: '70%',
-                      padding: '12px 16px',
-                      borderRadius: isMyMessage ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      background: isMyMessage 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'white',
-                      color: isMyMessage ? 'white' : '#2c3e50',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                    }}>
-                      {msg.subject && (
-                        <div style={{
-                          fontWeight: 'bold',
-                          marginBottom: '8px',
-                          paddingBottom: '8px',
-                          borderBottom: `1px solid ${isMyMessage ? 'rgba(255,255,255,0.3)' : '#e3e8ef'}`
-                        }}>
-                          {msg.subject}
+                    <div
+                      style={{
+                        maxWidth: "72%",
+                        background: isMine ? "#1d4ed8" : "#ffffff",
+                        color: isMine ? "#ffffff" : "#1e293b",
+                        borderRadius: isMine ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
+                        padding: "10px 12px",
+                        boxShadow: "0 2px 10px rgba(15,23,42,0.08)",
+                      }}
+                    >
+                      {message.subject && (
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "13px",
+                            marginBottom: "6px",
+                            paddingBottom: "6px",
+                            borderBottom: `1px solid ${isMine ? "rgba(255,255,255,0.35)" : "#e2e8f0"}`,
+                          }}
+                        >
+                          {message.subject}
                         </div>
                       )}
-                      <div style={{ marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
-                        {msg.message}
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        opacity: 0.8,
-                        textAlign: 'right'
-                      }}>
-                        {formatMessageTime(msg.createdAt)}
-                        {isMyMessage && msg.isRead && ' ✓✓'}
+                      <div style={{ whiteSpace: "pre-wrap", fontSize: "14px", lineHeight: 1.45 }}>{message.message}</div>
+                      <div style={{ fontSize: "11px", opacity: 0.85, textAlign: "right", marginTop: "6px" }}>
+                        {formatMessageTime(message.createdAt)}
                       </div>
                     </div>
                   </div>
@@ -630,72 +709,67 @@ export const MessagesPage: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div style={{
-              padding: '20px',
-              background: 'white',
-              borderTop: '1px solid #e3e8ef'
-            }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ borderTop: "1px solid #e4e8ef", background: "#ffffff", padding: "14px 18px" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
+                  onChange={(event) => setNewMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleSendMessage();
                     }
                   }}
-                  placeholder="Type a message..."
+                  placeholder="Type a reply"
                   style={{
                     flex: 1,
-                    padding: '14px 18px',
-                    border: '2px solid #e3e8ef',
-                    borderRadius: '24px',
-                    fontSize: '15px',
-                    outline: 'none'
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "999px",
+                    padding: "11px 14px",
+                    fontSize: "14px",
                   }}
                 />
                 <button
-                  onClick={handleSendMessage}
+                  type="button"
+                  onClick={() => {
+                    void handleSendMessage();
+                  }}
                   disabled={sending || !newMessage.trim()}
                   style={{
-                    padding: '14px 24px',
-                    background: !newMessage.trim() 
-                      ? '#95a5a6' 
-                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '24px',
-                    cursor: !newMessage.trim() ? 'not-allowed' : 'pointer',
-                    fontSize: '18px'
+                    border: "none",
+                    background: sending || !newMessage.trim() ? "#94a3b8" : "#1d4ed8",
+                    color: "#ffffff",
+                    borderRadius: "999px",
+                    padding: "11px 16px",
+                    fontWeight: 700,
+                    cursor: sending || !newMessage.trim() ? "not-allowed" : "pointer",
                   }}
                 >
-                  ✈️
+                  {sending ? "Sending" : "Send"}
                 </button>
               </div>
             </div>
           </>
         ) : (
-          /* No conversation selected */
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#95a5a6',
-            background: '#f5f7fa'
-          }}>
-            <div style={{ fontSize: '64px', marginBottom: '20px' }}>💬</div>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '24px' }}>Your Messages</h3>
-            <p style={{ fontSize: '16px', margin: 0 }}>
-              Select a conversation or start a new one
-            </p>
+          <div
+            style={{
+              flex: 1,
+              display: "grid",
+              placeItems: "center",
+              color: "#64748b",
+              background: "#f7f9fc",
+              padding: "20px",
+              textAlign: "center",
+            }}
+          >
+            <div>
+              <h3 style={{ margin: "0 0 8px 0", color: "#1e293b" }}>No conversation selected</h3>
+              <p style={{ margin: 0, fontSize: "14px" }}>Choose a conversation on the left or create a new message.</p>
+            </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

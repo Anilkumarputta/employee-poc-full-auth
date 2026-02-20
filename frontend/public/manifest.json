@@ -1,6 +1,6 @@
 {
-  "short_name": "EmpHub",
-  "name": "Employee Hub",
+  "short_name": "PulseDesk",
+  "name": "PulseDesk Employee Portal",
   "icons": [
     {
       "src": "logo.svg",
@@ -13,5 +13,5 @@
   "display": "standalone",
   "background_color": "#f5f7fa",
   "theme_color": "#2563eb",
-  "description": "Employee Hub workforce portal with analytics, attendance, leave workflows, and notifications."
+  "description": "PulseDesk workforce portal with analytics, attendance, leave workflows, and notifications."
 }

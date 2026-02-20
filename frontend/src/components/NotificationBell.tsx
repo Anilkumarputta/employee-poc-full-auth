@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import type { AppPage } from "../types/navigation";
@@ -38,6 +38,33 @@ type Props = {
   onNavigate: (page: AppPage) => void;
 };
 
+const routeToPageMap: Record<string, AppPage> = {
+  dashboard: "dashboard",
+  employees: "employees",
+  notifications: "notifications",
+  reports: "reports",
+  profile: "profile",
+  preferences: "preferences",
+  settings: "settings",
+  admins: "admins",
+  accessLogs: "accessLogs",
+  sendNote: "sendNote",
+  leaveRequests: "leaveRequests",
+  profileEdit: "profileEdit",
+  employeeLogins: "employeeLogins",
+  messages: "messages",
+  "review-requests": "review-requests",
+  bulkActions: "bulkActions",
+  auditLogs: "auditLogs",
+  analyticsDashboard: "analyticsDashboard",
+  employeeSelfServicePortal: "employeeSelfServicePortal",
+  slackIntegration: "slackIntegration",
+  notificationInbox: "notificationInbox",
+  messagingInbox: "messages",
+};
+
+const toNotificationType = (type: string) => type.toUpperCase();
+
 export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
   const { accessToken } = useAuth();
   const [showPanel, setShowPanel] = useState(false);
@@ -45,42 +72,56 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      return;
+    }
 
     const fetchNotifications = async () => {
       try {
-        const data = await graphqlRequest<{
-          unreadNotifications: Notification[];
-          notificationCount: number;
-        }>(NOTIFICATIONS_QUERY, {}, accessToken, { bypassCache: true });
+        const data = await graphqlRequest<{ unreadNotifications: Notification[]; notificationCount: number }>(
+          NOTIFICATIONS_QUERY,
+          {},
+          accessToken,
+          { bypassCache: true },
+        );
 
-        setNotifications(data.unreadNotifications);
-        setUnreadCount(data.notificationCount);
+        setNotifications(data.unreadNotifications || []);
+        setUnreadCount(data.notificationCount || 0);
       } catch (error) {
-        console.error("Error fetching notifications:", error);
+        console.error("Error loading notifications:", error);
       }
     };
 
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    void fetchNotifications();
+    const interval = window.setInterval(fetchNotifications, 30000);
 
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [accessToken]);
 
+  const resolvePageFromLink = (linkTo?: string): AppPage | null => {
+    if (!linkTo) {
+      return null;
+    }
+
+    const route = linkTo.split("?")[0].replace(/^\/+/, "");
+    const rootRoute = route.split("/")[0];
+    return routeToPageMap[rootRoute] || null;
+  };
+
   const handleNotificationClick = async (notification: Notification) => {
+    if (!accessToken) {
+      return;
+    }
+
     try {
-      // Mark as read
-      await graphqlRequest(MARK_READ_MUTATION, { id: notification.id }, accessToken!);
+      await graphqlRequest(MARK_READ_MUTATION, { id: notification.id }, accessToken);
 
-      // Remove from list
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications((previous) => previous.filter((item) => item.id !== notification.id));
+      setUnreadCount((previous) => Math.max(0, previous - 1));
 
-      // Navigate if there's a link
-        if (notification.linkTo) {
-          // Parse linkTo and navigate
-        const path = notification.linkTo.replace("/", "") as AppPage;
-        onNavigate(path);
+      const page = resolvePageFromLink(notification.linkTo);
+      if (page) {
+        onNavigate(page);
       }
 
       setShowPanel(false);
@@ -89,23 +130,23 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
+  const getNotificationLabel = (type: string) => {
+    switch (toNotificationType(type)) {
       case "CRITICAL":
-        return "🔴";
+        return "Critical";
       case "WARNING":
-        return "⚠️";
+        return "Warning";
       case "APPROVAL":
-        return "✅";
+        return "Approval";
       case "MESSAGE":
-        return "💬";
+        return "Message";
       default:
-        return "ℹ️";
+        return "Info";
     }
   };
 
   const getNotificationColor = (type: string) => {
-    switch (type) {
+    switch (toNotificationType(type)) {
       case "CRITICAL":
         return "#dc2626";
       case "WARNING":
@@ -113,7 +154,7 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
       case "APPROVAL":
         return "#059669";
       case "MESSAGE":
-        return "#3b82f6";
+        return "#2563eb";
       default:
         return "#6b7280";
     }
@@ -135,9 +176,10 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Bell Icon Button */}
       <button
-        onClick={() => setShowPanel(!showPanel)}
+        type="button"
+        onClick={() => setShowPanel((value) => !value)}
+        aria-label="Open notifications"
         style={{
           background: "rgba(255,255,255,0.2)",
           border: "none",
@@ -148,14 +190,20 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          fontSize: "20px",
+          fontSize: "13px",
+          fontWeight: 800,
+          color: "#ffffff",
           position: "relative",
           transition: "all 0.3s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.3)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+        onMouseEnter={(event) => {
+          event.currentTarget.style.background = "rgba(255,255,255,0.3)";
+        }}
+        onMouseLeave={(event) => {
+          event.currentTarget.style.background = "rgba(255,255,255,0.2)";
+        }}
       >
-        🔔
+        NOT
         {unreadCount > 0 && (
           <span
             style={{
@@ -174,7 +222,6 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
               fontWeight: "bold",
               border: "2px solid white",
               boxShadow: "0 2px 6px rgba(239, 68, 68, 0.5)",
-              animation: "pulse 2s infinite",
             }}
           >
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -182,10 +229,8 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
         )}
       </button>
 
-      {/* Notification Panel */}
       {showPanel && (
         <>
-          {/* Backdrop */}
           <div
             onClick={() => setShowPanel(false)}
             style={{
@@ -198,13 +243,13 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
             }}
           />
 
-          {/* Panel */}
           <div
             style={{
               position: "absolute",
               top: "55px",
               right: "0",
               width: "400px",
+              maxWidth: "92vw",
               maxHeight: "600px",
               background: "white",
               borderRadius: "12px",
@@ -215,108 +260,77 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
               flexDirection: "column",
             }}
           >
-            {/* Header */}
             <div
               style={{
                 padding: "20px",
                 borderBottom: "1px solid #e5e7eb",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #0f4c81 0%, #1e3a8a 70%)",
                 color: "white",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "600" }}>
-                Notifications
-              </h3>
-              <p style={{ margin: "5px 0 0 0", fontSize: "13px", opacity: 0.9 }}>
-                {unreadCount} unread
-              </p>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Notifications</h3>
+              <p style={{ margin: "5px 0 0 0", fontSize: "13px", opacity: 0.9 }}>{unreadCount} unread</p>
             </div>
 
-            {/* Notifications List */}
             <div style={{ overflowY: "auto", maxHeight: "500px" }}>
               {notifications.length === 0 ? (
                 <div
                   style={{
-                    padding: "40px 20px",
+                    padding: "34px 20px",
                     textAlign: "center",
-                    color: "#9ca3af",
+                    color: "#64748b",
                   }}
                 >
-                  <div style={{ fontSize: "48px", marginBottom: "10px" }}>✨</div>
-                  <p style={{ margin: 0, fontSize: "14px" }}>All caught up!</p>
-                  <p style={{ margin: "5px 0 0 0", fontSize: "13px" }}>No new notifications</p>
+                  <div style={{ fontSize: "15px", fontWeight: 700, marginBottom: "8px" }}>All caught up</div>
+                  <p style={{ margin: 0, fontSize: "13px" }}>No new notifications.</p>
                 </div>
               ) : (
                 notifications.map((notification) => (
-                  <div
+                  <button
                     key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    style={{
-                      padding: "16px 20px",
-                      borderBottom: "1px solid #f3f4f6",
-                      cursor: "pointer",
-                      transition: "background 0.2s",
-                      display: "flex",
-                      gap: "12px",
+                    type="button"
+                    onClick={() => {
+                      void handleNotificationClick(notification);
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "#f9fafb")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
+                    style={{
+                      width: "100%",
+                      padding: "14px 18px",
+                      border: "none",
+                      borderBottom: "1px solid #f1f5f9",
+                      background: "#ffffff",
+                      cursor: "pointer",
+                      display: "flex",
+                      gap: "10px",
+                      textAlign: "left",
+                    }}
                   >
-                    {/* Icon */}
-                    <div
+                    <span
                       style={{
-                        fontSize: "24px",
-                        flexShrink: 0,
+                        minWidth: "56px",
+                        fontSize: "10px",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        color: getNotificationColor(notification.type),
+                        alignSelf: "flex-start",
+                        background: `${getNotificationColor(notification.type)}20`,
+                        borderRadius: "999px",
+                        padding: "3px 8px",
+                        textAlign: "center",
                       }}
                     >
-                      {getNotificationIcon(notification.type)}
-                    </div>
+                      {getNotificationLabel(notification.type)}
+                    </span>
 
-                    {/* Content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>
+                        {notification.title}
+                      </span>
+                      <span
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        <h4
-                          style={{
-                            margin: 0,
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: "#111827",
-                            flex: 1,
-                          }}
-                        >
-                          {notification.title}
-                        </h4>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            fontSize: "10px",
-                            fontWeight: "600",
-                            textTransform: "uppercase",
-                            background: `${getNotificationColor(notification.type)}20`,
-                            color: getNotificationColor(notification.type),
-                          }}
-                        >
-                          {notification.type}
-                        </span>
-                      </div>
-                      <p
-                        style={{
-                          margin: "0 0 6px 0",
                           fontSize: "13px",
-                          color: "#6b7280",
-                          lineHeight: "1.5",
+                          color: "#475569",
+                          lineHeight: 1.4,
+                          marginBottom: "6px",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           display: "-webkit-box",
@@ -325,22 +339,14 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
                         }}
                       >
                         {notification.message}
-                      </p>
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        {formatTime(notification.createdAt)}
                       </span>
-                    </div>
-                  </div>
+                      <span style={{ fontSize: "12px", color: "#94a3b8" }}>{formatTime(notification.createdAt)}</span>
+                    </span>
+                  </button>
                 ))
               )}
             </div>
 
-            {/* Footer */}
             {notifications.length > 0 && (
               <div
                 style={{
@@ -350,6 +356,7 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => {
                     onNavigate("notifications");
                     setShowPanel(false);
@@ -357,13 +364,13 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
                   style={{
                     background: "transparent",
                     border: "none",
-                    color: "#667eea",
+                    color: "#1d4ed8",
                     fontSize: "14px",
-                    fontWeight: "600",
+                    fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
-                  View All Notifications
+                  View all notifications
                 </button>
               </div>
             )}

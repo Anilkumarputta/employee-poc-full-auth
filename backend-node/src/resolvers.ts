@@ -77,6 +77,16 @@ function requireAdmin(ctx: Context) {
   }
 }
 
+function getMessageVisibilityFilter(userId: number, role: string) {
+  return [
+    { senderId: userId },
+    { recipientId: userId },
+    {
+      AND: [{ recipientId: null }, { recipientRole: role }],
+    },
+  ];
+}
+
 function formatEmailLocalPartAsName(email: string): string {
   const localPart = email.split('@')[0] || '';
   const parts = localPart
@@ -478,25 +488,45 @@ export const resolvers = {
     },
 
     allUsers: async (_: any, { searchTerm, roleFilter, statusFilter }: any, ctx: Context) => {
-      requireDirector(ctx);
-
+      requireAuth(ctx);
+      const requesterRole = ctx.user!.role;
       const where: any = {};
 
-      // Search filter
       if (searchTerm) {
         where.email = { contains: searchTerm, mode: 'insensitive' };
       }
 
-      // Role filter
-      if (roleFilter && roleFilter !== 'all') {
-        where.role = roleFilter;
-      }
-
-      // Status filter (active/blocked)
       if (statusFilter === 'active') {
         where.isActive = true;
       } else if (statusFilter === 'blocked') {
         where.isActive = false;
+      }
+
+      const applyRequestedRoleFilter = () => {
+        if (!roleFilter || roleFilter === 'all') {
+          return;
+        }
+        where.role = roleFilter;
+      };
+
+      if (requesterRole === 'director') {
+        applyRequestedRoleFilter();
+      } else if (requesterRole === 'manager') {
+        const managerVisibleRoles = ['manager', 'employee'];
+        if (roleFilter && roleFilter !== 'all' && !managerVisibleRoles.includes(roleFilter)) {
+          return [];
+        }
+        if (roleFilter && roleFilter !== 'all') {
+          where.role = roleFilter;
+        } else {
+          where.role = { in: managerVisibleRoles };
+        }
+      } else {
+        // Employees can only load managers for messaging.
+        if (roleFilter && roleFilter !== 'all' && roleFilter !== 'manager') {
+          return [];
+        }
+        where.role = 'manager';
       }
 
       return ctx.prisma.user.findMany({
@@ -586,11 +616,22 @@ export const resolvers = {
     messages: async (_: any, { conversationId }: any, ctx: Context) => {
       requireAuth(ctx);
       const { prisma, user } = ctx;
+      const visibilityFilter = getMessageVisibilityFilter(user!.id, user!.role);
+
+      if (!conversationId) {
+        return prisma.message.findMany({
+          where: {
+            OR: visibilityFilter,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        });
+      }
 
       return prisma.message.findMany({
         where: {
           conversationId,
-          OR: [{ senderId: user!.id }, { recipientId: user!.id }],
+          OR: visibilityFilter,
         },
         orderBy: { createdAt: 'asc' },
       });
@@ -602,11 +643,7 @@ export const resolvers = {
 
       return prisma.message.findMany({
         where: {
-          OR: [
-            { senderId: user!.id },
-            { recipientId: user!.id },
-            { AND: [{ recipientId: null }, { recipientRole: user!.role }] },
-          ],
+          OR: getMessageVisibilityFilter(user!.id, user!.role),
         },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -619,7 +656,7 @@ export const resolvers = {
 
       const messages = await prisma.message.findMany({
         where: {
-          OR: [{ senderId: user!.id }, { recipientId: user!.id }],
+          OR: getMessageVisibilityFilter(user!.id, user!.role),
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -629,16 +666,30 @@ export const resolvers = {
 
       messages.forEach((msg) => {
         const convId = msg.conversationId;
-        const isUnread = !msg.isRead && msg.recipientId === user!.id;
+        const isUnread =
+          !msg.isRead &&
+          (msg.recipientId === user!.id ||
+            (msg.recipientId === null && msg.recipientRole === user!.role && msg.senderId !== user!.id));
 
         if (!conversationMap.has(convId)) {
-          const otherPersonEmail = msg.senderId === user!.id ? msg.recipientEmail : msg.senderEmail;
-          const otherPersonRole = msg.senderId === user!.id ? msg.recipientRole : msg.senderRole;
+          let participant = 'Broadcast';
+          let participantRole = 'all';
+
+          if (msg.senderId === user!.id) {
+            participant = msg.recipientEmail || `${msg.recipientRole || 'all'} group`;
+            participantRole = msg.recipientRole || 'all';
+          } else if (msg.recipientId === user!.id) {
+            participant = msg.senderEmail;
+            participantRole = msg.senderRole || 'all';
+          } else if (msg.recipientId === null && msg.recipientRole === user!.role) {
+            participant = `${msg.senderEmail} (broadcast)`;
+            participantRole = msg.senderRole || 'all';
+          }
 
           conversationMap.set(convId, {
             conversationId: convId,
-            participant: otherPersonEmail || 'Broadcast',
-            participantRole: otherPersonRole || 'all',
+            participant,
+            participantRole,
             lastMessage: msg.message,
             lastMessageTime: msg.createdAt.toISOString(),
             unreadCount: isUnread ? 1 : 0,
@@ -655,21 +706,26 @@ export const resolvers = {
       requireAuth(ctx);
       const { prisma, user } = ctx;
 
+      const visibilityFilter = getMessageVisibilityFilter(user!.id, user!.role);
+
       const [total, unread, messages] = await Promise.all([
         prisma.message.count({
           where: {
-            OR: [{ senderId: user!.id }, { recipientId: user!.id }],
+            OR: visibilityFilter,
           },
         }),
         prisma.message.count({
           where: {
-            recipientId: user!.id,
+            OR: [
+              { recipientId: user!.id, isRead: false },
+              { recipientId: null, recipientRole: user!.role, isRead: false },
+            ],
             isRead: false,
           },
         }),
         prisma.message.findMany({
           where: {
-            OR: [{ senderId: user!.id }, { recipientId: user!.id }],
+            OR: visibilityFilter,
           },
           select: { conversationId: true },
           distinct: ['conversationId'],
@@ -1556,7 +1612,10 @@ export const resolvers = {
       await ctx.prisma.message.updateMany({
         where: {
           conversationId,
-          recipientId: ctx.user!.id,
+          OR: [
+            { recipientId: ctx.user!.id },
+            { recipientId: null, recipientRole: ctx.user!.role },
+          ],
           isRead: false,
         },
         data: {

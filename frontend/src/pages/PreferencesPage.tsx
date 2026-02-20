@@ -1,369 +1,315 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getStorageItem, setStorageItem } from "../lib/safeStorage";
 
 type Props = {
   onBack?: () => void;
 };
 
+const STORAGE_KEYS = {
+  theme: "theme",
+  language: "language",
+  timezone: "timezone",
+  emailNotifications: "pref_email_notifications",
+  pushNotifications: "pref_push_notifications",
+};
+
+const TIMEZONE_OPTIONS = [
+  { value: "auto", label: "Auto-detect (recommended)" },
+  { value: "America/New_York", label: "Eastern Time (New York)" },
+  { value: "America/Chicago", label: "Central Time (Chicago)" },
+  { value: "America/Denver", label: "Mountain Time (Denver)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (Los Angeles)" },
+  { value: "UTC", label: "UTC" },
+];
+
+const parseBoolean = (value: string | null, fallback: boolean) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+};
+
+const resolveSystemTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+};
+
 export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [theme, setTheme] = useState("light");
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState("en-US");
   const [timezone, setTimezone] = useState("auto");
-  const [detectedTimezone, setDetectedTimezone] = useState("");
-  const [currentTime, setCurrentTime] = useState("");
+  const [detectedTimezone, setDetectedTimezone] = useState("UTC");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Auto-detect system timezone
-    const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const systemTimezone = resolveSystemTimezone();
     setDetectedTimezone(systemTimezone);
 
-    // Load saved preferences
-    const savedTheme = getStorageItem("theme") || "light";
-    const savedLanguage = getStorageItem("language") || "en";
-    const savedTimezone = getStorageItem("timezone") || "auto";
-    
-    setTheme(savedTheme);
-    setLanguage(savedLanguage);
-    setTimezone(savedTimezone);
-    
-    // Note: We don't change document.body styles here as it interferes with the main app
-    // Theme would be applied at the root App level in a real implementation
+    setTheme(getStorageItem(STORAGE_KEYS.theme) || "light");
+    setLanguage(getStorageItem(STORAGE_KEYS.language) || "en-US");
+    setTimezone(getStorageItem(STORAGE_KEYS.timezone) || "auto");
+
+    setEmailNotifications(parseBoolean(getStorageItem(STORAGE_KEYS.emailNotifications), true));
+    setPushNotifications(parseBoolean(getStorageItem(STORAGE_KEYS.pushNotifications), false));
   }, []);
 
-  useEffect(() => {
-    // Update current time every second
-    const updateTime = () => {
-      const tz = timezone === "auto" ? detectedTimezone : timezone;
-      const time = new Date().toLocaleString("en-US", { 
-        timeZone: tz,
-        dateStyle: "full",
-        timeStyle: "long"
-      });
-      setCurrentTime(time);
-    };
-    
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+  const activeTimezone = useMemo(() => {
+    if (timezone === "auto") {
+      return detectedTimezone || "UTC";
+    }
+    return timezone;
   }, [timezone, detectedTimezone]);
 
+  const currentTime = useMemo(() => {
+    try {
+      return new Date().toLocaleString("en-US", {
+        timeZone: activeTimezone,
+        dateStyle: "full",
+        timeStyle: "long",
+      });
+    } catch {
+      return new Date().toLocaleString("en-US", {
+        dateStyle: "full",
+        timeStyle: "long",
+      });
+    }
+  }, [activeTimezone]);
+
   const handleSavePreferences = () => {
-    setStorageItem("theme", theme);
-    setStorageItem("language", language);
-    setStorageItem("timezone", timezone);
-    
-    // Show success message with better styling
-    const successMsg = document.createElement('div');
-    successMsg.innerHTML = '✅ Preferences saved successfully!';
-    successMsg.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 16px 24px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      z-index: 10000;
-      font-weight: 600;
-      animation: slideIn 0.3s ease-out;
-    `;
-    document.body.appendChild(successMsg);
-    
-    setTimeout(() => {
-      successMsg.style.animation = 'slideOut 0.3s ease-in';
-      setTimeout(() => successMsg.remove(), 300);
-    }, 3000);
+    setStorageItem(STORAGE_KEYS.theme, theme);
+    setStorageItem(STORAGE_KEYS.language, language);
+    setStorageItem(STORAGE_KEYS.timezone, timezone);
+    setStorageItem(STORAGE_KEYS.emailNotifications, String(emailNotifications));
+    setStorageItem(STORAGE_KEYS.pushNotifications, String(pushNotifications));
+
+    setSaveMessage("Preferences saved successfully.");
+    window.setTimeout(() => setSaveMessage(null), 3000);
   };
 
   return (
-    <div style={{ 
-      padding: "2rem", 
-      minHeight: "100vh",
-      background: "#f5f7fa"
-    }}>
-      {/* Header with Back Button */}
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        gap: "1rem",
-        marginBottom: "2rem" 
-      }}>
+    <div style={{ padding: "2rem", minHeight: "100vh", background: "#f4f7fb" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", marginBottom: "1.8rem" }}>
         {onBack && (
           <button
+            type="button"
             onClick={onBack}
             style={{
-              background: "white",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #d1d5db",
               borderRadius: "8px",
-              padding: "0.5rem 1rem",
+              background: "#ffffff",
+              color: "#1f2937",
+              fontWeight: 700,
+              padding: "0.55rem 0.95rem",
               cursor: "pointer",
-              fontSize: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              color: "#374151",
-              fontWeight: "500",
-              transition: "all 0.2s"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#f9fafb";
-              e.currentTarget.style.borderColor = "#9ca3af";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "white";
-              e.currentTarget.style.borderColor = "#e5e7eb";
             }}
           >
-            ← Back
+            Back
           </button>
         )}
         <div>
-          <h1 style={{ margin: 0, color: "#111827", fontSize: "2rem" }}>⚙️ Preferences</h1>
-          <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280", fontSize: "1rem" }}>
-            Customize your application settings and preferences
+          <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.9rem" }}>Preferences</h1>
+          <p style={{ margin: "0.35rem 0 0 0", color: "#64748b", fontSize: "0.98rem" }}>
+            Update your personal app settings.
           </p>
         </div>
       </div>
 
-      <div style={{ maxWidth: "800px" }}>
-        <div style={{ 
-          padding: "2rem", 
-          background: "white", 
-          borderRadius: "12px", 
-          border: "1px solid #e5e7eb", 
-          marginBottom: "1.5rem",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-        }}>
-          <h3 style={{ 
-            margin: "0 0 1.5rem 0", 
-            color: "#111827", 
-            fontSize: "1.25rem",
-            fontWeight: "600",
-            borderBottom: "2px solid #f3f4f6",
-            paddingBottom: "0.75rem"
-          }}>
-            🔔 Notifications
-          </h3>
-          
-          <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <label style={{ fontWeight: "500", color: "#374151" }}>Email Notifications</label>
-            <input 
-              type="checkbox" 
-              checked={emailNotifications}
-              onChange={(e) => setEmailNotifications(e.target.checked)}
-              style={{ width: "20px", height: "20px", cursor: "pointer" }}
-            />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <label style={{ fontWeight: "500", color: "#374151" }}>Push Notifications</label>
-            <input 
-              type="checkbox" 
-              checked={pushNotifications}
-              onChange={(e) => setPushNotifications(e.target.checked)}
-              style={{ width: "20px", height: "20px", cursor: "pointer" }}
-            />
-          </div>
-        </div>
-
-        <div style={{ 
-          padding: "2rem", 
-          background: "white", 
-          borderRadius: "12px", 
-          border: "1px solid #e5e7eb", 
-          marginBottom: "1.5rem",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-        }}>
-          <h3 style={{ 
-            margin: "0 0 1.5rem 0", 
-            color: "#111827", 
-            fontSize: "1.25rem",
-            fontWeight: "600",
-            borderBottom: "2px solid #f3f4f6",
-            paddingBottom: "0.75rem"
-          }}>
-            🎨 Appearance
-          </h3>
-          
-          <div style={{ marginBottom: "0.5rem" }}>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
-              Theme Mode
-            </label>
-            <select 
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              style={{ width: "100%", padding: "0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.95rem" }}
-            >
-              <option value="light">☀️ Light Mode</option>
-              <option value="dark">🌙 Dark Mode</option>
-              <option value="auto">🔄 Auto (System)</option>
-            </select>
-            <p style={{ fontSize: "0.85rem", color: "#6b7280", margin: "0.5rem 0 0 0" }}>
-              {theme === "auto" ? "Follows your system theme preference" : `Using ${theme} theme`}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ 
-          padding: "2rem", 
-          background: "white", 
-          borderRadius: "12px", 
-          border: "1px solid #e5e7eb", 
-          marginBottom: "1.5rem",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-        }}>
-          <h3 style={{ 
-            margin: "0 0 1.5rem 0", 
-            color: "#111827", 
-            fontSize: "1.25rem",
-            fontWeight: "600",
-            borderBottom: "2px solid #f3f4f6",
-            paddingBottom: "0.75rem"
-          }}>
-            🌍 Language & Region
-          </h3>
-          
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
-              Language
-            </label>
-            <select 
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              style={{ width: "100%", padding: "0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.95rem" }}
-            >
-              <optgroup label="Indian Languages">
-                <option value="hi">हिन्दी (Hindi)</option>
-                <option value="te">తెలుగు (Telugu)</option>
-                <option value="ta">தமிழ் (Tamil)</option>
-                <option value="mr">मराठी (Marathi)</option>
-                <option value="bn">বাংলা (Bengali)</option>
-                <option value="gu">ગુજરાતી (Gujarati)</option>
-                <option value="kn">ಕನ್ನಡ (Kannada)</option>
-                <option value="ml">മലയാളം (Malayalam)</option>
-                <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
-                <option value="or">ଓଡ଼ିଆ (Odia)</option>
-                <option value="ur">اردو (Urdu)</option>
-              </optgroup>
-              <optgroup label="International Languages">
-                <option value="en">English</option>
-                <option value="es">Español (Spanish)</option>
-                <option value="fr">Français (French)</option>
-                <option value="de">Deutsch (German)</option>
-                <option value="zh">中文 (Chinese)</option>
-                <option value="ja">日本語 (Japanese)</option>
-                <option value="ar">العربية (Arabic)</option>
-                <option value="ru">Русский (Russian)</option>
-                <option value="pt">Português (Portuguese)</option>
-                <option value="it">Italiano (Italian)</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
-              Timezone
-            </label>
-            <select 
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              style={{ width: "100%", padding: "0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.95rem" }}
-            >
-              <option value="auto">🔄 Auto-detect ({detectedTimezone})</option>
-              <optgroup label="India">
-                <option value="Asia/Kolkata">India Standard Time (IST) - Kolkata, Mumbai, Delhi</option>
-              </optgroup>
-              <optgroup label="North America">
-                <option value="America/New_York">Eastern Time (ET) - New York</option>
-                <option value="America/Chicago">Central Time (CT) - Chicago</option>
-                <option value="America/Denver">Mountain Time (MT) - Denver</option>
-                <option value="America/Los_Angeles">Pacific Time (PT) - Los Angeles</option>
-                <option value="America/Anchorage">Alaska Time (AKT) - Anchorage</option>
-                <option value="Pacific/Honolulu">Hawaii Time (HST) - Honolulu</option>
-                <option value="America/Toronto">Toronto, Canada</option>
-                <option value="America/Vancouver">Vancouver, Canada</option>
-              </optgroup>
-              <optgroup label="Europe">
-                <option value="Europe/London">London (GMT/BST)</option>
-                <option value="Europe/Paris">Paris, Berlin, Rome (CET)</option>
-                <option value="Europe/Athens">Athens, Helsinki (EET)</option>
-                <option value="Europe/Moscow">Moscow (MSK)</option>
-                <option value="Europe/Istanbul">Istanbul</option>
-              </optgroup>
-              <optgroup label="Asia Pacific">
-                <option value="Asia/Dubai">Dubai (GST)</option>
-                <option value="Asia/Singapore">Singapore (SGT)</option>
-                <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
-                <option value="Asia/Tokyo">Tokyo (JST)</option>
-                <option value="Asia/Seoul">Seoul (KST)</option>
-                <option value="Asia/Shanghai">Shanghai (CST)</option>
-                <option value="Asia/Bangkok">Bangkok (ICT)</option>
-                <option value="Australia/Sydney">Sydney (AEDT)</option>
-                <option value="Australia/Melbourne">Melbourne (AEDT)</option>
-                <option value="Pacific/Auckland">Auckland (NZDT)</option>
-              </optgroup>
-              <optgroup label="Middle East & Africa">
-                <option value="Africa/Cairo">Cairo (EET)</option>
-                <option value="Africa/Johannesburg">Johannesburg (SAST)</option>
-                <option value="Africa/Lagos">Lagos (WAT)</option>
-                <option value="Africa/Nairobi">Nairobi (EAT)</option>
-              </optgroup>
-              <optgroup label="South America">
-                <option value="America/Sao_Paulo">São Paulo (BRT)</option>
-                <option value="America/Buenos_Aires">Buenos Aires (ART)</option>
-                <option value="America/Lima">Lima (PET)</option>
-                <option value="America/Bogota">Bogotá (COT)</option>
-              </optgroup>
-              <optgroup label="Other">
-                <option value="UTC">UTC (Coordinated Universal Time)</option>
-              </optgroup>
-            </select>
-            <div style={{ 
-              marginTop: "0.75rem", 
-              padding: "0.75rem", 
-              background: "#f0f9ff", 
-              border: "1px solid #bae6fd",
-              borderRadius: "6px"
-            }}>
-              <div style={{ fontSize: "0.85rem", color: "#0369a1", fontWeight: "600", marginBottom: "0.25rem" }}>
-                🕐 Live Time Preview
-              </div>
-              <div style={{ fontSize: "0.9rem", color: "#0c4a6e", fontFamily: "monospace" }}>
-                {currentTime}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          style={{ 
-            padding: "0.875rem 2rem", 
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white", 
-            border: "none", 
-            borderRadius: "8px", 
-            cursor: "pointer",
-            fontSize: "1rem",
-            fontWeight: "600",
-            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
-            transition: "all 0.3s"
-          }}
-          onClick={handleSavePreferences}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 6px 16px rgba(102, 126, 234, 0.5)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.4)";
+      {saveMessage && (
+        <div
+          style={{
+            marginBottom: "1rem",
+            maxWidth: "880px",
+            border: "1px solid #bfdbfe",
+            background: "#eff6ff",
+            color: "#1e3a8a",
+            padding: "0.75rem 0.9rem",
+            borderRadius: "10px",
+            fontWeight: 600,
           }}
         >
-          💾 Save Preferences
-        </button>
+          {saveMessage}
+        </div>
+      )}
+
+      <div style={{ maxWidth: "880px", display: "grid", gap: "1rem" }}>
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            padding: "1.5rem",
+            boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#0f172a" }}>Notifications</h2>
+
+          <PreferenceToggle
+            label="Email notifications"
+            description="Receive updates about messages and approvals in email."
+            checked={emailNotifications}
+            onChange={setEmailNotifications}
+          />
+
+          <PreferenceToggle
+            label="In-app push notifications"
+            description="Show instant alerts inside the app while you are signed in."
+            checked={pushNotifications}
+            onChange={setPushNotifications}
+          />
+        </section>
+
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            padding: "1.5rem",
+            boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#0f172a" }}>Appearance</h2>
+
+          <label style={{ display: "block", marginBottom: "0.55rem", fontWeight: 700, color: "#334155" }}>Theme</label>
+          <select
+            value={theme}
+            onChange={(event) => setTheme(event.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "0.7rem",
+              marginBottom: "0.7rem",
+            }}
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="auto">Auto (System)</option>
+          </select>
+
+          <div style={{ color: "#64748b", fontSize: "0.9rem" }}>
+            Current selection: <strong>{theme}</strong>
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            padding: "1.5rem",
+            boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#0f172a" }}>Language and Time</h2>
+
+          <label style={{ display: "block", marginBottom: "0.55rem", fontWeight: 700, color: "#334155" }}>Language</label>
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "0.7rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <option value="en-US">English (United States)</option>
+            <option value="en-GB">English (United Kingdom)</option>
+            <option value="en-CA">English (Canada)</option>
+          </select>
+
+          <label style={{ display: "block", marginBottom: "0.55rem", fontWeight: 700, color: "#334155" }}>Timezone</label>
+          <select
+            value={timezone}
+            onChange={(event) => setTimezone(event.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "0.7rem",
+            }}
+          >
+            {TIMEZONE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.value === "auto" ? `${option.label} (${detectedTimezone})` : option.label}
+              </option>
+            ))}
+          </select>
+
+          <div
+            style={{
+              marginTop: "0.85rem",
+              border: "1px solid #dbeafe",
+              background: "#f8fbff",
+              borderRadius: "8px",
+              padding: "0.75rem",
+            }}
+          >
+            <div style={{ fontSize: "0.82rem", color: "#1e3a8a", fontWeight: 700, marginBottom: "0.3rem" }}>
+              Time preview
+            </div>
+            <div style={{ fontSize: "0.92rem", color: "#334155", fontFamily: "monospace" }}>{currentTime}</div>
+          </div>
+        </section>
+
+        <div>
+          <button
+            type="button"
+            onClick={handleSavePreferences}
+            style={{
+              border: "none",
+              borderRadius: "9px",
+              background: "#1d4ed8",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "1rem",
+              padding: "0.8rem 1.4rem",
+              cursor: "pointer",
+            }}
+          >
+            Save Preferences
+          </button>
+        </div>
       </div>
     </div>
+  );
+};
+
+type PreferenceToggleProps = {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+};
+
+const PreferenceToggle: React.FC<PreferenceToggleProps> = ({ label, description, checked, onChange }) => {
+  return (
+    <label
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: "1rem",
+        marginBottom: "0.95rem",
+      }}
+    >
+      <span>
+        <span style={{ display: "block", color: "#0f172a", fontWeight: 700 }}>{label}</span>
+        <span style={{ display: "block", color: "#64748b", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+          {description}
+        </span>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        style={{ width: "18px", height: "18px", marginTop: "3px", cursor: "pointer" }}
+      />
+    </label>
   );
 };

@@ -289,6 +289,7 @@ export const typeDefs = gql`
   input NoteInput {
     message: String!
     toEmployeeId: Int
+    toUserId: Int
     toAll: Boolean
   }
 

@@ -1,12 +1,16 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2563EB"/>
-      <stop offset="1" stop-color="#0EA5E9"/>
+      <stop stop-color="#0f4c81"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="136" y1="136" x2="376" y2="376" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#bfdbfe"/>
     </linearGradient>
   </defs>
-  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
-  <path d="M146 166H206V214H270V166H330V346H270V272H206V346H146V166Z" fill="white"/>
-  <path d="M362 166H426V346H362V166Z" fill="white" fill-opacity="0.88"/>
-  <circle cx="394" cy="134" r="26" fill="white" fill-opacity="0.22"/>
+
+  <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#bg)"/>
+  <path d="M160 132H272C338.274 132 392 185.726 392 252C392 318.274 338.274 372 272 372H232V300H272C298.51 300 320 278.51 320 252C320 225.49 298.51 204 272 204H232V416H160V132Z" fill="white"/>
+  <circle cx="344" cy="172" r="28" fill="url(#accent)"/>
 </svg>

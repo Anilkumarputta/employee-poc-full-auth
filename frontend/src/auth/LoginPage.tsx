@@ -143,12 +143,17 @@ export const LoginPage: React.FC<Props> = ({ goRegister, goForgot }) => {
               boxShadow: festival
                 ? `0 10px 25px ${festival.colors[0]}33`
                 : "0 10px 25px rgba(102, 126, 234, 0.3)",
+              overflow: "hidden",
             }}
           >
-            EP
+            <img
+              src="/logo.svg"
+              alt="PulseDesk logo"
+              style={{ width: "54px", height: "54px", objectFit: "contain" }}
+            />
           </div>
           <h1 className="animated-employee-poc" style={{ margin: 0 }}>
-            Employee Hub
+            PulseDesk
           </h1>
           <p
             style={{
