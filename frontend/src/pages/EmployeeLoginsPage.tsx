@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { graphqlRequest } from '../lib/graphqlClient';
 import { useAuth } from '../auth/authContext';
+import { sanitizeAndDedupeEmployees } from '../lib/employeeUtils';
 
 type Employee = {
   id: number;
@@ -94,7 +95,7 @@ export default function EmployeeLoginsPage() {
         { bypassCache: true },
       );
 
-      setEmployees(data.employees.items || []);
+      setEmployees(sanitizeAndDedupeEmployees(data.employees.items || []));
     } catch (error: any) {
       setMessage({ type: 'error', text: error?.message || 'Failed to load employees.' });
     } finally {
@@ -154,7 +155,7 @@ export default function EmployeeLoginsPage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2rem)', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       <div
         style={{
           background: 'white',
@@ -251,7 +252,7 @@ export default function EmployeeLoginsPage() {
           </div>
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
               <thead style={{ background: '#f8fafc' }}>
                 <tr>
                   <Th>ID</Th>

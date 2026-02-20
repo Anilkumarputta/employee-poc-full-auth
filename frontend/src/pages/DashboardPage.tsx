@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
 import { formatRelativeTime } from "../lib/dateUtils";
 import { getCurrentFestivalTheme } from "../festivalThemes";
 import type { AppPage } from "../types/navigation";
@@ -161,51 +162,64 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const festival = getCurrentFestivalTheme();
 
   useEffect(() => {
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     fetchData();
+  }, [accessToken, isEmployee, isManager, isDirector, user?.id, user?.email]);
+
+  useEffect(() => {
     fetchWeather();
-    
-    // Update time every second
+  }, []);
+
+  useEffect(() => {
+    // Update header clock every minute to avoid expensive full-page rerenders.
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
-    
+    }, 60000);
+
     return () => clearInterval(timeInterval);
   }, []);
 
   const fetchWeather = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
     try {
-      // Using wttr.in - a simple weather API that doesn't require API key
-      const response = await fetch('https://wttr.in/?format=j1');
+      // Using wttr.in - a simple weather API that does not require an API key
+      const response = await fetch("https://wttr.in/?format=j1", { signal: controller.signal });
       const data = await response.json();
-      
+
       const current = data.current_condition[0];
       setWeather({
         temp: Math.round(parseFloat(current.temp_C)),
         condition: current.weatherDesc[0].value,
         icon: getWeatherIcon(current.weatherCode),
-        location: data.nearest_area[0].areaName[0].value
+        location: data.nearest_area[0].areaName[0].value,
       });
     } catch (error) {
-      console.error('Failed to fetch weather:', error);
-      // Fallback weather data
+      console.error("Failed to fetch weather:", error);
       setWeather({
         temp: 22,
-        condition: 'Partly Cloudy',
-        icon: '⛅',
-        location: 'Local'
+        condition: "Partly Cloudy",
+        icon: "Cloudy",
+        location: "Local",
       });
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
   const getWeatherIcon = (code: string): string => {
-    const weatherCode = parseInt(code);
-    if (weatherCode === 113) return '☀️'; // Sunny
-    if (weatherCode === 116) return '⛅'; // Partly cloudy
-    if (weatherCode === 119 || weatherCode === 122) return '☁️'; // Cloudy
-    if (weatherCode >= 176 && weatherCode <= 299) return '🌧️'; // Rainy
-    if (weatherCode >= 323 && weatherCode <= 395) return '🌨️'; // Snowy
-    if (weatherCode >= 200 && weatherCode <= 299) return '⛈️'; // Thunderstorm
-    return '🌤️'; // Default
+    const weatherCode = parseInt(code, 10);
+    if (weatherCode === 113) return "Sunny";
+    if (weatherCode === 116) return "Partly Cloudy";
+    if (weatherCode === 119 || weatherCode === 122) return "Cloudy";
+    if (weatherCode >= 176 && weatherCode <= 299) return "Rain";
+    if (weatherCode >= 323 && weatherCode <= 395) return "Snow";
+    if (weatherCode >= 200 && weatherCode <= 299) return "Storm";
+    return "Weather";
   };
 
   const getActivityIcon = (action: string): string => {
@@ -251,7 +265,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   const fetchData = async () => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -262,9 +279,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] })),
         ]);
 
-        setEmployees(employeesData.employees.items || []);
+        setEmployees(sanitizeAndDedupeEmployees(employeesData.employees.items || []));
         setLeaveRequests(leaveData.myLeaveRequests || []);
-        setLoading(false);
 
         const recentActivities: Activity[] = [];
         (notificationsData.notifications || []).slice(0, 8).forEach((notif: Notification) => {
@@ -289,9 +305,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         graphqlRequest(LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ leaveRequests: [] })),
       ]);
       
-      setEmployees(employeesData.employees.items);
+      setEmployees(sanitizeAndDedupeEmployees(employeesData.employees.items || []));
       setLeaveRequests(leaveData.leaveRequests || []);
-      setLoading(false);
 
       const [logsData, notificationsData] = await Promise.all([logsPromise, notificationsPromise]);
       
@@ -328,6 +343,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -352,12 +368,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   }
 
   // Filter employees based on role
-  const filteredEmployees = isDirector 
-    ? employees.filter(e => e.role !== 'director') // Director sees all except directors
-    : isManager 
-    ? employees.filter(e => e.managerId === user?.id) // Manager sees only their team
-    : employees.filter(e => e.managerId === (employees.find(emp => emp.email === user?.email)?.managerId)) // Employee sees team members with same manager
-      .filter(e => e.email !== user?.email); // Exclude self
+  const filteredEmployees = useMemo(() => {
+    if (isDirector) {
+      return employees.filter((employee) => employee.role !== 'director');
+    }
+
+    if (isManager) {
+      return employees.filter((employee) => employee.managerId === user?.id);
+    }
+
+    const myManagerId = employees.find((employee) => employee.email === user?.email)?.managerId;
+    return employees
+      .filter((employee) => employee.managerId === myManagerId)
+      .filter((employee) => employee.email !== user?.email);
+  }, [employees, isDirector, isManager, user?.email, user?.id]);
 
   // Calculate stats based on filtered employees
   const totalEmployees = filteredEmployees.length;
@@ -390,10 +414,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     return acc;
   }, {} as Record<string, number>);
 
+  const recentlyChangedEmployees = useMemo(
+    () =>
+      [...employees]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 5),
+    [employees]
+  );
+
   // Manager-specific: filter to team members
-  const myTeam = isManager 
-    ? employees.filter(e => e.managerId === user?.id) 
-    : [];
+  const myTeam = useMemo(
+    () => (isManager ? employees.filter((employee) => employee.managerId === user?.id) : []),
+    [employees, isManager, user?.id]
+  );
   const myTeamSize = myTeam.length;
   const myTeamAvgAttendance = myTeam.length > 0
     ? Math.round(myTeam.reduce((sum, e) => sum + e.attendance, 0) / myTeam.length)
@@ -404,9 +437,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     .slice(0, 5);
 
   // Employee-specific: find my record
-  const myRecord = isEmployee 
-    ? employees.find(e => e.email === user?.email)
-    : null;
+  const myRecord = useMemo(
+    () => (isEmployee ? employees.find((employee) => employee.email === user?.email) || null : null),
+    [employees, isEmployee, user?.email]
+  );
   const myLeaveBalance = 20; // TODO: Calculate from leave requests
   const myNextLeave = leaveRequests
     .filter(lr => lr.status === 'approved' && lr.startDate > todayStr)
@@ -1016,7 +1050,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             clickable={true}
             onClick={() => {
               setModalType('attendance');
-              setModalData(employees.sort((a, b) => b.attendance - a.attendance));
+              setModalData([...employees].sort((a, b) => b.attendance - a.attendance));
               setShowModal(true);
             }}
           />
@@ -1090,10 +1124,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               🕒 Recently Changed Records
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {employees
-                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                .slice(0, 5)
-                .map(emp => (
+              {recentlyChangedEmployees.map((emp) => (
                   <div key={emp.id} style={{
                     padding: '12px',
                     background: '#f8f9fa',
@@ -2169,3 +2200,4 @@ const ActivityItem: React.FC<{
     </div>
   </div>
 );
+

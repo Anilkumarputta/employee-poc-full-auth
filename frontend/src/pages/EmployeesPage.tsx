@@ -3,6 +3,7 @@ import type { UserRole } from "../App";
 import "./employees.css";
 import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
 import { EmployeeFormModal } from "../components/EmployeeFormModal";
 import { formatFullDateTime, formatRelativeTime } from "../lib/dateUtils";
 
@@ -194,7 +195,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
         accessToken
       );
 
-      setEmployees(data.employees.items);
+      setEmployees(sanitizeAndDedupeEmployees(data.employees.items || []));
       setTotal(data.employees.total);
     } catch (err: any) {
       setError(err.message || "Failed to load employees.");
@@ -514,7 +515,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                           setOpenMenuId(openMenuId === e.id ? null : e.id);
                         }}
                       >
-                        â‹¯
+                        ...
                       </button>
                       {openMenuId === e.id && (
                         <div className="employee-menu">
@@ -576,7 +577,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                 <div>
                   <div className="employee-name">{e.name}</div>
                   <div className="employee-meta">
-                    {e.className} â€¢ Age {e.age}
+                    {e.className} - Age {e.age}
                   </div>
                 </div>
 
@@ -590,7 +591,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
                       setOpenMenuId((id) => (id === e.id ? null : e.id))
                     }
                   >
-                    â‹¯
+                    ...
                   </button>
                   {openMenuId === e.id && (
                     <div className="employee-menu">
@@ -642,7 +643,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ currentRole }) => 
       {/* Pagination footer */}
       <div className="employees-pagination">
         <span>
-          Page {page} of {totalPages} Â· Total {total}
+          Page {page} of {totalPages} | Total {total}
         </span>
         <div className="employees-pagination-buttons">
           <button

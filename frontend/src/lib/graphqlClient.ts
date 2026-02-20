@@ -11,6 +11,7 @@ type CacheEntry = {
 };
 
 const DEFAULT_CACHE_TTL_MS = 20000;
+const REQUEST_TIMEOUT_MS = 12000;
 const responseCache = new Map<string, CacheEntry>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 
@@ -69,11 +70,25 @@ export async function graphqlRequest<T = any>(
   }
 
   const requestPromise = (async () => {
-    const response = await fetch(GRAPHQL_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ query, variables }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(GRAPHQL_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        throw new Error("Request timed out. Please try again.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);

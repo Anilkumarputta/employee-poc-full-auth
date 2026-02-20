@@ -77,6 +77,45 @@ function requireAdmin(ctx: Context) {
   }
 }
 
+function formatEmailLocalPartAsName(email: string): string {
+  const localPart = email.split('@')[0] || '';
+  const parts = localPart
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+    .split(/[._-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return '';
+  }
+
+  return parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function getSafeEmployeeName(name: string | null | undefined, email?: string | null, id?: number): string {
+  const cleanedName = (name || '').replace(/\s+/g, ' ').trim();
+  const hasLetters = /[a-zA-Z]/.test(cleanedName);
+
+  if (cleanedName.length >= 2 && hasLetters) {
+    return cleanedName;
+  }
+
+  if (email) {
+    const emailName = formatEmailLocalPartAsName(email);
+    if (emailName.length >= 2) {
+      return emailName;
+    }
+  }
+
+  if (cleanedName.length === 1) {
+    return cleanedName.toUpperCase();
+  }
+
+  return typeof id === 'number' ? `Employee ${id}` : 'Employee';
+}
+
 /**
  * RESOLVERS EXPORT
  * This object contains all our GraphQL resolvers organized by type
@@ -290,8 +329,13 @@ export const resolvers = {
         prisma.employee.count({ where }),
       ]);
 
+      const normalizedItems = items.map((employee) => ({
+        ...employee,
+        name: getSafeEmployeeName(employee.name, employee.email, employee.id),
+      }));
+
       return {
-        items,
+        items: normalizedItems,
         total,
         page,
         pageSize,
@@ -300,7 +344,14 @@ export const resolvers = {
 
     employee: async (_: any, { id }: any, ctx: Context) => {
       requireAuth(ctx);
-      return ctx.prisma.employee.findUnique({ where: { id } });
+      const employee = await ctx.prisma.employee.findUnique({ where: { id } });
+      if (!employee) {
+        return null;
+      }
+      return {
+        ...employee,
+        name: getSafeEmployeeName(employee.name, employee.email, employee.id),
+      };
     },
 
     myProfile: async (_: any, __: any, ctx: Context) => {
@@ -322,7 +373,7 @@ export const resolvers = {
         // Auto-create employee record
         employee = await ctx.prisma.employee.create({
           data: {
-            name: user.email.split('@')[0],
+            name: getSafeEmployeeName(user.email.split('@')[0], user.email, user.id),
             email: user.email,
             userId: user.id,
             age: 25,
@@ -800,9 +851,13 @@ export const resolvers = {
     addEmployee: async (_: any, { input }: any, ctx: Context) => {
       requireAdmin(ctx);
       const now = new Date().toISOString();
+      const sanitizedInput = {
+        ...input,
+        name: getSafeEmployeeName(input.name, input.email),
+      };
       const employee = await ctx.prisma.employee.create({
         data: {
-          ...input,
+          ...sanitizedInput,
           createdAt: new Date(now),
           updatedAt: new Date(now),
         },
@@ -812,10 +867,13 @@ export const resolvers = {
           userId: ctx.user!.id,
           userEmail: ctx.user!.email,
           action: 'ADD_EMPLOYEE',
-          details: `Added employee ${input.name} (${employee.id})`,
+          details: `Added employee ${sanitizedInput.name} (${employee.id})`,
         },
       });
-      return employee;
+      return {
+        ...employee,
+        name: getSafeEmployeeName(employee.name, employee.email, employee.id),
+      };
     },
 
     setup2FA: async (_: any, __: any, ctx: Context) => {
@@ -852,9 +910,13 @@ export const resolvers = {
 
     updateEmployee: async (_: any, { id, input }: any, ctx: Context) => {
       requireAdmin(ctx);
+      const nextInput: Record<string, any> = { ...input };
+      if (typeof nextInput.name === 'string') {
+        nextInput.name = getSafeEmployeeName(nextInput.name, nextInput.email);
+      }
 
       // If role is being changed, also update the User table
-      if (input.role) {
+      if (nextInput.role) {
         const employee = await ctx.prisma.employee.findUnique({
           where: { id },
         });
@@ -862,7 +924,7 @@ export const resolvers = {
         if (employee && employee.userId) {
           await ctx.prisma.user.update({
             where: { id: employee.userId },
-            data: { role: input.role },
+            data: { role: nextInput.role },
           });
         }
       }
@@ -870,7 +932,7 @@ export const resolvers = {
       const updated = await ctx.prisma.employee.update({
         where: { id },
         data: {
-          ...input,
+          ...nextInput,
           updatedAt: new Date(),
         } as any,
       });
@@ -909,7 +971,9 @@ export const resolvers = {
         updatedAt: new Date(),
       };
 
-      if (input.name) updateData.name = input.name;
+      if (input.name) {
+        updateData.name = getSafeEmployeeName(input.name, input.email || user.email, ctx.user!.id);
+      }
       if (input.email) {
         updateData.email = input.email;
         // Also update user email
@@ -1054,7 +1118,8 @@ export const resolvers = {
           try {
             // Generate deterministic, unique email from name:
             // "John Doe" -> "john.doe@gmail.com", then john.doe.2@gmail.com, etc.
-            const normalizedName = employee.name
+            const displayName = getSafeEmployeeName(employee.name, employee.email, employee.id);
+            const normalizedName = displayName
               .toLowerCase()
               .replace(/[^a-z0-9\s]/g, '')
               .trim()
@@ -1207,7 +1272,7 @@ export const resolvers = {
       if (!employee) {
         employee = await ctx.prisma.employee.create({
           data: {
-            name: user.email.split('@')[0], // Use email prefix as name
+            name: getSafeEmployeeName(user.email.split('@')[0], user.email, user.id),
             email: user.email,
             userId: user.id,
             age: 25,

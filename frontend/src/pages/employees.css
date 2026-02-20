@@ -73,6 +73,18 @@
 .employees-table td {
   border-bottom: 1px solid #e5e7eb;
   padding: 0.5rem;
+  vertical-align: top;
+}
+
+.employees-table th {
+  white-space: nowrap;
+}
+
+.employees-table td:nth-child(2) {
+  min-width: 170px;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .employees-table tbody tr {
@@ -140,12 +152,14 @@
   position: relative;
 }
 
+.employee-menu-btn,
 .employee-menu-trigger {
   border-radius: 999px;
   border: none;
   width: 26px;
   height: 26px;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
   background-color: #f3f4f6;
   cursor: pointer;
 }
@@ -215,7 +229,7 @@
   background-color: #ffffff;
   border-radius: 1rem;
   padding: 0;
-  max-width: 480px;
+  max-width: min(480px, calc(100vw - 24px));
   width: 100%;
   max-height: 90vh;
   display: flex;
