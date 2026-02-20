@@ -69,6 +69,19 @@ const LEAVE_REQUESTS_QUERY = `
   }
 `;
 
+const MY_LEAVE_REQUESTS_QUERY = `
+  query MyLeaveRequests {
+    myLeaveRequests {
+      id
+      employeeId
+      startDate
+      endDate
+      reason
+      status
+    }
+  }
+`;
+
 const RECENT_ACTIVITIES_QUERY = `
   query RecentActivities {
     accessLogs(page: 1, pageSize: 10) {
@@ -242,6 +255,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     
     setLoading(true);
     try {
+      if (isEmployee) {
+        const [employeesData, leaveData, notificationsData] = await Promise.all([
+          graphqlRequest(EMPLOYEES_QUERY, {}, accessToken),
+          graphqlRequest(MY_LEAVE_REQUESTS_QUERY, {}, accessToken).catch(() => ({ myLeaveRequests: [] })),
+          graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] })),
+        ]);
+
+        setEmployees(employeesData.employees.items || []);
+        setLeaveRequests(leaveData.myLeaveRequests || []);
+        setLoading(false);
+
+        const recentActivities: Activity[] = [];
+        (notificationsData.notifications || []).slice(0, 8).forEach((notif: Notification) => {
+          recentActivities.push({
+            id: `notif-${notif.id}`,
+            icon: getNotificationIcon(notif.type),
+            title: notif.title,
+            description: notif.message.substring(0, 80) + (notif.message.length > 80 ? '...' : ''),
+            time: notif.createdAt,
+            color: getNotificationColor(notif.type)
+          });
+        });
+        setActivities(recentActivities);
+        return;
+      }
+
       const logsPromise = graphqlRequest(RECENT_ACTIVITIES_QUERY, {}, accessToken).catch(() => ({ accessLogs: [] as AccessLog[] }));
       const notificationsPromise = graphqlRequest(MY_NOTIFICATIONS_QUERY, {}, accessToken).catch(() => ({ notifications: [] as Notification[] }));
 

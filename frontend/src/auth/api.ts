@@ -9,6 +9,26 @@ type AuthResponse = {
   refreshToken: string;
 };
 
+const LOGIN_TIMEOUT_MS = 25000;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 export function toFrontendRole(role: BackendAuthRole): FrontendAuthRole {
   // Keep backwards compatibility with older "admin" accounts.
   if (role === "admin") return "director";
@@ -16,11 +36,23 @@ export function toFrontendRole(role: BackendAuthRole): FrontendAuthRole {
 }
 
 export async function apiLogin(email: string, password: string) {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      `${API_URL}/auth/login`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      },
+      LOGIN_TIMEOUT_MS,
+    );
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error("Login request timed out. The server may be waking up, please try again.");
+    }
+    throw new Error("Unable to reach server. Please check your connection and try again.");
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => null);

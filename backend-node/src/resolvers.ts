@@ -1052,48 +1052,90 @@ export const resolvers = {
 
         for (const employee of employeesWithoutLogin) {
           try {
-            // Generate email from name: "John Doe" -> "john.doe@gmail.com"
-            const emailName = employee.name.toLowerCase().replace(/\s+/g, '.');
-            const generatedEmail = `${emailName}@gmail.com`;
+            // Generate deterministic, unique email from name:
+            // "John Doe" -> "john.doe@gmail.com", then john.doe.2@gmail.com, etc.
+            const normalizedName = employee.name
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, '')
+              .trim()
+              .replace(/\s+/g, '.')
+              .replace(/\.{2,}/g, '.')
+              .replace(/^\.+|\.+$/g, '');
 
-            // Check if email already exists
-            const existingUser = await ctx.prisma.user.findUnique({
-              where: { email: generatedEmail },
-            });
+            const baseEmailName = normalizedName || `employee.${employee.id}`;
+            const defaultPassword = 'employee123';
+            const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
-            if (existingUser) {
-              // If user exists, just link it to the employee
+            let attempt = 0;
+            let resolved = false;
+
+            while (!resolved && attempt < 100) {
+              const candidateEmail =
+                attempt === 0
+                  ? `${baseEmailName}@gmail.com`
+                  : `${baseEmailName}.${attempt + 1}@gmail.com`;
+
+              const existingUser = await ctx.prisma.user.findUnique({
+                where: { email: candidateEmail },
+              });
+
+              if (existingUser) {
+                // If this user is not linked to another employee, reuse and link.
+                const linkedEmployee = await ctx.prisma.employee.findFirst({
+                  where: { userId: existingUser.id },
+                });
+
+                if (!linkedEmployee || linkedEmployee.id === employee.id) {
+                  await ctx.prisma.employee.update({
+                    where: { id: employee.id },
+                    data: {
+                      userId: existingUser.id,
+                      email: candidateEmail,
+                    },
+                  });
+                  skipped++;
+                  resolved = true;
+                  break;
+                }
+
+                attempt++;
+                continue;
+              }
+
+              // Ensure we also don't collide with any prefilled employee email.
+              const existingEmployeeEmail = await ctx.prisma.employee.findFirst({
+                where: { email: candidateEmail },
+              });
+              if (existingEmployeeEmail && existingEmployeeEmail.id !== employee.id) {
+                attempt++;
+                continue;
+              }
+
+              // Create new local-login user and link.
+              const newUser = await ctx.prisma.user.create({
+                data: {
+                  email: candidateEmail,
+                  passwordHash: hashedPassword,
+                  role: 'employee',
+                  provider: 'local',
+                },
+              });
+
               await ctx.prisma.employee.update({
                 where: { id: employee.id },
                 data: {
-                  userId: existingUser.id,
-                  email: generatedEmail,
+                  userId: newUser.id,
+                  email: candidateEmail,
                 },
               });
-              skipped++;
-              continue;
+
+              created++;
+              resolved = true;
             }
 
-            // Create new user with password "employee123"
-            const hashedPassword = await bcrypt.hash('employee123', 10);
-            const newUser = await ctx.prisma.user.create({
-              data: {
-                email: generatedEmail,
-                passwordHash: hashedPassword,
-                role: 'employee',
-              },
-            });
-
-            // Link employee to user
-            await ctx.prisma.employee.update({
-              where: { id: employee.id },
-              data: {
-                userId: newUser.id,
-                email: generatedEmail,
-              },
-            });
-
-            created++;
+            if (!resolved) {
+              failed++;
+            }
           } catch (error) {
             console.error(`Failed to create login for employee ${employee.name}:`, error);
             failed++;
