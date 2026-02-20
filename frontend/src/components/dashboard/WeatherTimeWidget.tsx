@@ -1,7 +1,7 @@
 import React from "react";
 
 export type WeatherWidgetData = {
-  temp: number;
+  temp: number | null;
   unit: "\u00B0C" | "\u00B0F";
   condition: string;
   icon: string;
@@ -128,8 +128,7 @@ export const WeatherTimeWidget: React.FC<WeatherTimeWidgetProps> = ({
           <div style={{ fontSize: "48px", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.2))" }}>{weather.icon}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "32px", fontWeight: "bold", lineHeight: "1", marginBottom: "5px" }}>
-              {weather.temp}
-              {weather.unit}
+              {weather.temp === null ? "N/A" : `${weather.temp}${weather.unit}`}
             </div>
             <div style={{ fontSize: "14px", opacity: 0.9, fontWeight: "500" }}>{weather.condition}</div>
             <div

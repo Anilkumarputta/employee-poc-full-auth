@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { graphqlRequest } from '../lib/graphqlClient';
-import { useAuth } from '../auth/authContext';
+import React, { useEffect, useMemo, useState } from "react";
+import { graphqlRequest } from "../lib/graphqlClient";
+import { useAuth } from "../auth/authContext";
 
-interface Employee {
+type EmployeeProfile = {
   id: number;
   name: string;
   email: string | null;
   age: number;
   className: string;
-  subjects: string[];
   attendance: number;
   role: string;
   status: string;
   location: string;
   lastLogin: string;
-}
+  avatar?: string | null;
+};
 
 const MY_PROFILE_QUERY = `
   query MyProfile {
@@ -24,12 +24,12 @@ const MY_PROFILE_QUERY = `
       email
       age
       className
-      subjects
       attendance
       role
       status
       location
       lastLogin
+      avatar
     }
   }
 `;
@@ -42,559 +42,339 @@ const UPDATE_MY_PROFILE_MUTATION = `
       email
       age
       location
+      avatar
     }
   }
 `;
 
 export default function ProfileEditPage() {
-  const { user, accessToken } = useAuth();
-  const [profile, setProfile] = useState<Employee | null>(null);
+  const { user, accessToken, refreshToken, setAuth } = useAuth();
+  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    age: 0,
-    location: ''
+    name: "",
+    email: "",
+    age: 25,
+    location: "",
+    avatar: "",
   });
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    void fetchProfile();
+  }, [accessToken]);
+
+  const previewAvatar = useMemo(() => {
+    const value = formData.avatar.trim();
+    return value.length > 0 ? value : null;
+  }, [formData.avatar]);
 
   const fetchProfile = async () => {
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const data = await graphqlRequest(MY_PROFILE_QUERY, {}, accessToken!);
+      const data = await graphqlRequest<{ myProfile: EmployeeProfile }>(MY_PROFILE_QUERY, {}, accessToken);
       setProfile(data.myProfile);
       setFormData({
         name: data.myProfile.name,
-        email: data.myProfile.email || '',
+        email: data.myProfile.email || "",
         age: data.myProfile.age,
-        location: data.myProfile.location
+        location: data.myProfile.location,
+        avatar: data.myProfile.avatar || "",
       });
     } catch (error: any) {
-      console.error('Failed to fetch profile:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to load profile' });
+      console.error("Failed to fetch profile:", error);
+      setMessage({ type: "error", text: error?.message || "Failed to load profile." });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!accessToken || !user) {
+      setMessage({ type: "error", text: "Session expired. Please sign in again." });
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage(null);
-      
-      await graphqlRequest(UPDATE_MY_PROFILE_MUTATION, {
-        input: {
-          name: formData.name,
-          email: formData.email,
-          age: parseInt(formData.age.toString()),
-          location: formData.location
-        }
-      }, accessToken!);
-      
-      setMessage({ type: 'success', text: '✅ Profile updated successfully!' });
-      fetchProfile(); // Refresh profile data
+
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        age: Number(formData.age),
+        location: formData.location.trim(),
+        avatar: formData.avatar.trim() || null,
+      };
+
+      const response = await graphqlRequest<{ updateMyProfile: EmployeeProfile }>(
+        UPDATE_MY_PROFILE_MUTATION,
+        { input: payload },
+        accessToken,
+      );
+
+      const updatedProfile = response.updateMyProfile;
+      setProfile((previous) => (previous ? { ...previous, ...updatedProfile } : updatedProfile));
+
+      if (updatedProfile.email && updatedProfile.email !== user.email) {
+        setAuth({
+          user: { ...user, email: updatedProfile.email },
+          accessToken,
+          refreshToken,
+        });
+      }
+
+      setMessage({ type: "success", text: "Profile updated successfully." });
+      window.dispatchEvent(new Event("profile-updated"));
     } catch (error: any) {
-      console.error('Failed to update profile:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to update profile' });
+      console.error("Failed to update profile:", error);
+      setMessage({ type: "error", text: error?.message || "Failed to update profile." });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const updateField = (field: keyof typeof formData, value: string | number) => {
+    setFormData((previous) => ({ ...previous, [field]: value }));
   };
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ 
-          fontSize: '48px',
-          animation: 'spin 1s linear infinite',
-          display: 'inline-block'
-        }}>⚙️</div>
-        <p style={{ marginTop: '20px', fontSize: '18px', color: '#666' }}>Loading your profile...</p>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+      <div style={{ padding: "2rem", textAlign: "center", color: "#475569" }}>
+        Loading profile...
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ fontSize: '64px', marginBottom: '20px' }}>❌</div>
-        <h2 style={{ color: '#e74c3c' }}>Profile Not Found</h2>
-        <p style={{ color: '#666', marginTop: '10px' }}>Unable to load your profile information.</p>
+      <div style={{ padding: "2rem", textAlign: "center", color: "#991b1b" }}>
+        Unable to load your profile.
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '30px',
-        borderRadius: '15px',
-        color: 'white',
-        marginBottom: '30px',
-        boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ 
-            width: '80px', 
-            height: '80px', 
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '36px',
-            border: '3px solid rgba(255,255,255,0.5)'
-          }}>
-            👤
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 'bold' }}>
-              My Profile
-            </h1>
-            <p style={{ margin: '5px 0 0 0', opacity: 0.9, fontSize: '16px' }}>
-              Edit your personal information
-            </p>
-          </div>
-        </div>
+    <div style={{ padding: "2rem", maxWidth: "980px", margin: "0 auto" }}>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #0f4c81 0%, #1e3a8a 70%)",
+          borderRadius: "14px",
+          color: "#ffffff",
+          padding: "1.5rem",
+          marginBottom: "1.3rem",
+          boxShadow: "0 12px 28px rgba(30,58,138,0.28)",
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: "1.9rem" }}>Edit Profile</h1>
+        <p style={{ margin: "0.4rem 0 0 0", opacity: 0.92 }}>Update your personal details and profile photo.</p>
       </div>
 
-      {/* Success/Error Message */}
       {message && (
-        <div style={{
-          padding: '15px 20px',
-          borderRadius: '10px',
-          marginBottom: '25px',
-          background: message.type === 'success' ? '#d4edda' : '#f8d7da',
-          border: `2px solid ${message.type === 'success' ? '#28a745' : '#dc3545'}`,
-          color: message.type === 'success' ? '#155724' : '#721c24',
-          fontSize: '16px',
-          fontWeight: '500'
-        }}>
+        <div
+          style={{
+            marginBottom: "1rem",
+            borderRadius: "10px",
+            padding: "0.75rem 0.95rem",
+            border: `1px solid ${message.type === "success" ? "#a7f3d0" : "#fecaca"}`,
+            background: message.type === "success" ? "#ecfdf5" : "#fef2f2",
+            color: message.type === "success" ? "#065f46" : "#991b1b",
+            fontWeight: 600,
+          }}
+        >
           {message.text}
         </div>
       )}
 
-      {/* Two Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-        {/* Editable Information */}
-        <div style={{
-          background: 'white',
-          padding: '30px',
-          borderRadius: '15px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          border: '2px solid #e3e8ef'
-        }}>
-          <h2 style={{ 
-            margin: '0 0 25px 0', 
-            fontSize: '24px',
-            color: '#2c3e50',
-            borderBottom: '3px solid #667eea',
-            paddingBottom: '10px'
-          }}>
-            ✏️ Editable Information
-          </h2>
-          
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: '600',
-                color: '#34495e',
-                fontSize: '15px'
-              }}>
-                Full Name
-              </label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "1rem" }}>
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            padding: "1rem",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem", color: "#0f172a" }}>Profile Photo</h2>
+
+          <div
+            style={{
+              width: "128px",
+              height: "128px",
+              borderRadius: "50%",
+              margin: "0 auto 0.9rem",
+              border: "3px solid #dbeafe",
+              background: "#eef2ff",
+              overflow: "hidden",
+              display: "grid",
+              placeItems: "center",
+              color: "#1e3a8a",
+              fontWeight: 800,
+              fontSize: "2rem",
+            }}
+          >
+            {previewAvatar ? (
+              <img src={previewAvatar} alt="Profile preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              profile.name
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0]?.toUpperCase())
+                .join("")
+                .slice(0, 2)
+            )}
+          </div>
+
+          <label style={{ display: "block", fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.35rem", color: "#334155" }}>
+            Photo URL
+          </label>
+          <input
+            type="url"
+            value={formData.avatar}
+            onChange={(event) => updateField("avatar", event.target.value)}
+            placeholder="https://example.com/photo.jpg"
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "0.65rem",
+              marginBottom: "0.7rem",
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() => updateField("avatar", "")}
+            style={{
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#334155",
+              borderRadius: "8px",
+              padding: "0.55rem 0.75rem",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Remove photo
+          </button>
+        </section>
+
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            padding: "1rem",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem", color: "#0f172a" }}>Personal Information</h2>
+
+          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.8rem" }}>
+            <Field label="Full Name">
               <input
                 type="text"
-                name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={(event) => updateField("name", event.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px 15px',
-                  fontSize: '15px',
-                  border: '2px solid #e3e8ef',
-                  borderRadius: '8px',
-                  transition: 'all 0.3s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e3e8ef'}
+                style={inputStyle}
               />
-            </div>
+            </Field>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: '600',
-                color: '#34495e',
-                fontSize: '15px'
-              }}>
-                Email Address
-              </label>
+            <Field label="Email Address">
               <input
                 type="email"
-                name="email"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(event) => updateField("email", event.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px 15px',
-                  fontSize: '15px',
-                  border: '2px solid #e3e8ef',
-                  borderRadius: '8px',
-                  transition: 'all 0.3s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e3e8ef'}
+                style={inputStyle}
               />
-            </div>
+            </Field>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: '600',
-                color: '#34495e',
-                fontSize: '15px'
-              }}>
-                Age
-              </label>
+            <Field label="Age">
               <input
                 type="number"
-                name="age"
+                min={18}
+                max={100}
                 value={formData.age}
-                onChange={handleChange}
+                onChange={(event) => updateField("age", Number(event.target.value))}
                 required
-                min="18"
-                max="100"
-                style={{
-                  width: '100%',
-                  padding: '12px 15px',
-                  fontSize: '15px',
-                  border: '2px solid #e3e8ef',
-                  borderRadius: '8px',
-                  transition: 'all 0.3s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e3e8ef'}
+                style={inputStyle}
               />
-            </div>
+            </Field>
 
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: '600',
-                color: '#34495e',
-                fontSize: '15px'
-              }}>
-                Location
-              </label>
+            <Field label="Location">
               <input
                 type="text"
-                name="location"
                 value={formData.location}
-                onChange={handleChange}
+                onChange={(event) => updateField("location", event.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px 15px',
-                  fontSize: '15px',
-                  border: '2px solid #e3e8ef',
-                  borderRadius: '8px',
-                  transition: 'all 0.3s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e3e8ef'}
+                style={inputStyle}
               />
-            </div>
+            </Field>
 
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                width: '100%',
-                padding: '14px',
-                fontSize: '16px',
-                fontWeight: '600',
-                color: 'white',
-                background: saving 
-                  ? 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'
-                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                transition: 'all 0.3s',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                opacity: saving ? 0.7 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!saving) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
-              }}
-            >
-              {saving ? '💾 Saving...' : '💾 Save Changes'}
-            </button>
+            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "0.8rem", marginTop: "0.2rem" }}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  border: "none",
+                  background: saving ? "#94a3b8" : "#1d4ed8",
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  padding: "0.75rem 1rem",
+                  fontWeight: 700,
+                  cursor: saving ? "not-allowed" : "pointer",
+                  transition: "transform 0.2s ease",
+                }}
+                onMouseEnter={(event) => {
+                  if (!saving) {
+                    event.currentTarget.style.transform = "translateY(-1px)";
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                {saving ? "Saving..." : "Save Profile"}
+              </button>
+            </div>
           </form>
-        </div>
-
-        {/* Read-Only Information */}
-        <div style={{
-          background: 'white',
-          padding: '30px',
-          borderRadius: '15px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          border: '2px solid #e3e8ef'
-        }}>
-          <h2 style={{ 
-            margin: '0 0 25px 0', 
-            fontSize: '24px',
-            color: '#2c3e50',
-            borderBottom: '3px solid #95a5a6',
-            paddingBottom: '10px'
-          }}>
-            🔒 System Information
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Employee ID
-              </label>
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef'
-              }}>
-                #{profile.id}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Role
-              </label>
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef',
-                display: 'inline-block'
-              }}>
-                <span style={{
-                  background: profile.role === 'director' 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                    : profile.role === 'manager'
-                    ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-                    : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                  color: 'white',
-                  padding: '5px 12px',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  textTransform: 'capitalize'
-                }}>
-                  {profile.role}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Status
-              </label>
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef'
-              }}>
-                <span style={{
-                  color: profile.status === 'active' ? '#27ae60' : '#e74c3c',
-                  fontWeight: '600'
-                }}>
-                  ● {profile.status.toUpperCase()}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Class/Department
-              </label>
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef'
-              }}>
-                {profile.className}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Attendance
-              </label>
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef'
-              }}>
-                <span style={{
-                  color: profile.attendance >= 90 ? '#27ae60' : profile.attendance >= 75 ? '#f39c12' : '#e74c3c',
-                  fontWeight: '700',
-                  fontSize: '18px'
-                }}>
-                  {profile.attendance}%
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                color: '#7f8c8d',
-                marginBottom: '5px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Last Login
-              </label>
-              <div style={{ 
-                fontSize: '14px', 
-                color: '#2c3e50',
-                fontWeight: '500',
-                padding: '10px 15px',
-                background: '#f8f9fa',
-                borderRadius: '6px',
-                border: '1px solid #e3e8ef'
-              }}>
-                {new Date(profile.lastLogin).toLocaleString()}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <div style={{
-        marginTop: '30px',
-        padding: '20px',
-        background: '#e8f4f8',
-        border: '2px solid #3498db',
-        borderRadius: '12px',
-        display: 'flex',
-        alignItems: 'start',
-        gap: '15px'
-      }}>
-        <div style={{ fontSize: '24px' }}>💡</div>
-        <div>
-          <h3 style={{ margin: '0 0 8px 0', color: '#2c3e50', fontSize: '16px' }}>Profile Update Tips</h3>
-          <ul style={{ margin: 0, paddingLeft: '20px', color: '#34495e', fontSize: '14px', lineHeight: '1.6' }}>
-            <li>Keep your email address up to date for important notifications</li>
-            <li>Your name will appear in all communications and reports</li>
-            <li>System information (Role, Status, Department) can only be changed by administrators</li>
-            <li>Changes are saved immediately and reflected across the system</li>
-          </ul>
-        </div>
+        </section>
       </div>
     </div>
   );
 }
+
+type FieldProps = {
+  label: string;
+  children: React.ReactNode;
+};
+
+const Field: React.FC<FieldProps> = ({ label, children }) => (
+  <label style={{ display: "block" }}>
+    <span style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.9rem", fontWeight: 700, color: "#334155" }}>
+      {label}
+    </span>
+    {children}
+  </label>
+);
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid #cbd5e1",
+  borderRadius: "8px",
+  padding: "0.65rem",
+  fontSize: "0.94rem",
+};

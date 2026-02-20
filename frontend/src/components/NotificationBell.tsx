@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
+import { resolveAppPageFromLink } from "../lib/navigationLinks";
 import type { AppPage } from "../types/navigation";
 
 const NOTIFICATIONS_QUERY = `
@@ -38,32 +39,17 @@ type Props = {
   onNavigate: (page: AppPage) => void;
 };
 
-const routeToPageMap: Record<string, AppPage> = {
-  dashboard: "dashboard",
-  employees: "employees",
-  notifications: "notifications",
-  reports: "reports",
-  profile: "profile",
-  preferences: "preferences",
-  settings: "settings",
-  admins: "admins",
-  accessLogs: "accessLogs",
-  sendNote: "sendNote",
-  leaveRequests: "leaveRequests",
-  profileEdit: "profileEdit",
-  employeeLogins: "employeeLogins",
-  messages: "messages",
-  "review-requests": "review-requests",
-  bulkActions: "bulkActions",
-  auditLogs: "auditLogs",
-  analyticsDashboard: "analyticsDashboard",
-  employeeSelfServicePortal: "employeeSelfServicePortal",
-  slackIntegration: "slackIntegration",
-  notificationInbox: "notificationInbox",
-  messagingInbox: "messages",
-};
-
 const toNotificationType = (type: string) => type.toUpperCase();
+
+const BellIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+    <path
+      d="M12 3a4 4 0 0 0-4 4v1.4c0 1.2-.46 2.36-1.28 3.24L5 13.36V15h14v-1.64l-1.72-1.72A4.59 4.59 0 0 1 16 8.4V7a4 4 0 0 0-4-4Z"
+      fill="currentColor"
+    />
+    <path d="M9.8 17a2.2 2.2 0 0 0 4.4 0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
 
 export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
   const { accessToken } = useAuth();
@@ -98,16 +84,6 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
     return () => window.clearInterval(interval);
   }, [accessToken]);
 
-  const resolvePageFromLink = (linkTo?: string): AppPage | null => {
-    if (!linkTo) {
-      return null;
-    }
-
-    const route = linkTo.split("?")[0].replace(/^\/+/, "");
-    const rootRoute = route.split("/")[0];
-    return routeToPageMap[rootRoute] || null;
-  };
-
   const handleNotificationClick = async (notification: Notification) => {
     if (!accessToken) {
       return;
@@ -119,7 +95,7 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
       setNotifications((previous) => previous.filter((item) => item.id !== notification.id));
       setUnreadCount((previous) => Math.max(0, previous - 1));
 
-      const page = resolvePageFromLink(notification.linkTo);
+      const page = resolveAppPageFromLink(notification.linkTo);
       if (page) {
         onNavigate(page);
       }
@@ -203,7 +179,7 @@ export const NotificationBell: React.FC<Props> = ({ onNavigate }) => {
           event.currentTarget.style.background = "rgba(255,255,255,0.2)";
         }}
       >
-        NOT
+        <BellIcon />
         {unreadCount > 0 && (
           <span
             style={{

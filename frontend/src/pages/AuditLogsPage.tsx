@@ -29,6 +29,16 @@ const AUDIT_LOGS_QUERY = `
   }
 `;
 
+const formatDetails = (details: string | null): string => {
+  if (!details) return "-";
+  try {
+    const parsed = JSON.parse(details);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return details;
+  }
+};
+
 export const AuditLogsPage: React.FC = () => {
   const { user, accessToken } = useContext(AuthContext);
   const [logs, setLogs] = useState<AccessLog[]>([]);
@@ -117,7 +127,25 @@ export const AuditLogsPage: React.FC = () => {
                   <td style={{ padding: "0.75rem", color: "#6b7280" }}>{new Date(log.createdAt).toLocaleString()}</td>
                   <td style={{ padding: "0.75rem" }}>{log.userEmail}</td>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{log.action}</td>
-                  <td style={{ padding: "0.75rem" }}>{log.details || "-"}</td>
+                  <td style={{ padding: "0.75rem", maxWidth: "420px" }}>
+                    <details>
+                      <summary style={{ cursor: "pointer", color: "#2563eb", fontWeight: 600 }}>View</summary>
+                      <pre
+                        style={{
+                          marginTop: "0.5rem",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "6px",
+                          padding: "0.6rem",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        {formatDetails(log.details)}
+                      </pre>
+                    </details>
+                  </td>
                   <td style={{ padding: "0.75rem" }}>{log.ipAddress || "-"}</td>
                 </tr>
               ))

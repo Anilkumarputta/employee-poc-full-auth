@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   emailNotifications: "pref_email_notifications",
   pushNotifications: "pref_push_notifications",
 };
+const APP_PREFERENCES_UPDATED_EVENT = "app-preferences-updated";
 
 const TIMEZONE_OPTIONS = [
   { value: "auto", label: "Auto-detect (recommended)" },
@@ -85,6 +86,7 @@ export const PreferencesPage: React.FC<Props> = ({ onBack }) => {
     setStorageItem(STORAGE_KEYS.timezone, timezone);
     setStorageItem(STORAGE_KEYS.emailNotifications, String(emailNotifications));
     setStorageItem(STORAGE_KEYS.pushNotifications, String(pushNotifications));
+    window.dispatchEvent(new Event(APP_PREFERENCES_UPDATED_EVENT));
 
     setSaveMessage("Preferences saved successfully.");
     window.setTimeout(() => setSaveMessage(null), 3000);

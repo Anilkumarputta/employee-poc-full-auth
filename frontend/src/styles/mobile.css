@@ -31,6 +31,10 @@ main {
   overflow-x: hidden;
 }
 
+main {
+  padding-top: 72px !important;
+}
+
 /* Better touch targets without forcing desktop buttons to look oversized */
 @media (pointer: coarse) {
   button,
@@ -43,6 +47,10 @@ main {
 
 /* Tablet + down */
 @media (max-width: 1024px) {
+  main {
+    padding-top: 64px !important;
+  }
+
   .horizontal-nav-inner {
     padding: 0 14px !important;
     gap: 10px;
@@ -129,6 +137,10 @@ main {
 
 /* Mobile */
 @media (max-width: 768px) {
+  main {
+    padding-top: 60px !important;
+  }
+
   input,
   select,
   textarea {
@@ -171,7 +183,9 @@ main {
   [style*="grid-template-columns:2fr 1fr"],
   [style*="grid-template-columns: 2fr 1fr"],
   [style*="grid-template-columns:1fr 1fr"],
-  [style*="grid-template-columns: 1fr 1fr"] {
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1.2fr"],
+  [style*="grid-template-columns: 1fr 1.2fr"] {
     grid-template-columns: 1fr !important;
   }
 

@@ -3,7 +3,7 @@ import { AuthContext } from "../auth/authContext";
 import { graphqlRequest } from "../lib/graphqlClient";
 import { sanitizeAndDedupeEmployees } from "../lib/employeeUtils";
 import { trackClientError } from "../lib/errorTracking";
-import { getStorageItem } from "../lib/safeStorage";
+import { getStorageItem, setStorageItem } from "../lib/safeStorage";
 import { formatRelativeTime } from "../lib/dateUtils";
 import { useCurrentTime } from "../hooks/useCurrentTime";
 import { getCurrentFestivalTheme } from "../festivalThemes";
@@ -172,16 +172,22 @@ type Coordinates = {
 };
 
 type WeatherData = {
-  temp: number;
+  temp: number | null;
   unit: "\u00B0C" | "\u00B0F";
   condition: string;
   icon: string;
   location: string;
 };
 
+type CachedWeather = {
+  weather: WeatherData;
+  updatedAt: string;
+};
+
 const WEATHER_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 7000;
 const GEOLOCATION_TIMEOUT_MS = 8000;
+const WEATHER_CACHE_KEY = "dashboard_weather_v1";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -208,6 +214,37 @@ function isLogsResponse(value: unknown): value is LogsResponse {
 
 function isNotificationsResponse(value: unknown): value is NotificationsResponse {
   return isObject(value) && Array.isArray(value.notifications);
+}
+
+function isWeatherData(value: unknown): value is WeatherData {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    (typeof value.temp === "number" || value.temp === null) &&
+    typeof value.unit === "string" &&
+    typeof value.condition === "string" &&
+    typeof value.icon === "string" &&
+    typeof value.location === "string"
+  );
+}
+
+function loadCachedWeather(): CachedWeather | null {
+  const raw = getStorageItem(WEATHER_CACHE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CachedWeather>;
+    if (!parsed || typeof parsed.updatedAt !== "string" || !isWeatherData(parsed.weather)) {
+      return null;
+    }
+    return { weather: parsed.weather, updatedAt: parsed.updatedAt };
+  } catch {
+    return null;
+  }
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
@@ -252,6 +289,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   }, [accessToken, isEmployee, isManager, isDirector, user?.id, user?.email]);
 
   useEffect(() => {
+    const cached = loadCachedWeather();
+    if (cached) {
+      setWeather(cached.weather);
+      setWeatherLastUpdated(new Date(cached.updatedAt));
+    }
+
     void fetchWeather();
     const weatherInterval = window.setInterval(() => {
       void fetchWeather();
@@ -303,29 +346,63 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     });
   };
 
-  const getIpCoordinates = async (): Promise<(Coordinates & { locationHint?: string }) | null> => {
-    try {
-      const data = await fetchJsonWithTimeout("https://ipapi.co/json/", REQUEST_TIMEOUT_MS);
-      const latitude = Number(data?.latitude);
-      const longitude = Number(data?.longitude);
+  const buildIpLocationResponse = (
+    latitudeRaw: unknown,
+    longitudeRaw: unknown,
+    cityRaw: unknown,
+    regionRaw: unknown,
+  ): (Coordinates & { locationHint?: string }) | null => {
+    const latitude = Number(latitudeRaw);
+    const longitude = Number(longitudeRaw);
 
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return null;
-      }
-
-      const locationHint = [data?.city, data?.region]
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter(Boolean)
-        .join(", ");
-
-      return {
-        latitude,
-        longitude,
-        locationHint: locationHint || undefined,
-      };
-    } catch {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return null;
     }
+
+    const locationHint = [cityRaw, regionRaw]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean)
+      .join(", ");
+
+    return {
+      latitude,
+      longitude,
+      locationHint: locationHint || undefined,
+    };
+  };
+
+  const getIpCoordinates = async (): Promise<(Coordinates & { locationHint?: string }) | null> => {
+    try {
+      const ipApiData = await fetchJsonWithTimeout("https://ipapi.co/json/", REQUEST_TIMEOUT_MS);
+      const fromIpApi = buildIpLocationResponse(
+        ipApiData?.latitude,
+        ipApiData?.longitude,
+        ipApiData?.city,
+        ipApiData?.region,
+      );
+      if (fromIpApi) {
+        return fromIpApi;
+      }
+    } catch {
+      // Try next provider.
+    }
+
+    try {
+      const ipWhoData = await fetchJsonWithTimeout("https://ipwho.is/", REQUEST_TIMEOUT_MS);
+      const fromIpWho = buildIpLocationResponse(
+        ipWhoData?.latitude,
+        ipWhoData?.longitude,
+        ipWhoData?.city,
+        ipWhoData?.region,
+      );
+      if (fromIpWho) {
+        return fromIpWho;
+      }
+    } catch {
+      // No more providers.
+    }
+
+    return null;
   };
 
   const getLocationLabel = async (
@@ -421,25 +498,41 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       const rawTemperature = useFahrenheit ? (temperatureC * 9) / 5 + 32 : temperatureC;
       const displayTemperature = Math.round(rawTemperature * 10) / 10;
 
-      setWeather({
+      const nextWeather: WeatherData = {
         temp: displayTemperature,
         unit: useFahrenheit ? "\u00B0F" : "\u00B0C",
         condition: getWeatherCondition(weatherCode),
         icon: getWeatherIcon(weatherCode),
         location,
-      });
-      setWeatherLastUpdated(new Date());
+      };
+
+      const updatedAt = new Date();
+      setWeather(nextWeather);
+      setWeatherLastUpdated(updatedAt);
+      setStorageItem(
+        WEATHER_CACHE_KEY,
+        JSON.stringify({
+          weather: nextWeather,
+          updatedAt: updatedAt.toISOString(),
+        }),
+      );
     } catch (error) {
       console.error("Failed to fetch weather:", error);
       trackClientError(error, "dashboard.weather");
-      setWeather({
-        temp: 22,
-        unit: "\u00B0C",
-        condition: "Weather unavailable",
-        icon: "WTH",
-        location: "Location unavailable",
-      });
-      setWeatherLastUpdated(new Date());
+      const cached = loadCachedWeather();
+      if (cached) {
+        setWeather(cached.weather);
+        setWeatherLastUpdated(new Date(cached.updatedAt));
+      } else {
+        setWeather({
+          temp: null,
+          unit: shouldUseFahrenheit() ? "\u00B0F" : "\u00B0C",
+          condition: "Weather unavailable",
+          icon: "WTH",
+          location: "Enable location access",
+        });
+        setWeatherLastUpdated(new Date());
+      }
     } finally {
       setWeatherRefreshing(false);
     }
@@ -1378,7 +1471,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                   </div>
                 ))}
                 {/* Terminated/Inactive Employees */}
-                {filteredEmployees.filter(e => e.status === 'inactive').map(emp => (
+                {filteredEmployees.filter(e => e.status !== 'active' && !e.flagged).map(emp => (
                   <div key={`inactive-${emp.id}`} style={{
                     padding: '15px',
                     background: '#f8f9fa',
@@ -1388,7 +1481,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '20px' }}>INACTIVE</span>
+                          <span style={{ fontSize: '20px' }}>{emp.status.toUpperCase()}</span>
                           <div style={{ fontWeight: '700', color: '#6c757d', fontSize: '16px', textDecoration: 'line-through' }}>{emp.name}</div>
                         </div>
                         <div style={{ fontSize: '13px', color: '#95a5a6', marginLeft: '28px' }}>{emp.role} | {emp.className}</div>
@@ -1400,7 +1493,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                         borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: '700'
-                      }}>TERMINATED</span>
+                      }}>{emp.status.toUpperCase()}</span>
                     </div>
                     <div style={{
                       marginLeft: '28px',
@@ -1537,7 +1630,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <MetricCard
               icon={weather.icon}
               title="Weather"
-              value={`${weather.temp}${weather.unit}`}
+              value={weather.temp === null ? "N/A" : `${weather.temp}${weather.unit}`}
               subtitle={`${weather.condition} in ${weather.location}`}
               color="#3498db"
             />
@@ -1874,7 +1967,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <MetricCard
             icon={weather.icon}
             title="Weather"
-            value={`${weather.temp}${weather.unit}`}
+            value={weather.temp === null ? "N/A" : `${weather.temp}${weather.unit}`}
             subtitle={`${weather.condition} in ${weather.location}`}
             color="#3498db"
           />

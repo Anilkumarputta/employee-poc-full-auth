@@ -21,7 +21,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Director user created:', director.email);
+  console.log('[OK] Director user created:', director.email);
 
   // Create manager user
   const managerPassword = await bcrypt.hash('manager123', 10);
@@ -36,7 +36,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Manager user created:', manager.email);
+  console.log('[OK] Manager user created:', manager.email);
 
   // Create employee user
   const employeePassword = await bcrypt.hash('employee123', 10);
@@ -51,7 +51,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Employee user created:', employee.email);
+  console.log('[OK] Employee user created:', employee.email);
 
   // Keep employee profiles for auth users human-friendly and linked to User IDs
   const accountEmployeeProfiles = [
@@ -370,6 +370,110 @@ async function main() {
       managerId: manager.id,
       lastLogin: new Date().toISOString(),
     },
+    {
+      name: 'Caleb Foster',
+      email: 'caleb.foster@school.local',
+      age: 31,
+      className: '10-D',
+      subjects: ['Economics', 'Civics'],
+      attendance: 94,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building K',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Ella Murphy',
+      email: 'ella.murphy@school.local',
+      age: 29,
+      className: '8-D',
+      subjects: ['Biology'],
+      attendance: 95,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building C',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Lucas Bennett',
+      email: 'lucas.bennett@school.local',
+      age: 37,
+      className: '11-C',
+      subjects: ['Physics'],
+      attendance: 93,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building D',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Mia Turner',
+      email: 'mia.turner@school.local',
+      age: 30,
+      className: '9-D',
+      subjects: ['English', 'Debate'],
+      attendance: 96,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building B',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Owen Parker',
+      email: 'owen.parker@school.local',
+      age: 35,
+      className: '12-C',
+      subjects: ['Mathematics'],
+      attendance: 91,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building L',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Harper Young',
+      email: 'harper.young@school.local',
+      age: 28,
+      className: '6-D',
+      subjects: ['Music'],
+      attendance: 98,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building M',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Jack Sullivan',
+      email: 'jack.sullivan@school.local',
+      age: 40,
+      className: 'Admin',
+      subjects: ['Operations'],
+      attendance: 99,
+      role: 'Coordinator',
+      status: 'active',
+      location: 'Main Office',
+      managerId: null,
+      lastLogin: new Date().toISOString(),
+    },
+    {
+      name: 'Zoe Hughes',
+      email: 'zoe.hughes@school.local',
+      age: 26,
+      className: '7-D',
+      subjects: ['Computer Science'],
+      attendance: 97,
+      role: 'Teacher',
+      status: 'active',
+      location: 'Building N',
+      managerId: manager.id,
+      lastLogin: new Date().toISOString(),
+    },
   ];
 
   for (const emp of employees) {
@@ -392,7 +496,7 @@ async function main() {
     });
   }
 
-  console.log(`✅ Created ${employees.length} employee records`);
+  console.log(`[OK] Created ${employees.length} employee records`);
 }
 
 main()

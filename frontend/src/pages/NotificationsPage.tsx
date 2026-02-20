@@ -125,7 +125,7 @@ export const NotificationsPage: React.FC = () => {
                       }} />
                     )}
                     <span style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-                      {note.toAll ? "📢 Announcement to all employees" : "📝 Personal message"}
+                      {note.toAll ? "Announcement to all employees" : "Personal message"}
                     </span>
                     <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>•</span>
                     <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>

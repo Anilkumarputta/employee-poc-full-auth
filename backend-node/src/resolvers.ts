@@ -87,6 +87,45 @@ function getMessageVisibilityFilter(userId: number, role: string) {
   ];
 }
 
+function stringifyAuditDetails(details: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(details);
+  } catch {
+    return String(details);
+  }
+}
+
+async function findEmployeeByUser(ctx: Context, userId: number, email: string): Promise<Employee | null> {
+  return ctx.prisma.employee.findFirst({
+    where: {
+      OR: [{ userId }, { email }],
+    },
+  });
+}
+
+async function getManagerTeamEmployeeIds(ctx: Context, managerUserId: number): Promise<number[]> {
+  const teamMembers = await ctx.prisma.employee.findMany({
+    where: { managerId: managerUserId },
+    select: { id: true },
+  });
+
+  return teamMembers.map((member) => member.id);
+}
+
+async function getManagerTeamUserIds(ctx: Context, managerUserId: number): Promise<number[]> {
+  const teamMembers = await ctx.prisma.employee.findMany({
+    where: {
+      managerId: managerUserId,
+      userId: { not: null },
+    },
+    select: { userId: true },
+  });
+
+  return teamMembers
+    .map((member) => member.userId)
+    .filter((userId): userId is number => typeof userId === 'number');
+}
+
 function formatEmailLocalPartAsName(email: string): string {
   const localPart = email.split('@')[0] || '';
   const parts = localPart
@@ -291,7 +330,7 @@ export const resolvers = {
      */
     employees: async (_: any, args: any, ctx: Context) => {
       requireAuth(ctx); // Must be logged in to view employees
-      const { prisma } = ctx;
+      const { prisma, user } = ctx;
       const { filter, page = 1, pageSize = 10, sortBy = 'CREATED_AT', sortOrder = 'DESC' } = args;
 
       const where: any = {};
@@ -321,6 +360,29 @@ export const resolvers = {
       }
       if (filter?.attendanceMax !== undefined) {
         where.attendance = { lte: filter.attendanceMax };
+      }
+
+      // Enforce role-scoped employee visibility.
+      if (user!.role === 'manager') {
+        const teamEmployeeIds = await getManagerTeamEmployeeIds(ctx, user!.id);
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [{ id: { in: teamEmployeeIds.length > 0 ? teamEmployeeIds : [-1] } }, { userId: user!.id }],
+          },
+        ];
+      } else if (user!.role === 'employee') {
+        const myEmployee = await findEmployeeByUser(ctx, user!.id, user!.email);
+        if (!myEmployee) {
+          where.AND = [...(where.AND || []), { userId: user!.id }];
+        } else {
+          const employeeScope: any[] = [{ id: myEmployee.id }];
+          if (myEmployee.managerId) {
+            employeeScope.push({ managerId: myEmployee.managerId });
+            employeeScope.push({ userId: myEmployee.managerId });
+          }
+          where.AND = [...(where.AND || []), { OR: employeeScope }];
+        }
       }
 
       const orderBy: any = {};
@@ -358,6 +420,30 @@ export const resolvers = {
       if (!employee) {
         return null;
       }
+
+      if (ctx.user!.role === 'manager') {
+        const isSelf = employee.userId === ctx.user!.id;
+        const isTeamMember = employee.managerId === ctx.user!.id;
+        if (!isSelf && !isTeamMember) {
+          throw new Error('Managers can only access team employee records');
+        }
+      }
+
+      if (ctx.user!.role === 'employee') {
+        const me = await findEmployeeByUser(ctx, ctx.user!.id, ctx.user!.email);
+        if (!me) {
+          if (employee.userId !== ctx.user!.id) {
+            throw new Error('Employees can only access their own/team records');
+          }
+        } else {
+          const sameManager = me.managerId && employee.managerId === me.managerId;
+          const isManagerRecord = me.managerId && employee.userId === me.managerId;
+          if (employee.id !== me.id && !sameManager && !isManagerRecord) {
+            throw new Error('Employees can only access their own/team records');
+          }
+        }
+      }
+
       return {
         ...employee,
         name: getSafeEmployeeName(employee.name, employee.email, employee.id),
@@ -434,6 +520,12 @@ export const resolvers = {
     leaveRequests: async (_: any, { status }: any, ctx: Context) => {
       requireAdmin(ctx);
       const where: any = status ? { status } : {};
+
+      if (ctx.user!.role === 'manager') {
+        const teamEmployeeIds = await getManagerTeamEmployeeIds(ctx, ctx.user!.id);
+        where.employeeId = { in: teamEmployeeIds.length > 0 ? teamEmployeeIds : [-1] };
+      }
+
       const requests = await ctx.prisma.leaveRequest.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -512,14 +604,23 @@ export const resolvers = {
       if (requesterRole === 'director') {
         applyRequestedRoleFilter();
       } else if (requesterRole === 'manager') {
-        const managerVisibleRoles = ['manager', 'employee'];
-        if (roleFilter && roleFilter !== 'all' && !managerVisibleRoles.includes(roleFilter)) {
-          return [];
-        }
+        const teamUserIds = await getManagerTeamUserIds(ctx, ctx.user!.id);
+        const visibleUserIds = [ctx.user!.id, ...teamUserIds];
+
         if (roleFilter && roleFilter !== 'all') {
-          where.role = roleFilter;
+          if (roleFilter === 'director') {
+            where.role = 'director';
+          } else if (roleFilter === 'employee') {
+            where.role = 'employee';
+            where.id = { in: teamUserIds.length > 0 ? teamUserIds : [-1] };
+          } else if (roleFilter === 'manager') {
+            where.role = 'manager';
+            where.id = ctx.user!.id;
+          } else {
+            return [];
+          }
         } else {
-          where.role = { in: managerVisibleRoles };
+          where.OR = [{ role: 'director' }, { id: { in: visibleUserIds } }];
         }
       } else {
         // Employees can only load managers for messaging.
@@ -740,12 +841,19 @@ export const resolvers = {
     },
 
     // Notifications
-    notifications: async (_: any, __: any, ctx: Context) => {
+    notifications: async (_: any, { type, isRead }: any, ctx: Context) => {
       requireAuth(ctx);
+      const where: any = { userId: ctx.user!.id };
+      if (type) {
+        where.type = { equals: String(type), mode: 'insensitive' };
+      }
+      if (typeof isRead === 'boolean') {
+        where.isRead = isRead;
+      }
       return ctx.prisma.notification.findMany({
-        where: { userId: ctx.user!.id },
+        where,
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 100,
       });
     },
 
@@ -905,7 +1013,7 @@ export const resolvers = {
 
   Mutation: {
     addEmployee: async (_: any, { input }: any, ctx: Context) => {
-      requireAdmin(ctx);
+      requireDirector(ctx);
       const now = new Date().toISOString();
       const sanitizedInput = {
         ...input,
@@ -923,7 +1031,16 @@ export const resolvers = {
           userId: ctx.user!.id,
           userEmail: ctx.user!.email,
           action: 'ADD_EMPLOYEE',
-          details: `Added employee ${sanitizedInput.name} (${employee.id})`,
+          details: stringifyAuditDetails({
+            employeeId: employee.id,
+            createdBy: ctx.user!.email,
+            new: {
+              name: sanitizedInput.name,
+              role: sanitizedInput.role,
+              status: sanitizedInput.status,
+              managerId: sanitizedInput.managerId ?? null,
+            },
+          }),
         },
       });
       return {
@@ -965,21 +1082,35 @@ export const resolvers = {
     },
 
     updateEmployee: async (_: any, { id, input }: any, ctx: Context) => {
-      requireAdmin(ctx);
+      requireManagerOrAbove(ctx);
+      const existingEmployee = await ctx.prisma.employee.findUnique({ where: { id } });
+      if (!existingEmployee) {
+        throw new Error('Employee not found');
+      }
+
+      if (ctx.user!.role === 'manager') {
+        const managesEmployee = existingEmployee.managerId === ctx.user!.id;
+        if (!managesEmployee) {
+          throw new Error('Managers can only edit employees in their own team');
+        }
+        if (existingEmployee.role === 'director') {
+          throw new Error('Managers cannot edit Director records');
+        }
+        if (Object.prototype.hasOwnProperty.call(input, 'role') || Object.prototype.hasOwnProperty.call(input, 'managerId')) {
+          throw new Error('Managers cannot change role or team ownership');
+        }
+      }
+
       const nextInput: Record<string, any> = { ...input };
       if (typeof nextInput.name === 'string') {
         nextInput.name = getSafeEmployeeName(nextInput.name, nextInput.email);
       }
 
       // If role is being changed, also update the User table
-      if (nextInput.role) {
-        const employee = await ctx.prisma.employee.findUnique({
-          where: { id },
-        });
-
-        if (employee && employee.userId) {
+      if (nextInput.role && ctx.user!.role === 'director') {
+        if (existingEmployee.userId) {
           await ctx.prisma.user.update({
-            where: { id: employee.userId },
+            where: { id: existingEmployee.userId },
             data: { role: nextInput.role },
           });
         }
@@ -997,7 +1128,24 @@ export const resolvers = {
           userId: ctx.user!.id,
           userEmail: ctx.user!.email,
           action: 'UPDATE_EMPLOYEE',
-          details: `Updated employee ${id}`,
+          details: stringifyAuditDetails({
+            employeeId: id,
+            updatedBy: ctx.user!.email,
+            previous: {
+              name: existingEmployee.name,
+              role: existingEmployee.role,
+              status: existingEmployee.status,
+              location: existingEmployee.location,
+              managerId: existingEmployee.managerId ?? null,
+            },
+            updated: {
+              name: updated.name,
+              role: updated.role,
+              status: updated.status,
+              location: updated.location,
+              managerId: updated.managerId ?? null,
+            },
+          }),
         },
       });
       return updated;
@@ -1038,13 +1186,44 @@ export const resolvers = {
           data: { email: input.email },
         });
       }
-      if (input.age) updateData.age = input.age;
-      if (input.location) updateData.location = input.location;
+      if (typeof input.age === 'number') updateData.age = input.age;
+      if (typeof input.location === 'string') updateData.location = input.location;
+      if (Object.prototype.hasOwnProperty.call(input, 'avatar')) {
+        updateData.avatar = input.avatar ? String(input.avatar).trim() : null;
+      }
 
-      return ctx.prisma.employee.update({
+      const updatedProfile = await ctx.prisma.employee.update({
         where: { id: employee.id },
         data: updateData,
       });
+
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: 'UPDATE_MY_PROFILE',
+          details: stringifyAuditDetails({
+            employeeId: employee.id,
+            updatedBy: ctx.user!.email,
+            previous: {
+              name: employee.name,
+              email: employee.email,
+              age: employee.age,
+              location: employee.location,
+              avatar: employee.avatar || null,
+            },
+            updated: {
+              name: updatedProfile.name,
+              email: updatedProfile.email,
+              age: updatedProfile.age,
+              location: updatedProfile.location,
+              avatar: updatedProfile.avatar || null,
+            },
+          }),
+        },
+      });
+
+      return updatedProfile;
     },
 
     deleteEmployee: async (_: any, { id }: any, ctx: Context) => {
@@ -1134,25 +1313,64 @@ export const resolvers = {
     },
 
     terminateEmployee: async (_: any, { id }: any, ctx: Context) => {
-      requireAdmin(ctx);
-      return ctx.prisma.employee.update({
+      requireDirector(ctx);
+      const before = await ctx.prisma.employee.findUnique({ where: { id } });
+      if (!before) {
+        throw new Error('Employee not found');
+      }
+      const updated = await ctx.prisma.employee.update({
         where: { id },
         data: {
           status: 'terminated',
           updatedAt: new Date(),
         },
       });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: 'TERMINATE_EMPLOYEE',
+          details: stringifyAuditDetails({
+            employeeId: id,
+            terminatedBy: ctx.user!.email,
+            previousStatus: before.status,
+            newStatus: 'terminated',
+          }),
+        },
+      });
+      return updated;
     },
 
     flagEmployee: async (_: any, { id, flagged }: any, ctx: Context) => {
-      requireAdmin(ctx);
-      return ctx.prisma.employee.update({
+      requireManagerOrAbove(ctx);
+      const before = await ctx.prisma.employee.findUnique({ where: { id } });
+      if (!before) {
+        throw new Error('Employee not found');
+      }
+      if (ctx.user!.role === 'manager' && before.managerId !== ctx.user!.id) {
+        throw new Error('Managers can only flag employees in their own team');
+      }
+      const updated = await ctx.prisma.employee.update({
         where: { id },
         data: {
           flagged,
           updatedAt: new Date(),
         },
       });
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: 'FLAG_EMPLOYEE',
+          details: stringifyAuditDetails({
+            employeeId: id,
+            flaggedBy: ctx.user!.email,
+            previousFlagged: before.flagged,
+            newFlagged: flagged,
+          }),
+        },
+      });
+      return updated;
     },
 
     generateEmployeeLogins: async (_: any, __: any, ctx: Context) => {
@@ -1282,11 +1500,40 @@ export const resolvers = {
     },
 
     sendNote: async (_: any, { input }: any, ctx: Context) => {
-      requireAuth(ctx);
+      requireManagerOrAbove(ctx);
       const { message, toEmployeeId, toUserId, toAll } = input;
-      // If toUserId is provided, send to any user (manager/employee)
-      // If toEmployeeId is provided, send to employee (legacy)
-      return ctx.prisma.note.create({
+
+      if (ctx.user!.role === 'manager') {
+        if (toAll) {
+          throw new Error('Managers cannot broadcast notes to all users');
+        }
+
+        if (toUserId) {
+          const targetUser = await ctx.prisma.user.findUnique({ where: { id: toUserId } });
+          if (!targetUser) {
+            throw new Error('Recipient user not found');
+          }
+          if (targetUser.role === 'director') {
+            // manager -> director allowed
+          } else if (targetUser.role === 'employee') {
+            const teamUserIds = await getManagerTeamUserIds(ctx, ctx.user!.id);
+            if (!teamUserIds.includes(toUserId)) {
+              throw new Error('Managers can only send notes to employees in their team');
+            }
+          } else {
+            throw new Error('Managers can send notes only to their team employees or directors');
+          }
+        }
+
+        if (toEmployeeId) {
+          const targetEmployee = await ctx.prisma.employee.findUnique({ where: { id: toEmployeeId } });
+          if (!targetEmployee || targetEmployee.managerId !== ctx.user!.id) {
+            throw new Error('Managers can only send notes to employees in their team');
+          }
+        }
+      }
+
+      const createdNote = await ctx.prisma.note.create({
         data: {
           message,
           fromUserId: ctx.user!.id,
@@ -1296,6 +1543,21 @@ export const resolvers = {
           isRead: false,
         },
       });
+
+      await ctx.prisma.accessLog.create({
+        data: {
+          userId: ctx.user!.id,
+          userEmail: ctx.user!.email,
+          action: 'SEND_NOTE',
+          details: stringifyAuditDetails({
+            toEmployeeId: toEmployeeId || null,
+            toUserId: toUserId || null,
+            toAll: Boolean(toAll),
+          }),
+        },
+      });
+
+      return createdNote;
     },
 
     markNoteAsRead: async (_: any, { id }: any, ctx: Context) => {
@@ -1368,52 +1630,131 @@ export const resolvers = {
 
     updateLeaveRequestStatus: async (_: any, { id, status, adminNote }: any, ctx: Context) => {
       requireAdmin(ctx);
+      const leaveReq = await ctx.prisma.leaveRequest.findUnique({
+        where: { id },
+        include: { employee: true },
+      });
+      if (!leaveReq) {
+        throw new Error('Leave request not found');
+      }
+
+      const requestedStatus = String(status || '').toLowerCase();
+      let normalizedStatus = requestedStatus;
+
+      const leaveStart = new Date(leaveReq.startDate);
+      const leaveEnd = new Date(leaveReq.endDate);
+      const leaveDays = Math.max(1, Math.ceil((leaveEnd.getTime() - leaveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const leaveType = String(leaveReq.type || 'annual').toLowerCase();
+      const specialLeaveTypes = new Set(['special', 'sabbatical', 'maternity', 'paternity', 'medical-extended']);
+      const requiresDirectorApproval = leaveDays > 5 || specialLeaveTypes.has(leaveType);
+
+      if (ctx.user!.role === 'manager' && requestedStatus === 'approved' && requiresDirectorApproval) {
+        normalizedStatus = 'pending_director';
+      }
+
+      const hasAdminNote = typeof adminNote === 'string';
+      const normalizedAdminNote = hasAdminNote ? String(adminNote).trim() : null;
+
       const updated = await ctx.prisma.leaveRequest.update({
         where: { id },
         data: {
-          status,
+          status: normalizedStatus,
+          ...(hasAdminNote ? { adminNote: normalizedAdminNote || null } : {}),
           updatedAt: new Date(),
         },
       });
+
+      const approverEmployee = await ctx.prisma.employee.findFirst({
+        where: {
+          OR: [{ userId: ctx.user!.id }, { email: ctx.user!.email }],
+        },
+      });
+      const approverName =
+        getSafeEmployeeName(approverEmployee?.name, ctx.user!.email, ctx.user!.id) || ctx.user!.email;
+      const employeeName =
+        leaveReq?.employee?.name || leaveReq?.employee?.email || `Employee #${leaveReq?.employeeId || 'unknown'}`;
+
       await ctx.prisma.accessLog.create({
         data: {
           userId: ctx.user!.id,
           userEmail: ctx.user!.email,
           action: 'UPDATE_LEAVE_REQUEST_STATUS',
-          details: `Updated leave request ${id} to ${status}`,
+          details: stringifyAuditDetails({
+            leaveRequestId: id,
+            employeeName,
+            updatedBy: approverName,
+            role: ctx.user!.role,
+            requestedStatus,
+            appliedStatus: normalizedStatus,
+            leaveDays,
+            leaveType,
+            directorApprovalRequired: requiresDirectorApproval,
+            adminNote: adminNote || null,
+          }),
         },
       });
 
-      // Create notification for employee
-      const leaveReq = await ctx.prisma.leaveRequest.findUnique({
-        where: { id },
-        include: { employee: true },
-      });
       if (
         leaveReq &&
         leaveReq.employee &&
-        ['approved', 'rejected'].includes(status) &&
+        ['approved', 'rejected', 'pending_director'].includes(normalizedStatus) &&
         leaveReq.employee.userId &&
         leaveReq.employee.email
       ) {
+        let employeeMessage = `Your leave request for ${employeeName} was ${normalizedStatus} by ${approverName}.`;
+        if (normalizedStatus === 'pending_director') {
+          employeeMessage = `Manager ${approverName} submitted your leave request for Director approval (${leaveType}, ${leaveDays} day${leaveDays === 1 ? '' : 's'}).`;
+        }
+
         await ctx.prisma.notification.create({
           data: {
             userId: leaveReq.employee.userId,
             userEmail: leaveReq.employee.email,
-            title: `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-            message: `Your leave request from ${leaveReq.startDate} to ${leaveReq.endDate} was ${status}. ${adminNote ? 'Note: ' + adminNote : ''}`,
+            title: `Leave Request ${normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}`,
+            message: `${employeeMessage} ${adminNote ? 'Note: ' + adminNote : ''}`.trim(),
             type: 'LEAVE',
             actionUrl: `/leaveRequests`,
-            metadata: { leaveRequestId: leaveReq.id, status },
+            metadata: { leaveRequestId: leaveReq.id, status: normalizedStatus, approverName, employeeName },
           },
         });
         // Send Slack alert if webhook is configured
         const slackWebhook = process.env.SLACK_WEBHOOK_URL;
         if (slackWebhook) {
-          const slackText = `Leave request for ${leaveReq.employee.email} (${leaveReq.startDate} to ${leaveReq.endDate}) was ${status}. ${adminNote ? 'Note: ' + adminNote : ''}`;
+          const slackText = `Leave request for ${employeeName} (${leaveReq.startDate} to ${leaveReq.endDate}) was ${normalizedStatus} by ${approverName}. ${adminNote ? 'Note: ' + adminNote : ''}`;
           await sendSlackMessage(slackWebhook, slackText);
         }
       }
+
+      // If a manager approves/rejects leave, notify all directors with manager + employee names.
+      if (ctx.user!.role === 'manager' && leaveReq && ['approved', 'rejected', 'pending_director'].includes(normalizedStatus)) {
+        const directors = await ctx.prisma.user.findMany({
+          where: { role: 'director', id: { not: ctx.user!.id } },
+          select: { id: true, email: true },
+        });
+
+        if (directors.length > 0) {
+          await ctx.prisma.notification.createMany({
+            data: directors.map((director) => ({
+              userId: director.id,
+              userEmail: director.email,
+              title: `Manager ${approverName} set leave request to ${normalizedStatus}`,
+              message: `${approverName} (${ctx.user!.email}) set leave for ${employeeName} to ${normalizedStatus} (${leaveType}, ${leaveDays} day${leaveDays === 1 ? '' : 's'}). ${adminNote ? `Note: ${adminNote}` : ''}`.trim(),
+              type: 'APPROVAL',
+              actionUrl: '/leaveRequests',
+              metadata: {
+                leaveRequestId: leaveReq.id,
+                status: normalizedStatus,
+                approverId: ctx.user!.id,
+                approverName,
+                employeeName,
+                leaveType,
+                leaveDays,
+              },
+            })),
+          });
+        }
+      }
+
       return updated;
     },
 
@@ -1465,59 +1806,92 @@ export const resolvers = {
       requireAuth(ctx);
       const { prisma, user } = ctx;
 
-      // Validate hierarchical permissions
       const senderRole = user!.role;
-      const recipientRole = input.recipientRole;
       let recipient: any = null;
+      let parentMsg: any = null;
+      let resolvedRecipientId: number | null = input.recipientId || null;
+      let resolvedRecipientRole: string | null = input.recipientRole || null;
+      const managerTeamUserIds =
+        senderRole === 'manager' ? await getManagerTeamUserIds(ctx, user!.id) : [];
 
-      // Generate conversation ID
-      let conversationId = '';
       if (input.replyToId) {
-        // Get conversation ID from parent message
-        const parentMsg = await prisma.message.findUnique({
+        parentMsg = await prisma.message.findUnique({
           where: { id: input.replyToId },
         });
         if (!parentMsg) {
           throw new Error('Reply target message not found');
         }
-        conversationId = parentMsg.conversationId;
-      } else if (input.recipientId) {
+
+        const canAccessParent =
+          parentMsg.senderId === user!.id ||
+          parentMsg.recipientId === user!.id ||
+          (parentMsg.recipientId === null && parentMsg.recipientRole === user!.role);
+        if (!canAccessParent) {
+          throw new Error('You cannot reply to this conversation');
+        }
+
+        if (!resolvedRecipientId && !resolvedRecipientRole) {
+          if (parentMsg.senderId !== user!.id) {
+            resolvedRecipientId = parentMsg.senderId;
+          } else if (parentMsg.recipientId) {
+            resolvedRecipientId = parentMsg.recipientId;
+          } else if (parentMsg.recipientRole) {
+            resolvedRecipientRole = parentMsg.recipientRole;
+          }
+        }
+      }
+
+      if (resolvedRecipientId) {
         recipient = await prisma.user.findUnique({
-          where: { id: input.recipientId },
+          where: { id: resolvedRecipientId },
         });
         if (!recipient) {
           throw new Error('Recipient not found');
         }
-
-        // Employees cannot message Directors directly.
-        if (senderRole === 'employee' && recipient.role === 'director') {
-          throw new Error(
-            'Employees cannot message Directors directly. Please contact your Manager or email the Director.',
-          );
-        }
-
-        // Direct message: sort IDs for consistent conversation ID
-        const ids = [user!.id, input.recipientId].sort();
-        conversationId = `dm_${ids[0]}_${ids[1]}`;
-      } else {
-        // Employees cannot broadcast directly to Directors.
-        if (senderRole === 'employee' && recipientRole === 'director') {
-          throw new Error(
-            'Employees cannot message Directors directly. Please contact your Manager or email the Director.',
-          );
-        }
-
-        // Broadcast message
-        conversationId = `broadcast_${user!.id}_${Date.now()}`;
+        resolvedRecipientRole = recipient.role;
       }
 
-      // Get recipient details if specified
-      let recipientEmail: string | null = null;
-      let resolvedRecipientRole: string | null = input.recipientRole || null;
+      // Messaging role policy:
+      // - Employee: direct to manager only
+      // - Manager: direct to team employees or directors only
+      // - Director: can direct/broadcast to anyone
+      if (senderRole === 'employee') {
+        if (!resolvedRecipientId || resolvedRecipientRole !== 'manager') {
+          throw new Error('Employees can send direct messages to Managers only.');
+        }
+      }
 
+      if (senderRole === 'manager') {
+        if (!resolvedRecipientId) {
+          throw new Error('Managers can send direct messages only. Select a team employee or a Director.');
+        }
+        if (resolvedRecipientRole === 'director') {
+          // allowed
+        } else if (resolvedRecipientRole === 'employee') {
+          const isTeamEmployee = managerTeamUserIds.includes(resolvedRecipientId);
+          if (!isTeamEmployee) {
+            throw new Error('Managers can message only employees in their own team.');
+          }
+        } else {
+          throw new Error('Managers can message team employees or Directors only.');
+        }
+      }
+
+      let conversationId = '';
+      if (parentMsg) {
+        conversationId = parentMsg.conversationId;
+      } else if (resolvedRecipientId) {
+        const ids = [user!.id, resolvedRecipientId].sort();
+        conversationId = `dm_${ids[0]}_${ids[1]}`;
+      } else if (resolvedRecipientRole) {
+        conversationId = `broadcast_${user!.id}_${Date.now()}`;
+      } else {
+        throw new Error('Please select a valid recipient');
+      }
+
+      let recipientEmail: string | null = null;
       if (recipient) {
         recipientEmail = recipient.email;
-        resolvedRecipientRole = recipient.role;
       }
 
       // Create message
@@ -1527,12 +1901,12 @@ export const resolvers = {
           senderId: user!.id,
           senderEmail: user!.email,
           senderRole: user!.role,
-          recipientId: input.recipientId || null,
+          recipientId: resolvedRecipientId,
           recipientEmail,
           recipientRole: resolvedRecipientRole,
           subject: input.subject || null,
           message: input.message,
-          messageType: input.recipientId ? 'direct' : input.replyToId ? 'reply' : 'broadcast',
+          messageType: resolvedRecipientId ? (input.replyToId ? 'reply' : 'direct') : 'broadcast',
           priority: input.priority || 'normal',
           replyToId: input.replyToId || null,
           isRead: false,
@@ -1540,24 +1914,24 @@ export const resolvers = {
       });
 
       // Create notification for recipient(s)
-      if (input.recipientId) {
+      if (resolvedRecipientId) {
         // Single recipient notification
         await prisma.notification.create({
           data: {
-            userId: input.recipientId,
+            userId: resolvedRecipientId,
             userEmail: recipientEmail!,
             title: `New message from ${user!.email}`,
             message: input.subject || input.message.substring(0, 100),
-            type: 'message',
+            type: 'MESSAGE',
             actionUrl: `/messages?conversation=${conversationId}`,
             metadata: { messageId: message.id, senderId: user!.id },
           },
         });
-      } else if (input.recipientRole) {
+      } else if (resolvedRecipientRole) {
         // Broadcast to role - create notifications for all users of that role
         const recipients = await prisma.user.findMany({
           where: {
-            role: input.recipientRole,
+            role: resolvedRecipientRole,
             id: { not: user!.id }, // Don't notify sender
           },
         });
@@ -1567,7 +1941,7 @@ export const resolvers = {
           userEmail: recipient.email,
           title: `Broadcast from ${user!.role}: ${user!.email}`,
           message: input.subject || input.message.substring(0, 100),
-          type: 'message',
+          type: 'MESSAGE',
           actionUrl: `/messages?conversation=${conversationId}`,
           metadata: { messageId: message.id, senderId: user!.id },
         }));
@@ -1580,7 +1954,12 @@ export const resolvers = {
           userId: user!.id,
           userEmail: user!.email,
           action: 'SEND_MESSAGE',
-          details: `Sent message to ${input.recipientId || input.recipientRole}`,
+          details: stringifyAuditDetails({
+            senderRole,
+            recipientId: resolvedRecipientId,
+            recipientRole: resolvedRecipientRole,
+            conversationId,
+          }),
         },
       });
 
@@ -1693,7 +2072,10 @@ export const resolvers = {
     // Create notification (Admin/Manager)
     createNotification: async (_: any, { input }: any, ctx: Context) => {
       requireManagerOrAbove(ctx);
-      const { prisma, user } = ctx;
+      const { prisma } = ctx;
+      const normalizedType = String(input.type || 'INFO')
+        .trim()
+        .toUpperCase();
 
       // Create notifications for recipients
       const notifications = [];
@@ -1714,7 +2096,7 @@ export const resolvers = {
             userEmail: recipient.email,
             title: input.title,
             message: input.message,
-            type: input.type,
+            type: normalizedType,
             linkTo: input.linkTo || null,
           },
         });
@@ -1735,7 +2117,7 @@ export const resolvers = {
               userEmail: recipient.email,
               title: input.title,
               message: input.message,
-              type: input.type,
+              type: normalizedType,
               linkTo: input.linkTo || null,
             },
           });

@@ -209,6 +209,7 @@ export const typeDefs = gql`
     reason: String!
     startDate: String!
     endDate: String!
+    type: String
     status: String!
     adminNote: String
     createdAt: String!
@@ -297,6 +298,7 @@ export const typeDefs = gql`
     reason: String!
     startDate: String!
     endDate: String!
+    type: String
   }
 
   input CreateNotificationInput {
@@ -351,7 +353,7 @@ export const typeDefs = gql`
     myConversations: [Conversation!]!
     messageStats: MessageStats!
 
-    notifications: [Notification!]!
+    notifications(type: String, isRead: Boolean): [Notification!]!
     unreadNotifications: [Notification!]!
     notificationCount: Int!
 
@@ -385,6 +387,7 @@ export const typeDefs = gql`
     email: String
     age: Int
     location: String
+    avatar: String
   }
 
   type Mutation {

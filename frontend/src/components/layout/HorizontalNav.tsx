@@ -25,10 +25,21 @@ const UNREAD_MESSAGE_COUNT_QUERY = `
   }
 `;
 
+const MY_PROFILE_MINI_QUERY = `
+  query MyProfileMini {
+    myProfile {
+      name
+      avatar
+    }
+  }
+`;
+
 export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogout }) => {
   const { user, accessToken } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   const isDirector = user?.role === "director";
   const isManager = user?.role === "manager";
@@ -59,6 +70,37 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
     return () => window.clearInterval(interval);
   }, [accessToken]);
 
+  useEffect(() => {
+    const fetchProfileMini = async () => {
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        const data = await graphqlRequest<{ myProfile: { name: string; avatar: string | null } }>(
+          MY_PROFILE_MINI_QUERY,
+          {},
+          accessToken,
+        );
+        setProfileAvatar(data.myProfile?.avatar || null);
+        setProfileName(data.myProfile?.name || null);
+      } catch (error) {
+        console.error("Failed to load profile mini info:", error);
+      }
+    };
+
+    const handleProfileUpdated = () => {
+      void fetchProfileMini();
+    };
+
+    void fetchProfileMini();
+    window.addEventListener("profile-updated", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
+  }, [accessToken]);
+
   const getPortalTitle = () => {
     if (isDirector) return "Director Portal";
     if (isManager) return "Manager Portal";
@@ -69,14 +111,6 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
     onNavigate(page);
     setDrawerOpen(false);
   };
-
-  const topNavItems: DrawerItem[] = [
-    { page: "dashboard", label: "Dashboard", visible: true },
-    { page: "employees", label: isManagerOrAbove ? "Employees" : "Team", visible: true },
-    { page: "messages", label: "Messages", visible: true, badge: unreadMessageCount },
-    { page: "reports", label: "Reports", visible: isManagerOrAbove },
-    { page: "settings", label: "Settings", visible: true },
-  ];
 
   const drawerMainItems: DrawerItem[] = [
     { page: "dashboard", label: "Dashboard", visible: true },
@@ -106,18 +140,30 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
     { page: "slackIntegration", label: "Slack Integration", visible: isDirector },
   ];
 
+  const initials = (profileName || user?.email || "U")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2);
+
   return (
     <>
       <div
         className="horizontal-nav-container"
         style={{
-          position: "sticky",
+          position: "fixed",
           top: 0,
-          zIndex: 1000,
+          left: 0,
+          right: 0,
+          zIndex: 1200,
           background: "linear-gradient(135deg, #0f4c81 0%, #1e3a8a 55%, #1f2a44 100%)",
           color: "#ffffff",
           borderBottom: "1px solid rgba(255,255,255,0.15)",
           boxShadow: "0 8px 24px rgba(15, 23, 42, 0.2)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
         }}
       >
         <div
@@ -148,6 +194,15 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 cursor: "pointer",
                 padding: 0,
                 flexShrink: 0,
+                transition: "all 0.25s ease",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.background = "rgba(255,255,255,0.28)";
+                event.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.background = "rgba(255,255,255,0.14)";
+                event.currentTarget.style.transform = "translateY(0)";
               }}
             >
               <span style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -171,6 +226,13 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 cursor: "pointer",
                 padding: 0,
                 minWidth: 0,
+                transition: "transform 0.2s ease",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.transform = "translateY(0)";
               }}
             >
               <img
@@ -193,77 +255,56 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
             </button>
           </div>
 
-          <nav className="horizontal-nav-center" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {topNavItems
-              .filter((item) => item.visible)
-              .map((item) => {
-                const active = currentPage === item.page;
-                return (
-                  <button
-                    key={item.page}
-                    type="button"
-                    onClick={() => onNavigate(item.page)}
-                    style={{
-                      border: "none",
-                      borderRadius: "999px",
-                      background: active ? "rgba(255,255,255,0.22)" : "transparent",
-                      color: "#ffffff",
-                      padding: "9px 14px",
-                      fontWeight: 700,
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    {item.label}
-                    {item.badge && item.badge > 0 ? (
-                      <span
-                        style={{
-                          minWidth: "18px",
-                          height: "18px",
-                          borderRadius: "9px",
-                          background: "#dc2626",
-                          color: "#ffffff",
-                          fontSize: "10px",
-                          fontWeight: 800,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "0 5px",
-                        }}
-                      >
-                        {item.badge > 9 ? "9+" : item.badge}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-          </nav>
-
           <div className="horizontal-nav-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div
-              className="user-email-badge"
+            <span
               style={{
                 background: "rgba(255,255,255,0.14)",
                 border: "1px solid rgba(255,255,255,0.2)",
                 padding: "8px 12px",
                 borderRadius: "999px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
                 fontSize: "12px",
+                fontWeight: 700,
+                textTransform: "capitalize",
               }}
             >
-              <span style={{ textTransform: "capitalize", fontWeight: 700 }}>{user?.role}</span>
-              <span style={{ opacity: 0.8 }}>|</span>
-              <span className="email-text" style={{ maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {user?.email}
-              </span>
-            </div>
+              {user?.role}
+            </span>
 
             <NotificationBell onNavigate={onNavigate} />
+
+            <button
+              type="button"
+              onClick={() => onNavigate("profileEdit")}
+              aria-label="Open profile"
+              style={{
+                width: "42px",
+                height: "42px",
+                borderRadius: "50%",
+                border: "1px solid rgba(255,255,255,0.35)",
+                background: "rgba(255,255,255,0.14)",
+                color: "#ffffff",
+                cursor: "pointer",
+                overflow: "hidden",
+                display: "grid",
+                placeItems: "center",
+                padding: 0,
+                transition: "all 0.25s ease",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.transform = "scale(1.04)";
+                event.currentTarget.style.background = "rgba(255,255,255,0.25)";
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.transform = "scale(1)";
+                event.currentTarget.style.background = "rgba(255,255,255,0.14)";
+              }}
+            >
+              {profileAvatar ? (
+                <img src={profileAvatar} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: "13px", fontWeight: 800 }}>{initials || "U"}</span>
+              )}
+            </button>
 
             <button
               type="button"
@@ -277,6 +318,13 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
                 fontSize: "13px",
                 fontWeight: 700,
                 cursor: "pointer",
+                transition: "all 0.25s ease",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.background = "rgba(255,255,255,0.26)";
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.background = "rgba(255,255,255,0.14)";
               }}
             >
               Logout
@@ -292,7 +340,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
             position: "fixed",
             inset: 0,
             background: "rgba(15, 23, 42, 0.45)",
-            zIndex: 1099,
+            zIndex: 1198,
           }}
         />
       )}
@@ -309,7 +357,7 @@ export const HorizontalNav: React.FC<Props> = ({ currentPage, onNavigate, onLogo
           background: "#ffffff",
           transform: drawerOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.25s ease",
-          zIndex: 1100,
+          zIndex: 1199,
           boxShadow: "8px 0 30px rgba(15, 23, 42, 0.25)",
           overflowY: "auto",
         }}
@@ -430,6 +478,19 @@ const DrawerSection: React.FC<DrawerSectionProps> = ({ title, items, currentPage
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(event) => {
+                if (!active) {
+                  event.currentTarget.style.background = "#eef2ff";
+                  event.currentTarget.style.transform = "translateX(2px)";
+                }
+              }}
+              onMouseLeave={(event) => {
+                if (!active) {
+                  event.currentTarget.style.background = "#f8fafc";
+                  event.currentTarget.style.transform = "translateX(0)";
+                }
               }}
             >
               <span>{item.label}</span>

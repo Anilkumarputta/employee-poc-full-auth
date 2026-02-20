@@ -112,8 +112,7 @@ export const MessagesPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isDirector = user?.role === "director";
-  const isManager = user?.role === "manager";
-  const canBroadcast = isDirector || isManager;
+  const canBroadcast = isDirector;
 
   useEffect(() => {
     if (!accessToken) {
@@ -199,7 +198,14 @@ export const MessagesPage: React.FC = () => {
     try {
       const data = await graphqlRequest<{ allUsers: User[] }>(ALL_USERS_QUERY, {}, accessToken);
       const filtered = (data.allUsers || []).filter((account) => account.id !== user?.id);
-      const recipients = user?.role === "employee" ? filtered.filter((account) => account.role === "manager") : filtered;
+      let recipients = filtered;
+
+      if (user?.role === "employee") {
+        recipients = filtered.filter((account) => account.role === "manager");
+      } else if (user?.role === "manager") {
+        recipients = filtered.filter((account) => account.role === "employee" || account.role === "director");
+      }
+
       setAllUsers(recipients);
     } catch (error) {
       console.error("Failed to load user directory:", error);

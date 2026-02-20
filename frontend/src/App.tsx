@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "./apolloClient";
 import { HorizontalNav } from "./components/layout/HorizontalNav";
@@ -34,6 +34,29 @@ function clearPersistedAuth() {
   removeStorageItem("accessToken");
   removeStorageItem("refreshToken");
   removeStorageItem("user");
+}
+
+const APP_PREFERENCES_UPDATED_EVENT = "app-preferences-updated";
+
+function applyUiPreferences() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const savedTheme = getStorageItem("theme");
+  const prefersDark =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const resolvedTheme =
+    savedTheme === "dark" || (savedTheme === "auto" && prefersDark) ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", resolvedTheme);
+  document.documentElement.style.colorScheme = resolvedTheme;
+
+  const savedLanguage = getStorageItem("language") || "en-US";
+  document.documentElement.lang = savedLanguage.toLowerCase().startsWith("en")
+    ? savedLanguage
+    : "en-US";
 }
 
 const EmployeesPage = React.lazy(() =>
@@ -104,7 +127,7 @@ const App: React.FC = () => {
   });
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const accessToken = getStorageItem("accessToken");
     const refreshToken = getStorageItem("refreshToken");
     const userStr = getStorageItem("user");
@@ -122,6 +145,22 @@ const App: React.FC = () => {
         clearPersistedAuth();
       }
     }
+  }, []);
+
+  useEffect(() => {
+    applyUiPreferences();
+
+    const handlePreferencesChanged = () => {
+      applyUiPreferences();
+    };
+
+    window.addEventListener(APP_PREFERENCES_UPDATED_EVENT, handlePreferencesChanged);
+    window.addEventListener("storage", handlePreferencesChanged);
+
+    return () => {
+      window.removeEventListener(APP_PREFERENCES_UPDATED_EVENT, handlePreferencesChanged);
+      window.removeEventListener("storage", handlePreferencesChanged);
+    };
   }, []);
 
   const handleAuthChange = (data: {
@@ -172,15 +211,15 @@ const App: React.FC = () => {
             {view === "forgot" && <ForgotPasswordPage goLogin={() => setView("login")} />}
           </div>
         ) : (
-          <div style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+          <div style={{ minHeight: "100vh", background: "var(--app-shell-bg, #f5f7fa)" }}>
             <HorizontalNav currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} />
-            <main style={{ padding: "0" }}>
+            <main style={{ padding: "0", paddingTop: "72px" }}>
               <Suspense fallback={<AppPageFallback />}>
                 {currentPage === "employees" && <EmployeesPage currentRole={auth.user.role} />}
                 {currentPage === "dashboard" && <DashboardPage onNavigate={setCurrentPage} />}
                 {currentPage === "notifications" && <NotificationsPage />}
                 {currentPage === "reports" && <ReportsPage />}
-                {currentPage === "profile" && <ProfilePage />}
+                {currentPage === "profile" && <ProfilePage onNavigate={setCurrentPage} />}
                 {currentPage === "profileEdit" && <ProfileEditPage />}
                 {currentPage === "preferences" && <PreferencesPage onBack={() => setCurrentPage("dashboard")} />}
                 {currentPage === "settings" && <SettingsPage />}
